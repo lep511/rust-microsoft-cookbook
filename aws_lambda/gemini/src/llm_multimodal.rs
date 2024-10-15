@@ -1,16 +1,13 @@
-use reqwest::blocking::{Client, Response};
+use std::{env, fs};
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use serde_json::Value;
-use std::env;
-use std::fs;
-use std::error::Error;
+use std::error::Error as envError;
 
-fn main() -> Result<(), Box<dyn Error>> {
+pub async fn invoke_mm_llm() -> Result<(), Box<dyn envError>> {
     let api_key = env::var("GEMINI_API_KEY")
         .expect("GEMINI_API_KEY environment variable not set.");
-    //let files = ["image_blog_post_creator1.jpeg"];
-    let files = ["pizza.jpeg"];
-    let client = Client::new();
+    let files = ["image_blog_post_creator1.jpeg"];
+    let client = reqwest::Client::new();
 
     for file_name in files.iter() {
         let file_bytes = fs::read(file_name)?;
@@ -24,12 +21,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         headers.insert("X-Goog-Upload-Header-Content-Type", HeaderValue::from_static("image/jpeg"));
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
 
-        let upload_response: Response = client.post(&upload_url)
+        let upload_response = client.post(&upload_url)
             .headers(headers)
             .body(file_bytes)
-            .send()?;
+            .send()
+            .await?;
 
-        let upload_response_text = upload_response.text()?;
+        let upload_response_text = upload_response.text().await?;
         println!("Upload Response: {}", upload_response_text);
 
         // Parse the response to get the file URI
@@ -39,9 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .ok_or("Failed to extract file URI")?;
 
         // Generate content
-        // let generation_url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={}", api_key);
-        // let generation_url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-002:generateContent?key={}", api_key);
-        let generation_url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b-exp-0924:generateContent?key={}", api_key);
+        let generation_url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={}", api_key);
         let generation_body = serde_json::json!({
             "contents": [
                 {
@@ -69,7 +65,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             ],
             "generationConfig": {
                 "temperature": 0.9,
-                "topK": 40,
+                "topK": 64,
                 "topP": 0.95,
                 "maxOutputTokens": 1024,
                 "responseMimeType": "text/plain"
@@ -79,13 +75,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         let response = client.post(&generation_url)
             .header(CONTENT_TYPE, "application/json")
             .json(&generation_body)
-            .send()?;
+            .send()
+            .await?;
 
-        let response_text = response.text()?;
+        let response_text = response.text().await?;
         //println!("Generation Response: {}", response_text);
-        let json: Value = serde_json::from_str(&response_text)?;
-
-        if let Some(text) = json["candidates"]
+               
+        let response_json: Value = serde_json::from_str(&response_text)?;
+    
+        if let Some(text) = response_json["candidates"]
             .get(0)
             .and_then(|candidate| candidate["content"]["parts"].get(0))
             .and_then(|part| part["text"].as_str())
@@ -94,6 +92,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         } else {
             println!("Text not generated");
         }
+    
     }
 
     Ok(())

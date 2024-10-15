@@ -1,5 +1,6 @@
 [package]
 name = "clap_lib"
+description = "Simple program to greet a person."
 version = "0.1.0"
 edition = "2021"
 

@@ -11,7 +11,7 @@ async fn get_response(api_token: &str) -> Result<Value, Box<dyn Error>> {
 
     let payload = json!({
         "input": {
-            "prompt": "A vibrant painting of a landscape with a dynamic blue sky filled with fluffy cumulus clouds and streaks of sunlight. Below, green grass sways in the wind, highlighted by the sun's rays.",
+            "prompt": "Against a black backdrop, a middle-aged Tongan woman twirls, her skin glowing and curly hair flowing. She wears an outfit resembling a whirlwind of marble and porcelain, illuminated by shard gleams, creating a dreamlike, fragmented yet fluid appearance.",
             "aspect_ratio": "1:1",
             "output_format": "png",
             "output_quality": 80,

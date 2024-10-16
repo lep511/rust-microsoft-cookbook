@@ -1,9 +1,11 @@
 mod llm_multimodal;
 mod llm_simple;
+mod llm_json;
 
 use lambda_http::{run, service_fn, tracing, Body, Error, Request, RequestExt, Response};
 use llm_simple::invoke_simple_llm;
 use llm_multimodal::invoke_mm_llm;
+use llm_json::invoke_json_llm;
 
 async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     // Extract some useful information from the request
@@ -14,12 +16,7 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     
     let message = format!("Prompt: {prompt}");
 
-    // match invoke_simple_llm().await {
-    //     Ok(_) => println!("LLM invocation successful"),
-    //     Err(e) => eprintln!("Error invoking LLM: {}", e),
-    // }
-
-    match invoke_mm_llm().await {
+    match invoke_json_llm().await {
         Ok(_) => println!("LLM invocation successful"),
         Err(e) => eprintln!("Error invoking LLM: {}", e),
     }

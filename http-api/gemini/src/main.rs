@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use reqwest::blocking::{Client, Response};
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use serde_json::Value;
@@ -7,7 +8,7 @@ use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let api_key = env::var("GEMINI_API_KEY")
-        .expect("GEMINI_API_KEY environment variable not set.");
+        .map_err(|_| anyhow!("GEMINI_API_KEY environment variable not set."))?;
     //let files = ["image_blog_post_creator1.jpeg"];
     let files = ["pizza.jpeg"];
     let client = Client::new();

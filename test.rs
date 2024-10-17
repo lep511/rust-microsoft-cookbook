@@ -1,3 +1,4 @@
+// Sample test
 fn function_1() -> Result(Success, Failure) {
     match operation_that_might_fail() {
         Ok(success) => success,

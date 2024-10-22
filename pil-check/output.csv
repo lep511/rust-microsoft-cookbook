@@ -1,0 +1,36 @@
+Card_Type,Card_Number,Expiry_Date,CVV,Country,Currency,Status
+Amex,######,05/2026,,,Success
+Amex,######,05/2026,,,Failure
+Argencard1,######,12/2026,,AR,ARS,Success
+Cabal1,######,03/2026,,AR,ARS,Success
+Cencosud1,6034932528973614,06/2026,,AR,ARS,Success
+China Union Pay,######,06/2026,,CN,USD,Success
+Discover,######,12/2026,,US,USD,Success
+Discover,######,12/2026,,US,USD,Success
+ELO1,6362970000457013,08/2026,,BR,BRL,Success
+Hipercard1,6062826786276634,09/2026,,BR,BRL,Success
+JCB,######,02/2026,123,JP,JPY,Success
+JCB,######,03/2026,,JP,JPY,Failure
+Mastercard,######,04/2026,,,Success
+Mastercard,######,12/2026,,,Invalid exp. date
+Mastercard,######,08/2026,,,Success
+Mastercard,######,09/2026,,,Success
+Naranja1,5895626746595650,11/2026,,AR,ARS,Success
+Nativa1,######,11/2026,,AR,ARS,Success
+Tarjeta Shopping1,6034883265619896,09/2026,,AR,ARS,Success
+Visa,######,02/2026,837,,Success
+Visa,######,04/2026,738,,Success
+Visa,######,02/2026,887,,Success
+Visa,######,01/2026,,ARS,EUR,USD,Failure
+Visa1,######,09/2026,,BR,BRL,Success
+Visa1,######,10/2026,,BR,BRL,Success
+Visa Debit Card,######,12/2026,837,,Success
+Visa Debit Card,######,01/2026,555,,Failure
+AMEX Credit Card,######,04/2026,,,Success
+ARGENCARD Credit Card,######,04/2026,,,Success
+CABAL Credit Card,######,04/2026,,,Success
+CENCOSUD Credit Card,6034930000000005,04/2026,,,Success
+MASTER Credit Card,######,04/2026,,,Success
+NARANJA Credit Card,5895620000000002,04/2026,,,Success
+VISA Credit Card,######,04/2026,,,Success
+VISA Debit Card,######,04/2026,,,Success

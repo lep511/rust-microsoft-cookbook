@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use std::path::PathBuf;
-use structopt::StructOpt;
+use clap::Parser;
 mod cli;
 mod tasks;
 
@@ -19,7 +19,7 @@ fn main() -> anyhow::Result<()> {
     let CommandLineArgs {
         action,
         journal_file,
-    } = CommandLineArgs::from_args();
+    } = CommandLineArgs::parse();
     
     // Unpack the journal file.
     let journal_file = journal_file

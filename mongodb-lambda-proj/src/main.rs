@@ -53,7 +53,7 @@ async fn main() -> mongodb::error::Result<()> {
     
     let doc = Restaurant {
         name: "Sea Stone New Age".to_string(),
-        cuisine: "Greek".to_string(),
+        cuisine: "Chicken-kiken".to_string(),
         address: adress,
         borough: "Manhattan".to_string(),
         comment: Some(file_contents), // Uncomment this line to see the error
@@ -62,5 +62,14 @@ async fn main() -> mongodb::error::Result<()> {
     let res = my_coll.insert_one(doc).await?;
     println!("Inserted a document with _id: {}", res.inserted_id);
 
+    // Get document by id
+    let filter = doc! { "_id": res.inserted_id };
+    let doc = my_coll.find_one(filter).await?;
+    if let Some(doc) = doc {
+        println!("Found a document: {:?}", doc.comment);
+    } else {
+        println!("Document not found");
+    }
+    
     Ok(())
 }

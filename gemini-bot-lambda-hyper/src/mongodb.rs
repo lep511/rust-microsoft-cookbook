@@ -30,21 +30,31 @@ pub async fn mongodb_connect(chat_userid: String) -> mongodb::error::Result<Stri
         .database("llm")
         .collection("coffe_shops");
 
-    let user_data = match guideline_bot() {
-        Ok(data) => data,
-        Err(e) => panic!("Error in load user data: {e}")
-    };
+    let result = my_coll.find_one(
+        doc! { "user_id": &chat_userid }
+    ).await?;
 
-    let doc = UserHistory {
-        user_id: chat_userid,
-        content: user_data.clone(),
-        order_state: None,
-    };
-
-    let res = my_coll.insert_one(doc).await?;
-    println!("Inserted a document with _id: {}", res.inserted_id);
-
-    Ok(user_data)
+    match result {
+        Some(doc) => {
+            println!("Found a document with _id: {}", doc.user_id);
+            return Ok(doc.content);
+        },
+        None => {
+            println!("No document found with _id: {}", chat_userid);
+            
+            let user_data = guideline_bot().expect("Failed to load user data");
+            let doc = UserHistory {
+                user_id: chat_userid,
+                content: user_data.clone(),
+                order_state: None,
+            };
+            
+            let res = my_coll.insert_one(doc).await?;
+            println!("Inserted a document with _id: {}", res.inserted_id);
+            
+            Ok(user_data)
+        }
+    }    
 }
 
 

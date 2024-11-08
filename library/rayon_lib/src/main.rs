@@ -1,31 +1,39 @@
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use std::fs::read_to_string;
-use std::str::Split;
+use rand::Rng;
+use rayon::prelude::*;
 
 fn main() {
-    // read a csv file to a string
-    let my_string = read_to_string("input.csv").unwrap();
+    
+    let mut rng = rand::thread_rng();
+    
+    {
+        let nums: Vec<i32> = (0..10000000).map(|_| rng.gen_range(1..=100)).collect();
+        let start = std::time::Instant::now();
+        // 1. For loop
+        let mut _nums_squared: Vec<i32> = Vec::new();
+        for num in nums {
+            _nums_squared.push(num * num * num);
+        }
+        println!("With for.. Took {:?}", start.elapsed());
+    }
+    {
+        let nums: Vec<i32> = (0..10000000).map(|_| rng.gen_range(1..=100)).collect();
+        let start = std::time::Instant::now();
+        // 2. Iterator
+        let _nums_squared: Vec<i32> = nums.iter()
+            .map(|&x| x * x * x)
+            .collect();
 
-    let my_vec: Vec<String> = my_string
-        .lines()
-        .filter(|x| *x != String::new())
-        .map(|x| x.to_string())
-        .collect();
-    println!("{my_vec:?}");
+        println!("With iter.. Took {:?}", start.elapsed());
+    }
+    {
+        let nums: Vec<i32> = (0..10000000).map(|_| rng.gen_range(1..=100)).collect();
+        let start = std::time::Instant::now();
+        // 2. Iterator
+        let _nums_squared: Vec<i32> = nums.par_iter()
+            .map(|&x| x * x * x)
+            .collect();
 
-    let my_vec: Vec<Vec<String>> = my_vec
-        .into_par_iter()
-        .map(|x| {
-            let x = x.split(",").map(|x| x.to_string()).collect::<Vec<String>>();
-            let res: Vec<String> = x
-                .into_par_iter()
-                .map(|_| "Hello world!".to_string())
-                .collect();
-            res
-        })
-        .collect();
+        println!("With Rayon.. Took {:?}", start.elapsed());
 
-    // this should now print a vec of vecs
-    // where every single value is the "Hello world!" string
-    // println!("{:?}", my_vec);
+    }
 }

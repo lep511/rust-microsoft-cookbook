@@ -65,7 +65,7 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
 
     let text_parts = llm_result.gemini_response.candidates[0].content.parts[0].text.clone();
 
-    let update_chat = format!("{}\nResponse {}\n\n{}", input_text, nc_count, text_parts);
+    let update_chat = format!("{}\nResponse {}\n\n{}\n", input_text, nc_count, text_parts);
     
     println!("{}", update_chat);
 

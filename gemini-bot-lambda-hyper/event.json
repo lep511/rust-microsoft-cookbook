@@ -24,7 +24,7 @@
 		"X-Forwarded-Proto": "https"
 	},
 	"queryStringParameters": {
-		"prompt": "I'll take a medium hot cappuccino with two sugars, to go."
+		"prompt": "I'll take a hot cappuccino to go."
 	},
 	"pathParameters": {
 		"proxy": "hello/world"

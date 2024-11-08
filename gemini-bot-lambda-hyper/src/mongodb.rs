@@ -52,7 +52,7 @@ pub async fn mongodb_connect(chat_userid: &str) -> mongodb::error::Result<MongoR
             Ok(mongo_response)
         },
         None => {
-            let user_data = String::from("Input 1");
+            let user_data = String::from("## Real Conversation\n");
 
             let doc = UserHistory {
                 user_id: chat_userid.to_string(),

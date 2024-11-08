@@ -36,8 +36,6 @@ pub struct Modifier {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LlmResponse {
     pub gemini_response: GeminiResponse,
-    pub chat_data: String,
-    pub chat_count: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -84,7 +82,7 @@ pub struct Content {
     pub parts: Vec<Part>,
 }
 
-pub async fn generate_content(prompt: &str, input_text: &str, nc_count: i32) -> Result<LlmResponse, Box<dyn std::error::Error>> {
+pub async fn generate_content(input_text: &str) -> Result<LlmResponse, Box<dyn std::error::Error>> {
     // Get API key from environment variable
     let api_key = env::var("GOOGLE_API_KEY")
         .expect("GOOGLE_API_KEY environment variable is not set");
@@ -104,8 +102,7 @@ pub async fn generate_content(prompt: &str, input_text: &str, nc_count: i32) -> 
         finished ordering items, summarizeOrder and then confirmOrder. Order type is always \"here_order\" \
         unless customer specifies to go (\"to_go_order\").".to_string();
    
-    let formated_prompt = format!("{}\n{}\nCustomer: {}", user_data, input_text, prompt);
-    let chat_history_data = format!("{}\nCustomer: {}", input_text, prompt);
+    let formated_prompt = format!("{}\n{}", user_data, input_text);
 
     // Create HTTPS client
     let https = HttpsConnector::new();
@@ -171,8 +168,6 @@ pub async fn generate_content(prompt: &str, input_text: &str, nc_count: i32) -> 
             println!("Total Token Count: {}", response_data.usage_metadata.total_token_count);
             let response_llm: LlmResponse = LlmResponse {
                 gemini_response: response_data,
-                chat_data: chat_history_data,
-                chat_count: nc_count,
             };
             Ok(response_llm)
         }

@@ -26,7 +26,7 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
         return Ok(resp)
     }
 
-    let user_id = "idm39403kd98".to_string();
+    let user_id = "idm2563kd98".to_string();
 
     let mongo_result: MongoResponse = match mongodb_connect(&user_id).await {
         Ok(mongo_result) => mongo_result,
@@ -41,10 +41,16 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
         }
     };
 
-    let input_text = mongo_result.user_data;
+    // let input_text = mongo_result.user_data;
     let nc_count = mongo_result.chat_count;
+    let input_text = format!(
+        "{}Input {}\nCustomer: {}",
+        mongo_result.user_data,
+        nc_count,
+        prompt
+    );
 
-    let llm_result: LlmResponse = match generate_content(&prompt, &input_text, nc_count).await {
+    let llm_result: LlmResponse = match generate_content(&input_text).await {
         Ok(llm_result) => llm_result,
         Err(e) => {
             let message = format!("Error generating content: {}", e);
@@ -58,9 +64,8 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     };
 
     let text_parts = llm_result.gemini_response.candidates[0].content.parts[0].text.clone();
-    let chat_history = llm_result.chat_data.clone();
 
-    let update_chat = format!("{}\nResponse {}\n{}", chat_history, nc_count, text_parts);
+    let update_chat = format!("{}\nResponse {}\n\n{}", input_text, nc_count, text_parts);
     
     println!("{}", update_chat);
 

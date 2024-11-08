@@ -412,8 +412,6 @@ Customer: How much is a cappuccino?
 }
 
 ==
-## Real Conversation
-Input 1 
   "#;
     
   Ok(rules_bot.to_string())

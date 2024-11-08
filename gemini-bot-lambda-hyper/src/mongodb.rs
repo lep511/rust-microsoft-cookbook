@@ -1,17 +1,23 @@
 use mongodb::{bson::doc, Client, Collection};
 use serde::{ Deserialize, Serialize };
 use crate::gemini::OrderState;
-use crate::bot::guideline_bot;
 use std::env;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UserHistory {
     pub user_id: String,
-    pub content: String,
+    pub chat_history: String,
+    pub chat_count: i32,
     pub order_state: Option<OrderState>,
 }
 
-pub async fn mongodb_connect(chat_userid: String) -> mongodb::error::Result<String> {
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MongoResponse {
+    pub user_data: String,
+    pub chat_count: i32
+}
+
+pub async fn mongodb_connect(chat_userid: String) -> mongodb::error::Result<MongoResponse> {
     let db_password = env::var("MONGODB_PASS")
         .expect("MONGODB_PASS environment variable not set.");
 
@@ -37,22 +43,29 @@ pub async fn mongodb_connect(chat_userid: String) -> mongodb::error::Result<Stri
     match result {
         Some(doc) => {
             println!("Found a document with _id: {}", doc.user_id);
-            return Ok(doc.content);
+            let mongo_response = MongoResponse {
+                user_data: doc.chat_history,
+                chat_count: doc.chat_count
+            };
+            Ok(mongo_response)
         },
         None => {
-            println!("No document found with _id: {}", chat_userid);
+            let user_data = String::from("Input 1");
             
-            let user_data = guideline_bot().expect("Failed to load user data");
-            let doc = UserHistory {
-                user_id: chat_userid,
-                content: user_data.clone(),
-                order_state: None,
+            // let doc = UserHistory {
+            //     user_id: chat_userid,
+            //     chat_history: user_data.clone(),
+            //     order_state: None,
+            // };
+            
+            // let res = my_coll.insert_one(doc).await?;
+            // println!("Inserted a document with _id: {}", res.inserted_id);
+            let mongo_response = MongoResponse {
+                user_data: user_data,
+                chat_count: 1
             };
-            
-            let res = my_coll.insert_one(doc).await?;
-            println!("Inserted a document with _id: {}", res.inserted_id);
-            
-            Ok(user_data)
+
+            Ok(mongo_response)
         }
     }    
 }

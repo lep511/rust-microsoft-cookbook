@@ -7,7 +7,7 @@ use lambda_http::http::StatusCode;
 // use serde::{Deserialize, Serialize};
 // use serde_json::json;
 use gemini::{ LlmResponse, OrderState, generate_content };
-use mongodb::{ MongoResponse, mongodb_connect };
+use mongodb::{ MongoResponse, mongodb_connect, mongodb_update };
 
 async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     // Extract some useful information from the request    
@@ -28,10 +28,10 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
 
     let user_id = "idm39403kd98".to_string();
 
-    let mongo_result: MongoResponse = match mongodb_connect(user_id).await {
+    let mongo_result: MongoResponse = match mongodb_connect(&user_id).await {
         Ok(mongo_result) => mongo_result,
         Err(e) => {
-            let message = format!("Error in MongoDB: {}", e);
+            let message = format!("Initial connection to MongoDB fails: {}", e);
             let resp = Response::builder()
                 .status(StatusCode::BAD_REQUEST)
                 .header("content-type", "text/html")
@@ -76,6 +76,21 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
             return Ok(resp)
         }
     };
+
+    let mongo_result: MongoResponse = match mongodb_update(&user_id, &update_chat, nc_count).await {
+        Ok(mongo_result) => mongo_result,
+        Err(e) => {
+            let message = format!("Error when updating data in MongoDB: {}", e);
+            let resp = Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .header("content-type", "text/html")
+                .body(message.into())
+                .map_err(Box::new)?;
+            return Ok(resp)
+        }
+    };
+
+    println!("Ok {:?}", mongo_result);
 
     let message = resp.response.ok_or("Response is missing")?;
     let resp = Response::builder()

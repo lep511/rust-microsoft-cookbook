@@ -1,7 +1,4 @@
-use hyper::{Client, Method};
-use hyper::Body as HyperBody;
-use hyper::Request as HyperRequest;
-use hyper_tls::HttpsConnector;
+use reqwest::{ Client, Body };
 use crate::bot::guideline_bot;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -87,6 +84,12 @@ pub async fn generate_content(input_text: &str) -> Result<LlmResponse, Box<dyn s
     let api_key = env::var("GOOGLE_API_KEY")
         .expect("GOOGLE_API_KEY environment variable is not set");
 
+    // Construct the URL with the API key
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key={}",
+        api_key
+    );
+
     // Get user data from bot file
     let user_data = guideline_bot().expect("Failed to load user data");
 
@@ -103,10 +106,6 @@ pub async fn generate_content(input_text: &str) -> Result<LlmResponse, Box<dyn s
         unless customer specifies to go (\"to_go_order\").".to_string();
    
     let formated_prompt = format!("{}\n{}", user_data, input_text);
-
-    // Create HTTPS client
-    let https = HttpsConnector::new();
-    let client = Client::builder().build::<_, HyperBody>(https);
 
     // Prepare the request body
     let request_body = json!({
@@ -129,26 +128,27 @@ pub async fn generate_content(input_text: &str) -> Result<LlmResponse, Box<dyn s
         }
     });
 
-    // Convert request body to JSON
-    let json_body = serde_json::to_string(&request_body)?;
+    let request_body = serde_json::to_string(&request_body)?;
+    let body: Body = Body::wrap(request_body);
 
-    // Build the request
-    let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key={}",
-        api_key
-    );
+    // Create a reqwest client
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;  
 
-    let request = HyperRequest::builder()
-        .method(Method::POST)
-        .uri(url)
+    // Send the POST request
+    let response = client
+        .post(&url)
         .header("Content-Type", "application/json")
-        .body(HyperBody::from(json_body))?;
-
-    // Send the request
-    let response = client.request(request).await?;
+        .body(body)
+        .send()
+        .await?;
 
     // Print status code
     println!("Status: {}", response.status());
+
+    // Print headers if needed
+    // println!("Headers: {:#?}", response.headers());
 
     if response.status().as_u16() > 299 {
         println!("Error: {}", response.status());
@@ -156,8 +156,7 @@ pub async fn generate_content(input_text: &str) -> Result<LlmResponse, Box<dyn s
     }
 
     // Read the response body
-    let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
-    let body_str = String::from_utf8(body_bytes.to_vec())?;
+    let body_str: String = response.text().await?;
 
     // Parse and print the response
     // println!("Response: {}", body_str);

@@ -24,7 +24,8 @@
 		"X-Forwarded-Proto": "https"
 	},
 	"queryStringParameters": {
-		"prompt": "Yes, two Cold Brew."
+		"prompt": "Yes, two Cold Brew.",
+		"user_id": "test2563kd98"
 	},
 	"pathParameters": {
 		"proxy": "hello/world"

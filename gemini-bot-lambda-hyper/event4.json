@@ -24,7 +24,8 @@
 		"X-Forwarded-Proto": "https"
 	},
 	"queryStringParameters": {
-		"prompt": "I'll have a double espresso, please."
+		"prompt": "I'll have a double espresso, please.",
+		"user_id": "test2563kd98"
 	},
 	"pathParameters": {
 		"proxy": "hello/world"

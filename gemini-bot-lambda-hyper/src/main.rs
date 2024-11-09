@@ -14,6 +14,11 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     let prompt = event
         .query_string_parameters_ref()
         .and_then(|params| params.first("prompt"))
+        .unwrap_or("test2563kd98");
+
+    let user_id = event
+        .query_string_parameters_ref()
+        .and_then(|params| params.first("user_id"))
         .unwrap_or("None");
 
     if prompt == "None" {
@@ -25,8 +30,6 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
             .map_err(Box::new)?;
         return Ok(resp)
     }
-
-    let user_id = "idm2563kd98".to_string();
 
     let mongo_result: MongoResponse = match mongodb_connect(&user_id).await {
         Ok(mongo_result) => mongo_result,

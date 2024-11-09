@@ -24,7 +24,8 @@
 		"X-Forwarded-Proto": "https"
 	},
 	"queryStringParameters": {
-		"prompt": "This is correct."
+		"prompt": "This is correct.",
+		"user_id": "test2563kd98"
 	},
 	"pathParameters": {
 		"proxy": "hello/world"

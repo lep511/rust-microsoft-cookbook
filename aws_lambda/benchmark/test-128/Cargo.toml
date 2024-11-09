@@ -1,0 +1,15 @@
+[package]
+name = "test-128"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lambda_http = "0.13.0"
+rand = "0.8.5"
+rayon = "1.10.0"
+
+tokio = { version = "1", features = ["macros"] }
+
+[package.metadata.lambda.deploy]
+memory = 2048                    # Function's memory
+timeout = 60                    # Function's execution timeout

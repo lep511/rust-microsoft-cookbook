@@ -1,84 +1,137 @@
-use reqwest::Client;
-use serde_json::json;
+use reqwest::{ Client, Body };
+use serde_json:: { json, Value };
 use std::error::Error;
 use std::env;
 use std::fs;
-use serde::Deserialize;
-use std::collections::HashMap;
-
-#[derive(Deserialize, Debug)]
-struct Response {
-    id: String,
-    texts: Vec<String>,
-    embeddings: Vec<Vec<f32>>,
-}
-
-// Function to calculate cosine similarity
-fn cosine_similarity(a: &Vec<f32>, b: &Vec<f32>) -> f32 {
-    let dot_product: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let magnitude_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
-    let magnitude_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-    dot_product / (magnitude_a * magnitude_b)
-}
+use base64::{Engine as _, engine::general_purpose};
+use std::io::Read;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let url = "https://api.cohere.com/v1/embed";
-    let token = env::var("COHERE_API_KEY")
-        .expect("COHERE_API_KEY environment variable not set.");
+    // Get COHERE key from environment variable
+    let api_key = env::var("COHERE_API_KEY")
+        .expect("COHERE_API_KEY environment variable is not set");
 
-    let mut texts = Vec::new();
+    let api_key = format!("bearer {}", api_key);
 
-    // List of file names
-    let file_names = vec!["text1.txt", "text2.txt", "text3.txt"];
+    let texts = vec![
+        "When are you open?",
+        "When do you close?",
+        "What are the hours?",
+        "Are you open on weekends?",
+        "Are you available on holidays?",
+        "How much is a burger?",
+        "What's the price of a meal?",
+        "How much for a few burgers?",
+        "Do you have a vegan option?",
+        "Do you have vegetarian?",
+        "Do you serve non-meat alternatives?",
+        "Do you have milkshakes?",
+        "Milkshake",
+        "Do you have desert?",
+        "Can I bring my child?",
+        "Are you kid friendly?",
+        "Do you have booster seats?",
+        "Do you do delivery?",
+        "Is there takeout?",
+        "Do you deliver?",
+        "Can I have it delivered?",
+        "Can you bring it to me?",
+        "Do you have space for a party?",
+        "Can you accommodate large groups?",
+        "Can I book a party here?"
+    ];
 
-    // Read contents of each file and add to the texts vector
-    for file_name in file_names {
-        let file_content = fs::read_to_string(file_name)?;
-        texts.extend(file_content.lines().map(|line| line.to_string()));
-    }
+    // embedding_types:
+    //     "float": Use this when you want to get back the default float embeddings.
+    //     "int8": Use this when you want to get back signed int8 embeddings.
+    //     "uint8": Use this when you want to get back unsigned int8 embeddings.
+    //     "binary": Use this when you want to get back signed binary embeddings.
+    //     "ubinary": Use this when you want to get back unsigned binary embeddings.
+    // truncate: NONE, START or END
 
-    let client = Client::new();
-    let response = client
-        .post(url)
-        .header("content-type", "application/json")
-        .header("Authorization", format!("BEARER {}", token))
-        .json(&json!({
-            "model": "embed-english-v3.0",
-            "texts": ["When are you open?", "Do you have a yogur?", "When do you close?", "What are the hours?", "Are you open on weekends?", "Are you available on holidays?", "How much is a burger?", "What\'s the price of a meal?", "How much for a few burgers?", "Do you have a vegan option?", "Do you have vegetarian?", "Do you serve non-meat alternatives?", "Do you have milkshakes?", "Milkshake", "Do you have desert?", "Can I bring my child?", "Are you kid friendly?", "Do you have booster seats?", "Do you do delivery?", "Is there takeout?", "Do you deliver?", "Can I have it delivered?", "Can you bring it to me?", "Do you have space for a party?", "Can you accommodate large groups?", "Can I book a party here?"],
+    let content = format!(
+        r#"{{
+            "model": "embed-english-light-v3.0",
+            "texts": {},
             "input_type": "classification",
-            "truncate": "NONE"
-        }))
+            "embedding_types": ["float"],
+            "truncate": "START"
+        }}"#, 
+        serde_json::to_string(&texts)?
+    );
+
+    let body = Body::wrap(content);
+
+        // Create a reqwest client
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;  
+
+    // Send the POST request
+    let response = client
+        .post("https://api.cohere.com/v2/embed")
+        .header("Authorization", &api_key)
+        .header("Content-Type", "application/json")
+        .body(body)
         .send()
         .await?;
 
-    let status = response.status();
-    println!("Status: {}", status);
+    let result: Value = response.json().await?;
+    // println!("{:#?}", result);
 
-    let body = response.text().await?;
-    let response: Response = serde_json::from_str(&body).expect("JSON was not well-formatted");
-
-    println!("Response id: {}", response.id);
-    //println!("First text: {:?}", response.texts[1]);
-    //println!("First embeddings: {:?}", response.embeddings[1]);
-
-    let first_embed = &response.embeddings[0];
-    let mut similarities: Vec<(f32, usize)> = response.embeddings.iter()
-        .enumerate()
-        .map(|(i, embed)| (cosine_similarity(embed, first_embed), i))
-        .collect();
+    // Extract and print only billed units and response type
+    if let Some(meta) = result.get("meta") {
+        if let Some(billed_units) = meta.get("billed_units") {
+            println!("Billed Units: {}", billed_units);
+        }
+    }
     
-    // Sort by similarity score in descending order
-    similarities.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
-
-    // Get top 3 similarities
-    let top_3 = &similarities[1..4];  // Skip the first (most similar to itself)
-
-    println!("Question: {}", response.texts[0]);
-
-    for (similarity, index) in top_3 {
-        println!("Similarity score: {}, Text: {}", similarity, response.texts[*index]);
+    if let Some(response_type) = result.get("response_type") {
+        println!("Response Type: {}", response_type);
     }
 
+    // Save formatted (pretty) JSON
+    let formatted_json = serde_json::to_string_pretty(&result)?;
+    fs::write("output.json", formatted_json)?;
+
+
+    // Read the JPG file into a buffer
+    let mut file = fs::File::open("image.jpeg")?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)?;
+    
+    // Convert to base64
+    let base64_string = general_purpose::STANDARD.encode(&buffer);
+    
+    // Add data URI prefix for HTML/web usage
+    let data_uri = format!("data:image/jpeg;base64,{}", base64_string);
+
+    // Create the request body
+    let body = json!({
+        "model": "embed-english-v3.0",
+        "input_type": "image",
+        "embedding_types": ["float"],
+        "images": [
+            data_uri
+        ]
+    });
+
+    // Send the POST request
+    let response = client
+        .post("https://api.cohere.com/v2/embed")
+        .header("Authorization", &api_key)
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await?;
+
+    let result: Value = response.json().await?;
+
+    // Save formatted (pretty) JSON
+    let formatted_json = serde_json::to_string_pretty(&result)?;
+    fs::write("output_image.json", formatted_json)?;
+
     Ok(())
+
 }

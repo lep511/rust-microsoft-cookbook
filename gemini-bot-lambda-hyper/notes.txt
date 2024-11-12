@@ -1,0 +1,13 @@
+Gemini 1.5 Flash-8B is now production-ready
+
+This smaller, faster, and more affordable model is optimized for speed, efficiency, and high-volume tasks:
+
+•	Nearly matches 1.5 Flash performance: Achieves comparable performance on many benchmarks.
+
+•	50% lower cost: Build more for less.
+
+•	2x higher rate limits: Now up to 4,000 requests per minute.
+
+•	Lower latency on small prompts: Faster responses for quicker development.
+
+•	Ideal for: Chat, transcription, translation, long-context summarization, and high-volume multimodal use cases.

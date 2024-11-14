@@ -8,8 +8,8 @@ use aws_sdk_bedrockruntime::{
 };
 
 // Set the model ID, e.g., Claude 3 Haiku.
-const MODEL_ID: &str = "amazon.titan-text-premier-v1:0";
-const CLAUDE_REGION: &str = "us-east-1";
+const MODEL_ID: &str = "anthropic.claude-3-5-sonnet-20241022-v2:0";
+const CLAUDE_REGION: &str = "us-west-2";
 
 #[derive(Debug)]
 struct BedrockConverseError(String);
@@ -72,7 +72,6 @@ async fn call_bedrock(user_message: &str) -> Result<String, BedrockConverseError
     match response {
         Ok(output) => {
             let text = get_converse_output_text(output)?;
-            println!("{}", &text);
             Ok(text)
         }
         Err(e) => Err(e
@@ -92,7 +91,7 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
 
     let msg = match call_bedrock(&message).await {
         Ok(message) => message,
-        Err(_) => "Error calling bedrock".to_string(),
+        Err(e) => format!("Error calling bedrock. {}", e)
     };
 
     let resp_text = format!("{:?}" ,msg);

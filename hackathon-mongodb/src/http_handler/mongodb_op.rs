@@ -29,35 +29,55 @@ where
     Ok(reader.lines())
 }
 
-pub async fn insert_documents(uri: String, db_name: &str, collection_name: &str) -> mongodb::error::Result<()> {
+pub async fn manage_mongodb(uri: String, action: &str, db_name: &str, collection_name: &str) -> mongodb::error::Result<()> {
 
-    let mut restaurants = Vec::new();
+    match action {
+        "insert" => {
+            let mut restaurants = Vec::new();
 
-    if let Ok(lines) = read_lines("restaurantes.json") {
-        for line in lines {
-            match line {
-                Ok(json_str) => {
-                    match serde_json::from_str::<Restaurant>(&json_str) {
-                        Ok(restaurant) => restaurants.push(restaurant),
-                        Err(e) => eprintln!("Failed to parse JSON: {}", e),
+            if let Ok(lines) = read_lines("restaurantes.json") {
+                for line in lines {
+                    match line {
+                        Ok(json_str) => {
+                            match serde_json::from_str::<Restaurant>(&json_str) {
+                                Ok(restaurant) => restaurants.push(restaurant),
+                                Err(e) => eprintln!("Failed to parse JSON: {}", e),
+                            }
+                        }
+                        Err(e) => eprintln!("Failed to read line: {}", e),
                     }
                 }
-                Err(e) => eprintln!("Failed to read line: {}", e),
+            } else {
+                eprintln!("Failed to read file.");
             }
+        
+            let client = Client::with_uri_str(uri).await?;
+        
+            let my_coll: Collection<Restaurant> = client
+                .database(db_name)
+                .collection(collection_name);
+        
+            let insert_many_result = my_coll.insert_many(&restaurants).await?;   
+            println!("Total of documents inserted: {}", insert_many_result.inserted_ids.len());
+
+            Ok(())
         }
-    } else {
-        eprintln!("Failed to read file.");
+        "find" => {
+            let client = Client::with_uri_str(uri).await?;
+
+            let my_coll: Collection<Restaurant> = client
+                .database(db_name)
+                .collection(collection_name);
+
+            let result = my_coll.find_one(
+                doc! { "name": "Wendy'S" }
+            ).await?;
+            
+            println!("{:#?}", result);
+
+            Ok(())
+        }
+        _ => Ok(()),
     }
-
-    let client = Client::with_uri_str(uri).await?;
-
-    let my_coll: Collection<Restaurant> = client
-        .database(db_name)
-        .collection(collection_name);
-
-    let insert_many_result = my_coll.insert_many(&restaurants).await?;   
-    println!("Total of documents inserted: {}", insert_many_result.inserted_ids.len());
-
-    Ok(())
     
 }

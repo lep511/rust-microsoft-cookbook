@@ -24,7 +24,7 @@
 		"X-Forwarded-Proto": "https"
 	},
 	"queryStringParameters": {
-		"raction": "max tot",
+		"action": "find",
 		"user_id": "test2563kd98"
 	},
 	"pathParameters": {

@@ -38,12 +38,13 @@ impl From<ExecutionError> for Diagnostic {
     }
 }
 
-fn parse_credentials(secret: &str) -> Result<Credentials, serde_json::Error> {
-    serde_json::from_str(secret)
-}
+pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
+    let action = event
+        .query_string_parameters_ref()
+        .and_then(|params| params.first("action"))
+        .unwrap_or("no_action");
 
-async fn get_secret() -> Result<Option<String>, secretsmanager::Error> {
-    let secret_name = "mongodb/Cluster0";
+    let secret_name = "MongoDBCredentials";
 
     let config = aws_config::load_from_env().await;
     let client = secretsmanager::Client::new(&config);
@@ -53,45 +54,40 @@ async fn get_secret() -> Result<Option<String>, secretsmanager::Error> {
         .secret_id(secret_name)
         .send()
         .await?;
-
-    Ok(response.secret_string().map(|s| s.to_string()))
-}
-
-pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
-    let who = event
-        .query_string_parameters_ref()
-        .and_then(|params| params.first("name"))
-        .unwrap_or("world");
     
-    let uri: String = match get_secret().await {
-        Ok(Some(secret_string)) => {
-            match parse_credentials(&secret_string) {
-                Ok(credentials) => {
-                    format!(
-                        "mongodb+srv://{}:{}@cluster0.tf9ci.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
-                        credentials.username,
-                        credentials.password
-                    )
-                }
-                Err(e) => {
-                    let message_error = format!("Error parsing credentials: {}", e);
-                    return Err(ExecutionError::Unexpected(message_error).into())
-                }
-            }
+    let secret_string = response.secret_string().unwrap();
+    let credentials: Credentials = serde_json::from_str(secret_string).unwrap();         
+                        
+    let uri: String = format!(
+        "mongodb+srv://{}:{}@cluster0.tf9ci.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+        credentials.username,
+        credentials.password
+    );
+
+    let database = "sample_restaurants";
+    let collection = "restaurants";
+
+    match action {
+        "insert" => {
+            let _ = insert_documents(uri, database, collection).await;
         }
-        Ok(None) => return Err(ExecutionError::Unexpected("No credentials found".to_string()).into()),
-        Err(e) => {
-            let message_error = format!("Error getting secret: {}", e);
-            return Err(ExecutionError::ResourceNotFoundException(message_error).into())
+        "no_action" => {
+            return Ok(Response::builder()
+                .status(404)
+                .header("content-type", "text/html")
+                .body("No action specified".into())
+                .map_err(Box::new)?);
         }
-    };
+        _ => {
+            return Ok(Response::builder()
+                .status(400)
+                .header("content-type", "text/html")
+                .body(format!("Bad action: {}", action).into())
+                .map_err(Box::new)?);
+        } 
+    }
 
-    let database = "bedrock";
-    let collection = "agenda";
-    
-    let _ = insert_documents(uri, database, collection).await;
-    
-    let message = "Ok".to_string();
+    let message = format!("Action processed successfully: {}", action);
 
     let resp = Response::builder()
         .status(200)

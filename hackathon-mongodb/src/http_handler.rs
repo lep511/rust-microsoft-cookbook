@@ -91,10 +91,21 @@ async fn get_mongouri(secret_name: &str) -> Result<String, secretsmanager::Error
 ///   - 400: Invalid action specified
 ///   - 403: Get URI error (Secret Manager error, or other)
 ///   - 404: No action specified
+///   - 405: No ENV variables have been set
 ///   - 500: MongoDB connection or operation error
 ///
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
-    let secret_name = env::var("MONGODB_SECRET_NAME").expect("MONGODB_SECRET_NAME environment variable not set.");
+    let secret_name = match env::var("MONGODB_SECRET_NAME") {
+        Ok(value) => value,
+        Err(_) => {
+            let resp = Response::builder()
+                .status(405)
+                .header("content-type", "text/html")
+                .body("No environment variable MONGODB_SECRET_NAME have been set".into())
+                .map_err(Box::new)?;
+            return Ok(resp)
+        }
+    };
     let action = event
         .query_string_parameters_ref()
         .and_then(|params| params.first("action"))

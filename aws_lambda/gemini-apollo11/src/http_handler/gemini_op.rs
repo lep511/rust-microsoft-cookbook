@@ -6,6 +6,12 @@ use std::fs;
 use std::env;
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct CachedContents {
+    #[serde(rename = "cachedContents")]
+    cached_contents: Option<Vec<CacheResponse>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CacheResponse {
     pub name: String,
     pub model: String,
@@ -27,6 +33,44 @@ pub struct UsageMetadata {
     pub total_token_count: i64,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LlmResponse {
+    pub gemini_response: GeminiResponse,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GeminiResponse {
+    pub candidates: Vec<Candidate>,
+    #[serde(rename = "usageMetadata")]
+    pub usage_metadata: UsageMetadata,
+    #[serde(rename = "modelVersion")]
+    pub model_version: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Candidate {
+    pub content: Content,
+    #[serde(rename = "finishReason")]
+    pub finish_reason: String,
+    pub index: Option<i32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SafetyRating {
+    pub category: String,
+    pub probability: String,
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Part {
+    pub text: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Content {
+    pub role: String,
+    pub parts: Vec<Part>,
+}
+
 fn read_and_encode(file_path: &str) -> Result<String, Box<dyn std::error::Error>> {
     // Read the file contents
     let contents = fs::read(file_path)?;
@@ -37,18 +81,73 @@ fn read_and_encode(file_path: &str) -> Result<String, Box<dyn std::error::Error>
     Ok(base64_string)
 }
 
-async fn cached_contents(base64_data: &str) -> Result<CacheResponse, Box<dyn std::error::Error>> {
+fn get_matching_name(response: &CachedContents) -> Option<String> {
+    if let Some(contents) = &response.cached_contents {
+        for content in contents {
+            if content.display_name == "Transcript Analysis" {
+                return Some(content.name.clone());
+            }
+        }
+    }
+    None
+}
+
+async fn cached_contents() -> Result<String, Box<dyn std::error::Error>> {
     // Get API key from environment variable
     let api_key = env::var("GOOGLE_API_KEY")
         .expect("GOOGLE_API_KEY environment variable is not set");
 
+    // Create a reqwest client
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
+
+    // Construct the URL with the API key for check cache list
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/cachedContents?key={}",
+        api_key
+    ); 
+    
+    let response = client
+        .get(url)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let body_str = response.text().await?;
+        let response: CachedContents = serde_json::from_str(&body_str).unwrap();
+        let cache_name = get_matching_name(&response);
+        match cache_name {
+            Some(cache_name) => {
+                println!("Found matching content name: {}", cache_name);
+                return Ok(cache_name);
+            },
+            None => {
+                println!("No cache found");
+            }
+        }
+
+    } else {
+        println!("Error list cache: {}", response.status());
+    }
+    
     let gemini_model = "models/gemini-1.5-flash-001".to_string();
 
-    // Construct the URL with the API key
+    // Construct the URL with the API key for save cache
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/cachedContents?key={}",
         api_key
     );
+
+    let cache_file = "a11.txt";
+
+    let file_content_b64 = match read_and_encode(cache_file) {
+        Ok(encoded) => encoded,
+        Err(e) => {
+            println!("[ERROR] Error convert to base64: {}", e);
+            String::from("No data.")
+        }
+    };
 
     // Prepare the request body
     let request_body = json!({
@@ -59,7 +158,7 @@ async fn cached_contents(base64_data: &str) -> Result<CacheResponse, Box<dyn std
                     {
                         "inline_data": {
                             "mime_type": "text/plain",
-                            "data": base64_data
+                            "data": file_content_b64
                         }
                     }
                 ],
@@ -73,7 +172,77 @@ async fn cached_contents(base64_data: &str) -> Result<CacheResponse, Box<dyn std
                 }
             ]
         },
-        "ttl": "600s"
+        "ttl": "600s",
+        "displayName": "Transcript Analysis"
+    });
+
+    let request_body = serde_json::to_string(&request_body)?;
+    let body: Body = Body::wrap(request_body);
+
+    // Send the POST request
+    let response = client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .body(body)
+        .send()
+        .await?;
+
+    // Print status code
+    println!("Status: {}", response.status());
+
+    // Print headers if needed
+    // println!("Headers: {:#?}", response.headers());
+
+    if response.status().as_u16() > 299 {
+        println!("Error: {}", response.status());
+        return Err("Error in Gemini API".into());
+    }
+
+    // Read the response body
+    let body_str: String = response.text().await?;
+
+    // Parse and print the response
+    println!("Response: {}", body_str);
+    
+    let cache_response: CacheResponse = serde_json::from_str(&body_str)?;
+    let cache_name = cache_response.name.clone();
+    
+    Ok(cache_name)
+}
+
+pub async fn get_gemini_response() -> Result<LlmResponse, Box<dyn std::error::Error>> {
+    // Get API key from environment variable
+    let api_key = env::var("GOOGLE_API_KEY")
+        .expect("GOOGLE_API_KEY environment variable is not set");
+
+    // Construct the URL with the API key
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key={}",
+        api_key
+    );
+
+    let cache_response: String = cached_contents().await?;
+    println!("[INFO] Gemini cache name: {}", cache_response);
+
+    // Prepare the request body
+    let request_body = json!({
+        "contents": [{
+            "parts": [{"text": "Cual es la capital de Paris"}]
+        }],
+        "systemInstruction": {
+            "role": "user",
+            "parts": [
+                {
+                    "text": "Tu eres un asistente persoanal."
+                }
+            ]},
+            "generationConfig": {
+            "temperature": 1,
+            "topK": 40,
+            "topP": 0.95,
+            "maxOutputTokens": 8192,
+            "responseMimeType": "application/json"
+        }
     });
 
     let request_body = serde_json::to_string(&request_body)?;
@@ -107,28 +276,17 @@ async fn cached_contents(base64_data: &str) -> Result<CacheResponse, Box<dyn std
     let body_str: String = response.text().await?;
 
     // Parse and print the response
-    println!("Response: {}", body_str);
-    
-    let cache_response: CacheResponse = serde_json::from_str(&body_str)?;
-    
-    Ok(cache_response)
-}
+    // println!("Response: {}", body_str);
 
-pub async fn get_gemini_response(file_cache_path: &str) {
-    let file_content_b64 = match read_and_encode(file_cache_path) {
-        Ok(encoded) => encoded,
-        Err(e) => {
-            println!("[ERROR] Error convert to base64: {}", e);
-            String::from("No data.")
+    match serde_json::from_str::<GeminiResponse>(&body_str) {
+        Ok(response_data) => {
+            println!("Model Version: {}", response_data.model_version);
+            println!("Total Token Count: {}", response_data.usage_metadata.total_token_count);
+            let response_llm: LlmResponse = LlmResponse {
+                gemini_response: response_data,
+            };
+            Ok(response_llm)
         }
-    };
-
-    let cache_response: CacheResponse = match cached_contents(&file_content_b64).await {
-        Ok(response) => response,
-        Err(e) => {
-            println!("[ERROR] Error in Gemini API: {}", e);
-            return;
-        }
-    };
-    println!("[INFO] Gemini API Response: {:?}", cache_response);
+        Err(e) => Err(Box::new(e)),
+    }
 }

@@ -210,7 +210,7 @@ async fn cached_contents() -> Result<String, Box<dyn std::error::Error>> {
     Ok(cache_name)
 }
 
-pub async fn get_gemini_response() -> Result<LlmResponse, Box<dyn std::error::Error>> {
+pub async fn get_gemini_response(prompt: &str) -> Result<LlmResponse, Box<dyn std::error::Error>> {
     // Get API key from environment variable
     let api_key = env::var("GOOGLE_API_KEY")
         .expect("GOOGLE_API_KEY environment variable is not set");
@@ -227,7 +227,7 @@ pub async fn get_gemini_response() -> Result<LlmResponse, Box<dyn std::error::Er
     // Prepare the request body
     let request_body = json!({
         "contents": [{
-            "parts": [{"text": "Please summarize this transcript"}],
+            "parts": [{"text": prompt}],
             "role": "user"
         }],
         "cachedContent": cache_name

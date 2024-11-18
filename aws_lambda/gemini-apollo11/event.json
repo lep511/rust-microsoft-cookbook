@@ -24,7 +24,7 @@
 		"X-Forwarded-Proto": "https"
 	},
 	"queryStringParameters": {
-		"prompt": "I'll take a hot cappuccino to go.",
+		"prompt": "Please summarize this transcript.",
 		"user_id": "test2563kd98"
 	},
 	"pathParameters": {

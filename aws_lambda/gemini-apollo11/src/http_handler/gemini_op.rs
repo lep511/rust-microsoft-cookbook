@@ -221,28 +221,16 @@ pub async fn get_gemini_response() -> Result<LlmResponse, Box<dyn std::error::Er
         api_key
     );
 
-    let cache_response: String = cached_contents().await?;
-    println!("[INFO] Gemini cache name: {}", cache_response);
+    let cache_name: String = cached_contents().await?;
+    println!("[INFO] Gemini cache name: {}", cache_name);
 
     // Prepare the request body
     let request_body = json!({
         "contents": [{
-            "parts": [{"text": "Cual es la capital de Paris"}]
+            "parts": [{"text": "Please summarize this transcript"}],
+            "role": "user"
         }],
-        "systemInstruction": {
-            "role": "user",
-            "parts": [
-                {
-                    "text": "Tu eres un asistente persoanal."
-                }
-            ]},
-            "generationConfig": {
-            "temperature": 1,
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 8192,
-            "responseMimeType": "application/json"
-        }
+        "cachedContent": cache_name
     });
 
     let request_body = serde_json::to_string(&request_body)?;
@@ -276,7 +264,7 @@ pub async fn get_gemini_response() -> Result<LlmResponse, Box<dyn std::error::Er
     let body_str: String = response.text().await?;
 
     // Parse and print the response
-    // println!("Response: {}", body_str);
+    println!("Response: {}", body_str);
 
     match serde_json::from_str::<GeminiResponse>(&body_str) {
         Ok(response_data) => {

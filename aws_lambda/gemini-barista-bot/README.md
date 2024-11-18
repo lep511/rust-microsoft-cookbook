@@ -1,6 +1,6 @@
 # Introduction
 
-gemini-apollo11 is a Rust project that implements an AWS Lambda function in Rust.
+gemini-barista-bot is a Rust project that implements an AWS Lambda function in Rust.
 
 ## Prerequisites
 

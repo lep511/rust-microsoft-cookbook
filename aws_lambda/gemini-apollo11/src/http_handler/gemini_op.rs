@@ -240,7 +240,7 @@ pub async fn get_gemini_response(prompt: &str) -> Result<LlmResponse, Box<dyn st
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;  
-
+    
     // Send the POST request
     let response = client
         .post(&url)

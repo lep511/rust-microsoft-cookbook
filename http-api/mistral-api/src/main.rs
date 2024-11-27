@@ -86,7 +86,7 @@ fn retrieve_payment_date(transaction_id: &str) -> Result<String, Box<dyn Error>>
         Some(record) => {
             payment_date = String::from(&record.payment_date);
         }
-        None => println!("Transaction not found")
+        None => {}
     }
     
     Ok(payment_date)
@@ -161,7 +161,10 @@ async fn generate_content(messages: serde_json::Value, tools: serde_json::Value)
 async fn main() {
 
     // let question = "What's the status of my transaction T1001?";
-    let question = "Who is the best French painter? Answer in one short sentence.";
+    // let question = "What's the date of my transaction T1001?";
+    let question = "What's the date of my transaction T1002?";
+    // let question = "What's the status of my transaction T8589?";
+    // let question = "Who is the best French painter? Answer in one short sentence.";
    
     let messages: serde_json::Value = json!([
         {
@@ -270,10 +273,16 @@ async fn main() {
             Err(e) => eprintln!("Error sending request: {}", e),
         }
     } else if function_name == "retrieve_payment_date" {
+        let date_payment = retrieve_payment_date(&transaction_id).unwrap();
+        println!("Date payment: {}", date_payment);
         let messages: serde_json::Value = json!([
             {
                 "role": "user",
-                "content": "Who is the best French painter? Answer in one short sentence."
+                "content": question
+            },
+            {
+                "role": "system",
+                "content": format!("The date of the transaction {} is {}.", transaction_id, date_payment)
             }
         ]);
 

@@ -64,16 +64,47 @@ struct Usage {
     completion_tokens: i32,
 }
 
-async fn read_csv(file_path: &str) -> Result<Vec<CsvData>, Box<dyn Error>> {
+fn read_csv_data() -> Result<Vec<CsvData>, Box<dyn Error>> {
+    let file_path = "data.csv";
     let mut rdr = ReaderBuilder::new().from_path(file_path)?;
-    let mut data = Vec::new();
+    let mut data_csv = Vec::new();
 
     for result in rdr.deserialize() {
         let record: CsvData = result?;
-        data.push(record);
+        data_csv.push(record);
     }
 
-    Ok(data)
+    Ok(data_csv)
+}
+
+fn retrieve_payment_date(transaction_id: &str) -> Result<String, Box<dyn Error>> {
+    let data_csv = read_csv_data()?;
+    let mut payment_date = String::from("Transaction not found");
+    let result = data_csv.iter().find(|record| record.transaction_id == transaction_id);
+    
+    match result {
+        Some(record) => {
+            payment_date = String::from(&record.payment_date);
+        }
+        None => println!("Transaction not found")
+    }
+    
+    Ok(payment_date)
+}
+
+fn retrieve_payment_status(transaction_id: &str) -> Result<String, Box<dyn Error>> {
+    let data_csv = read_csv_data()?;
+    let mut status_payment = String::from("Transaction not found");
+    let result = data_csv.iter().find(|record| record.transaction_id == transaction_id);
+
+    match result {
+        Some(record) => {
+            status_payment = String::from(&record.payment_status);
+        }
+        None => println!("Transaction not found")
+    }
+
+    Ok(status_payment)
 }
 
 async fn generate_content(messages: serde_json::Value, tools: serde_json::Value) -> Result<ChatResponse, Box<dyn Error>> {
@@ -128,17 +159,14 @@ async fn generate_content(messages: serde_json::Value, tools: serde_json::Value)
 
 #[tokio::main]
 async fn main() {
-    let data_csv = read_csv("data.csv").await.map_err(|e| {
-        eprintln!("Error reading CSV: {}", e);
-        e
-    });
-   
-    // println!("Data from CSV: {:?}", data_csv);
 
+    // let question = "What's the status of my transaction T1001?";
+    let question = "Who is the best French painter? Answer in one short sentence.";
+   
     let messages: serde_json::Value = json!([
         {
             "role": "user",
-            "content": "What's the status of my transaction T1001?"
+            "content": question
         }
     ]);
 
@@ -179,6 +207,9 @@ async fn main() {
         }
     ]);
 
+    let mut function_name = String::from("none_select");
+    let mut transaction_id = String::from("none_select");
+
     match generate_content(messages, tools).await {
         Ok(response) => {
             if let Some(first_choice) = response.choices.first() {
@@ -187,8 +218,14 @@ async fn main() {
                 };
                 if let Some(calls) = &first_choice.message.tool_calls {
                     if let Some(first_call) = calls.first() {
-                        let function_name = &first_call.function.name;
-                        let function_arguments = &first_call.function.arguments;
+                        let function_arguments = first_call.function.arguments.clone();
+                        transaction_id = function_arguments
+                            .split("\"transaction_id\": \"")
+                            .nth(1)
+                            .and_then(|s| s.split("\"").next())
+                            .unwrap_or_default()
+                            .to_string();
+                        function_name = first_call.function.name.clone();
                         
                         println!("Function name: {}", function_name);
                         println!("Arguments: {}", function_arguments);
@@ -200,26 +237,58 @@ async fn main() {
         Err(e) => eprintln!("Error sending request: {}", e),
     }
 
-    let messages: serde_json::Value = json!([
-        {
-            "role": "user",
-            "content": "Who is the best French painter? Answer in one short sentence."
-        }
-    ]);
-
-    let tools: serde_json::Value = json!([]);
-
     // Wait two seconds to avoid error 422
     let two_seconds = time::Duration::from_secs(2);
     thread::sleep(two_seconds);
 
-    match generate_content(messages, tools).await {
-        Ok(response) => {
-            if let Some(first_choice) = response.choices.first() {
-                println!("Message content: {}", first_choice.message.content);
-            };
-            println!("Total tokens: {}", response.usage.total_tokens);
+    // Check FUNCTIONS
+
+    if function_name == "retrieve_payment_status" {
+        let status_payment = retrieve_payment_status(&transaction_id).unwrap();
+        println!("Status payment: {}", status_payment);
+
+        let messages: serde_json::Value = json!([
+            {
+                "role": "user",
+                "content": question
+            },
+            {
+                "role": "system",
+                "content": format!("The status of the transaction {} is {}.", transaction_id, status_payment)
+            }
+        ]);
+
+        let tools: serde_json::Value = json!([]);
+
+        match generate_content(messages, tools).await {
+            Ok(response) => {
+                if let Some(first_choice) = response.choices.first() {
+                    println!("Message content: {}", first_choice.message.content);
+                };
+                println!("Total tokens: {}", response.usage.total_tokens);
+            }
+            Err(e) => eprintln!("Error sending request: {}", e),
         }
-        Err(e) => eprintln!("Error sending request: {}", e),
+    } else if function_name == "retrieve_payment_date" {
+        let messages: serde_json::Value = json!([
+            {
+                "role": "user",
+                "content": "Who is the best French painter? Answer in one short sentence."
+            }
+        ]);
+
+        let tools: serde_json::Value = json!([]);
+
+        match generate_content(messages, tools).await {
+            Ok(response) => {
+                if let Some(first_choice) = response.choices.first() {
+                    println!("Message content: {}", first_choice.message.content);
+                };
+                println!("Total tokens: {}", response.usage.total_tokens);
+            }
+            Err(e) => println!("Error sending request: {}", e),
+        }
+    } else {
+        println!("No function found");
     }
 }

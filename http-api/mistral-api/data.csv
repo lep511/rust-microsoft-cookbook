@@ -1,0 +1,6 @@
+transaction_id,customer_id,payment_amount,payment_date,payment_status
+T1001,C001,125.50,2021-10-05,Paid
+T1002,C002,89.99,2021-10-06,Unpaid
+T1003,C003,120.00,2021-10-07,Paid
+T1004,C002,54.30,2021-10-05,Paid
+T1005,C001,210.20,2021-10-08,Pending

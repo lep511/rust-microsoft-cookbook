@@ -1,15 +1,15 @@
+use mongodb::{bson::doc, Client as MClient, Collection};
 use reqwest::{ Client, Body };
-use csv::ReaderBuilder;
 use std::error::Error;
-use serde::Deserialize;
+use serde::{ Deserialize, Serialize };
 use serde_json::json;
 use std::{ thread, time, env };
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct CsvData {
+#[derive(Serialize, Deserialize, Debug)]
+struct Transaction {
     transaction_id: String,
-    customer_id: String,
+    customertransaction_id: String,
     payment_amount: f64,
     payment_date: String,
     payment_status: String,
@@ -64,49 +64,6 @@ struct Usage {
     completion_tokens: i32,
 }
 
-fn read_csv_data() -> Result<Vec<CsvData>, Box<dyn Error>> {
-    let file_path = "data.csv";
-    let mut rdr = ReaderBuilder::new().from_path(file_path)?;
-    let mut data_csv = Vec::new();
-
-    for result in rdr.deserialize() {
-        let record: CsvData = result?;
-        data_csv.push(record);
-    }
-
-    Ok(data_csv)
-}
-
-fn retrieve_payment_date(transaction_id: &str) -> Result<String, Box<dyn Error>> {
-    let data_csv = read_csv_data()?;
-    let mut payment_date = String::from("Transaction not found");
-    let result = data_csv.iter().find(|record| record.transaction_id == transaction_id);
-    
-    match result {
-        Some(record) => {
-            payment_date = String::from(&record.payment_date);
-        }
-        None => {}
-    }
-    
-    Ok(payment_date)
-}
-
-fn retrieve_payment_status(transaction_id: &str) -> Result<String, Box<dyn Error>> {
-    let data_csv = read_csv_data()?;
-    let mut status_payment = String::from("Transaction not found");
-    let result = data_csv.iter().find(|record| record.transaction_id == transaction_id);
-
-    match result {
-        Some(record) => {
-            status_payment = String::from(&record.payment_status);
-        }
-        None => println!("Transaction not found")
-    }
-
-    Ok(status_payment)
-}
-
 async fn generate_content(messages: serde_json::Value, tools: serde_json::Value) -> Result<ChatResponse, Box<dyn Error>> {
     // Get API key from environment variable
     let api_key = env::var("MISTRAL_API_KEY")
@@ -158,11 +115,11 @@ async fn generate_content(messages: serde_json::Value, tools: serde_json::Value)
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> mongodb::error::Result<()> {
 
-    // let question = "What's the status of my transaction T1001?";
+    // let question = "What's the status of my transaction T1038?";
     // let question = "What's the date of my transaction T1001?";
-    let question = "What's the date of my transaction T1002?";
+    let question = "What's the date of my transaction T1038?";
     // let question = "What's the status of my transaction T8589?";
     // let question = "Who is the best French painter? Answer in one short sentence.";
    
@@ -246,22 +203,72 @@ async fn main() {
 
     // Check FUNCTIONS
 
-    if function_name == "retrieve_payment_status" {
-        let status_payment = retrieve_payment_status(&transaction_id).unwrap();
-        println!("Status payment: {}", status_payment);
+    if function_name != "none_select" {
 
-        let messages: serde_json::Value = json!([
-            {
-                "role": "user",
-                "content": question
-            },
-            {
-                "role": "system",
-                "content": format!("The status of the transaction {} is {}.", transaction_id, status_payment)
-            }
-        ]);
+        let db_password = env::var("MONGODB_PASS")
+        .expect("MONGODB_PASS environment variable not set.");
 
+        // Replace the placeholder with your Atlas connection string
+        let uri = format!(
+            "mongodb+srv://admin:{}@cluster0.qhjea.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+            db_password
+        );
+
+        let client = MClient::with_uri_str(uri).await?;
+
+        let my_coll: Collection<Transaction> = client
+            .database("transactions")
+            .collection("transactions_ndata");
+
+        let result = my_coll.find_one(
+            doc! { "transaction_id": &transaction_id }
+        ).await?;
+
+        println!("Result: {:?}", result);
+
+        let messages: serde_json::Value;
         let tools: serde_json::Value = json!([]);
+
+        if function_name == "retrieve_payment_status" {
+
+            let status_payment = match result {
+                Some(transaction) => transaction.payment_status,
+                None => String::from("Transaction not found"),
+            };
+
+            messages = json!([
+                {
+                    "role": "user",
+                    "content": question
+                },
+                {
+                    "role": "system",
+                    "content": format!("The status of the transaction {} is {}.", transaction_id, status_payment)
+                }
+            ]);
+
+        } else if function_name == "retrieve_payment_date" {
+
+            let date_payment = match result {
+                Some(transaction) => transaction.payment_date,
+                None => String::from("Transaction not found"),
+            };
+
+            messages = json!([
+                {
+                    "role": "user",
+                    "content": question
+                },
+                {
+                    "role": "system",
+                    "content": format!("The date of the transaction {} is {}.", transaction_id, date_payment)
+                }
+            ]);
+
+        } else {
+            println!("No function found");
+            return Ok(());
+        }
 
         match generate_content(messages, tools).await {
             Ok(response) => {
@@ -272,32 +279,7 @@ async fn main() {
             }
             Err(e) => eprintln!("Error sending request: {}", e),
         }
-    } else if function_name == "retrieve_payment_date" {
-        let date_payment = retrieve_payment_date(&transaction_id).unwrap();
-        println!("Date payment: {}", date_payment);
-        let messages: serde_json::Value = json!([
-            {
-                "role": "user",
-                "content": question
-            },
-            {
-                "role": "system",
-                "content": format!("The date of the transaction {} is {}.", transaction_id, date_payment)
-            }
-        ]);
-
-        let tools: serde_json::Value = json!([]);
-
-        match generate_content(messages, tools).await {
-            Ok(response) => {
-                if let Some(first_choice) = response.choices.first() {
-                    println!("Message content: {}", first_choice.message.content);
-                };
-                println!("Total tokens: {}", response.usage.total_tokens);
-            }
-            Err(e) => println!("Error sending request: {}", e),
-        }
-    } else {
-        println!("No function found");
     }
+
+    Ok(())
 }

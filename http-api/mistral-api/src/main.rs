@@ -114,16 +114,91 @@ async fn generate_content(messages: serde_json::Value, tools: serde_json::Value)
     }
 }
 
+async fn retrieve_payment_status(question: &str, transaction: &Transaction) -> String {
+    let transaction_id = &transaction.transaction_id;
+    let status_payment = &transaction.payment_status;
+    let tools: serde_json::Value = json!([]);
+    let messages = json!([
+        {
+            "role": "user",
+            "content": question
+        },
+        {
+            "role": "system",
+            "content": format!("The status of the transaction {} is {}.", transaction_id, status_payment)
+        }
+    ]);
+
+    match generate_content(messages, tools).await {
+        Ok(response) => {
+            println!("Total tokens: {}", response.usage.total_tokens);
+            if let Some(first_choice) = response.choices.first() {
+                return first_choice.message.content.clone();
+            } else {
+                return "No choices found".to_string();
+            }
+            
+        }
+        Err(e) => {
+            let error_msg = format! (
+                "Error sending request: {}", 
+                e,
+            );
+            return error_msg;
+        }
+    }
+}
+
+async fn retrieve_payment_date(question: &str, transaction: &Transaction) -> String {
+    let transaction_id = &transaction.transaction_id;
+    let date_payment = &transaction.payment_date;
+    let tools: serde_json::Value = json!([]);
+    let messages = json!([
+        {
+            "role": "user",
+            "content": question
+        },
+        {
+            "role": "system",
+            "content": format!("The date of the transaction {} is {}.", transaction_id, date_payment)
+        }
+    ]);
+    
+    match generate_content(messages, tools).await {
+        Ok(response) => {
+            println!("Total tokens: {}", response.usage.total_tokens);
+            if let Some(first_choice) = response.choices.first() {
+                return first_choice.message.content.clone();
+            } else {
+                return "No choices found".to_string();
+            }
+            
+        }
+        Err(e) => {
+            let error_msg = format! (
+                "Error sending request: {}", 
+                e,
+            );
+            return error_msg;
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> mongodb::error::Result<()> {
 
     // let question = "What's the status of my transaction T1038?";
-    // let question = "What's the date of my transaction T1001?";
-    let question = "What's the date of my transaction T1038?";
+    // let question = "What's the date of my transaction T1038?";
+    // let question = "What's the status of my transaction";
     // let question = "What's the status of my transaction T8589?";
-    // let question = "Who is the best French painter? Answer in one short sentence.";
+    // let question = "What's the date of my transaction T1001?";
+    let question = "Who is the best French painter? Answer in one short sentence.";
    
     let messages: serde_json::Value = json!([
+        {
+            "role": "system",
+            "content": "You are a helpful assistant that answers questions about transactions."
+        },
         {
             "role": "user",
             "content": question
@@ -226,59 +301,16 @@ async fn main() -> mongodb::error::Result<()> {
 
         println!("Result: {:?}", result);
 
-        let messages: serde_json::Value;
-        let tools: serde_json::Value = json!([]);
-
-        if function_name == "retrieve_payment_status" {
-
-            let status_payment = match result {
-                Some(transaction) => transaction.payment_status,
-                None => String::from("Transaction not found"),
-            };
-
-            messages = json!([
-                {
-                    "role": "user",
-                    "content": question
+        let response: String = match result {
+            Some(ref transaction) => match function_name.as_str() {
+                    "retrieve_payment_status" => retrieve_payment_status(&question, &transaction).await,
+                    "retrieve_payment_date" => retrieve_payment_date(&question, &transaction).await,
+                    _ => panic!("Unknown function name"),
                 },
-                {
-                    "role": "system",
-                    "content": format!("The status of the transaction {} is {}.", transaction_id, status_payment)
-                }
-            ]);
+            None => String::from("Transaction not found"),
+        };
 
-        } else if function_name == "retrieve_payment_date" {
-
-            let date_payment = match result {
-                Some(transaction) => transaction.payment_date,
-                None => String::from("Transaction not found"),
-            };
-
-            messages = json!([
-                {
-                    "role": "user",
-                    "content": question
-                },
-                {
-                    "role": "system",
-                    "content": format!("The date of the transaction {} is {}.", transaction_id, date_payment)
-                }
-            ]);
-
-        } else {
-            println!("No function found");
-            return Ok(());
-        }
-
-        match generate_content(messages, tools).await {
-            Ok(response) => {
-                if let Some(first_choice) = response.choices.first() {
-                    println!("Message content: {}", first_choice.message.content);
-                };
-                println!("Total tokens: {}", response.usage.total_tokens);
-            }
-            Err(e) => eprintln!("Error sending request: {}", e),
-        }
+        println!("Response: {}", response); 
     }
 
     Ok(())

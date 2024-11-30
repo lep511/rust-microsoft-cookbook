@@ -1,5 +1,5 @@
-use mongodb::{bson::doc, Client as MClient, Collection};
-use reqwest::{ Client, Body };
+use mongodb::{bson::doc, Client, Collection};
+use reqwest;
 use std::error::Error;
 use serde::{ Deserialize, Serialize };
 use serde_json::json;
@@ -80,10 +80,10 @@ async fn generate_content(messages: serde_json::Value, tools: serde_json::Value)
     });
 
     let request_body = serde_json::to_string(&request_body)?;
-    let body: Body = Body::wrap(request_body);
+    let body: reqwest::Body = reqwest::Body::wrap(request_body);
     
     // Create a reqwest client
-    let client = Client::builder()
+    let client = reqwest::Client::builder()
         .use_rustls_tls()
         .build()?;  
 
@@ -190,9 +190,9 @@ async fn main() -> mongodb::error::Result<()> {
     // let question = "What's the status of my transaction T1038?";
     // let question = "What's the date of my transaction T1038?";
     // let question = "What's the status of my transaction";
-    // let question = "What's the status of my transaction T8589?";
+    let question = "What's the status of my transaction T8589?";
     // let question = "What's the date of my transaction T1001?";
-    let question = "Who is the best French painter? Answer in one short sentence.";
+    // let question = "Who is the best French painter? Answer in one short sentence.";
    
     let messages: serde_json::Value = json!([
         {
@@ -289,7 +289,7 @@ async fn main() -> mongodb::error::Result<()> {
             db_password
         );
 
-        let client = MClient::with_uri_str(uri).await?;
+        let client = Client::with_uri_str(uri).await?;
 
         let my_coll: Collection<Transaction> = client
             .database("transactions")

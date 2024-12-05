@@ -5,7 +5,8 @@ use aws_sdk_bedrockagent::{
     error::SdkError,
     operation::list_prompts::{ListPromptsOutput, ListPromptsError},
     operation::get_prompt::{GetPromptOutput, GetPromptError},
-    types::{PromptTemplateConfiguration, Message},
+    types::{PromptTemplateConfiguration, Message as AgentMessage},
+    types::{ContentBlock as AgentContentBlock},
 };
 use aws_sdk_bedrockruntime::{
     operation::converse::{ConverseError, ConverseOutput},
@@ -94,13 +95,44 @@ fn get_converse_output_text(output: ConverseOutput) -> Result<String, BedrockCon
     Ok(text)
 }
 
+fn convert_agent_to_runtime_message(agent_message: &AgentMessage) -> RuntimeMessage {   
+
+    let role_data: ConversationRole = ConversationRole::from(agent_message.role.as_str());
+    match &agent_message.content[0] {
+        AgentContentBlock::Text(text) => {
+            let content_data: ContentBlock = ContentBlock::Text(text.to_string());
+            RuntimeMessage::builder()
+                .role(role_data)
+                .content(content_data)
+                .build()
+                .expect("failed to build message")
+        },
+        _ => {
+            let content_data: ContentBlock = ContentBlock::Text("Another data".to_string());
+            RuntimeMessage::builder()
+                .role(role_data)
+                .content(content_data)
+                .build()
+                .expect("failed to build message")
+        },
+    }
+}
+
 fn process_variant_data(variant_data: GetPromptOutput) -> Result<RuntimeMessage, BedrockConverseError> {
+    let user_message = "Analyze the pros and cons of remote work vs. office work";
+    let mut message = RuntimeMessage::builder()
+        .role(ConversationRole::User)
+        .content(ContentBlock::Text(user_message.to_string()))
+        .build()
+        .map_err(|_| "failed to build message")?;
+
+
     let variants = variant_data.variants.iter().flatten().collect::<Vec<_>>();
     for variant in variants {
         match &variant.template_configuration {
             Some(PromptTemplateConfiguration::Chat(chat_config)) => {
                 println!("Chat configuration found");
-                //let user_message = chat_config.messages[0].content[0].Text;
+                message = convert_agent_to_runtime_message(&chat_config.messages[0]);
             },
             Some(PromptTemplateConfiguration::Text(text_config)) => {
                 println!("Text configuration found");
@@ -110,14 +142,6 @@ fn process_variant_data(variant_data: GetPromptOutput) -> Result<RuntimeMessage,
             }
         }
     }
-
-    let user_message = "Sample data";
-
-    let message = RuntimeMessage::builder()
-        .role(ConversationRole::User)
-        .content(ContentBlock::Text(user_message.to_string()))
-        .build()
-        .map_err(|_| "failed to build message")?;
 
     Ok(message)
 }
@@ -232,11 +256,14 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
 
     println!("Prompt name: {:?}", prompt_data.name);
     println!("Prompt version: {:?}", prompt_data.version);
+
+    let mut msg = "No response".to_string();
     
     if prompt_data.variants.is_none() {
         println!("No variants found");
     } else {
         let message = process_variant_data(prompt_data)?;
+        msg = call_bedrock(message).await?;
     };
  
     // match list_prompts().await {
@@ -248,8 +275,6 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     //         println!("Error listing prompts: {:?}", err);
     //     }
     // }
-
-    let msg = "Ok".to_string();
 
     let resp = Response::builder()
         .status(200)

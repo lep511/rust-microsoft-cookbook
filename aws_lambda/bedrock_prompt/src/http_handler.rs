@@ -1,23 +1,21 @@
 use lambda_http::{Body, Error, Request, RequestExt, Response};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use aws_config::BehaviorVersion;
-use aws_sdk_bedrockagent::error::SdkError;
-use aws_sdk_bedrockagent::operation::list_prompts::{ListPromptsOutput, ListPromptsError};
-use aws_sdk_bedrockagent::operation::get_prompt::{GetPromptOutput, GetPromptError};
+use aws_sdk_bedrockagent::{
+    error::SdkError,
+    operation::list_prompts::{ListPromptsOutput, ListPromptsError},
+    operation::get_prompt::{GetPromptOutput, GetPromptError},
+    types::{PromptTemplateConfiguration, Message},
+};
 use aws_sdk_bedrockruntime::{
     operation::converse::{ConverseError, ConverseOutput},
-    types::{ContentBlock, ConversationRole, Message},
+    types::Message as RuntimeMessage,
+    types::{ContentBlock, ConversationRole},
     Client,
 };
 
 // Set the model ID
 const MODEL_ID: &str = "amazon.nova-micro-v1:0";
-const CLAUDE_REGION: &str = "us-east-1";
-
-#[derive(Deserialize, Serialize)]
-struct Prompt {
-    prompt: String,
-}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -96,9 +94,36 @@ fn get_converse_output_text(output: ConverseOutput) -> Result<String, BedrockCon
     Ok(text)
 }
 
+fn process_variant_data(variant_data: GetPromptOutput) -> Result<RuntimeMessage, BedrockConverseError> {
+    let variants = variant_data.variants.iter().flatten().collect::<Vec<_>>();
+    for variant in variants {
+        match &variant.template_configuration {
+            Some(PromptTemplateConfiguration::Chat(chat_config)) => {
+                println!("Chat configuration found");
+                //let user_message = chat_config.messages[0].content[0].Text;
+            },
+            Some(PromptTemplateConfiguration::Text(text_config)) => {
+                println!("Text configuration found");
+            },
+            _ => {
+                println!("Unknown configuration found");
+            }
+        }
+    }
+
+    let user_message = "Sample data";
+
+    let message = RuntimeMessage::builder()
+        .role(ConversationRole::User)
+        .content(ContentBlock::Text(user_message.to_string()))
+        .build()
+        .map_err(|_| "failed to build message")?;
+
+    Ok(message)
+}
+
 async fn get_prompt_data(prompt_id: &str) -> Result<GetPromptOutput, SdkError<GetPromptError>> {
     let sdk_config = aws_config::defaults(BehaviorVersion::latest())
-        .region(CLAUDE_REGION)
         .load()
         .await;
     
@@ -110,7 +135,6 @@ async fn get_prompt_data(prompt_id: &str) -> Result<GetPromptOutput, SdkError<Ge
 
 async fn list_prompts() -> Result<Vec<ListPromptsOutput>, SdkError<ListPromptsError>> {
     let sdk_config = aws_config::defaults(BehaviorVersion::latest())
-        .region(CLAUDE_REGION)
         .load()
         .await;
     
@@ -161,9 +185,8 @@ fn print_prompt_summaries(outputs: &[ListPromptsOutput]) {
     }
 }
 
-async fn call_bedrock(user_message: &Prompt) -> Result<String, BedrockConverseError> {
+async fn call_bedrock(user_message: RuntimeMessage) -> Result<String, BedrockConverseError> {
     let sdk_config = aws_config::defaults(BehaviorVersion::latest())
-        .region(CLAUDE_REGION)
         .load()
         .await;
     let client = Client::new(&sdk_config);
@@ -171,13 +194,7 @@ async fn call_bedrock(user_message: &Prompt) -> Result<String, BedrockConverseEr
     let response = client
         .converse()
         .model_id(MODEL_ID)
-        .messages(
-            Message::builder()
-                .role(ConversationRole::User)
-                .content(ContentBlock::Text(user_message.prompt.clone()))
-                .build()
-                .map_err(|_| "failed to build message")?,
-        )
+        .messages(user_message)
         .send()
         .await;
 
@@ -195,29 +212,15 @@ async fn call_bedrock(user_message: &Prompt) -> Result<String, BedrockConverseEr
 
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     // Extract some useful information from the request
-    let prompt_event = event
+    let prompt_id = event
         .query_string_parameters_ref()
-        .and_then(|params| params.first("prompt"))
-        .unwrap_or("Not prompt");
+        .and_then(|params| params.first("prompt_id"))
+        .unwrap_or("Not prompt id");
     
-    let message = Prompt {
-        prompt: prompt_event.to_string(),
-    };
-
-    if message.prompt == "Not prompt" {
-        let resp_text = format!("No prompt provided");
-        let resp = Response::builder()
-            .status(404)
-            .header("content-type", "text/html")
-            .body(resp_text.into())
-            .map_err(Box::new)?;
-        return Ok(resp);
-    }    
-
-    let msg: String = match call_bedrock(&message).await {
-        Ok(msg) => msg,
+    let prompt_data: GetPromptOutput = match get_prompt_data(prompt_id).await {
+        Ok(prompt_data) => prompt_data,
         Err(e) => {
-            let resp_text = format!("Error calling bedrock. {}", e);
+            let resp_text = format!("Error getting prompt data. {}", e);
             let resp = Response::builder()
                 .status(400)
                 .header("content-type", "text/html")
@@ -227,24 +230,15 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         }
     };
 
-    let prompt_data: GetPromptOutput = get_prompt_data("LJQSQCQJ6G").await?;
+    println!("Prompt name: {:?}", prompt_data.name);
+    println!("Prompt version: {:?}", prompt_data.version);
     
     if prompt_data.variants.is_none() {
         println!("No variants found");
     } else {
-        for variant in prompt_data.variants.unwrap() {
-            match variant.template_configuration {
-                Some(template_configuration) => {
-                    println!("Template configuration: {:?}", template_configuration);
-                }
-                None => {
-                    println!("No template configuration found");
-                }
-            }
-        }
+        let message = process_variant_data(prompt_data)?;
     };
-
-
+ 
     // match list_prompts().await {
     //     Ok(prompts) => {
     //         println!("Successfully retrieved prompts:");
@@ -254,6 +248,8 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     //         println!("Error listing prompts: {:?}", err);
     //     }
     // }
+
+    let msg = "Ok".to_string();
 
     let resp = Response::builder()
         .status(200)

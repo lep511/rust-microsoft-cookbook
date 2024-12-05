@@ -23,7 +23,7 @@
           ]
       },
       "queryStringParameters": {
-        "prompt": "Who is Groucho Marx?"
+        "prompt_id": "DFQLD89UQF"
       },
       "multiValueQueryStringParameters": null,
       "pathParameters": null,

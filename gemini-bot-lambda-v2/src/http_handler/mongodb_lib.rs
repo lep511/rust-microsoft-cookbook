@@ -2,7 +2,7 @@ use mongodb::{
     bson::{ doc, Document }, results::UpdateResult, Client, Collection
 };
 use serde::{ Deserialize, Serialize };
-use crate::gemini::OrderState;
+use super::gemini_lib::OrderState;
 use std::env;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -20,11 +20,11 @@ pub struct MongoResponse {
 }
 
 pub async fn mongodb_connect(chat_userid: &str) -> mongodb::error::Result<MongoResponse> {
-    let db_password = env::var("MONGODB_PASS")
-        .expect("MONGODB_PASS environment variable not set.");
+    let db_password = env::var("MONGODB_PASSWORD")
+        .expect("MONGODB_PASSWORD environment variable not set.");
 
-    let user_name = env::var("USER_NAME")
-        .expect("USER_NAME environment variable not set.");
+    let user_name = env::var("MONGODB_USER_NAME")
+        .expect("MONGODB_USER_NAME environment variable not set.");
     
     let uri = format!(
         "mongodb+srv://{}:{}@cluster0.klhsa.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
@@ -75,11 +75,11 @@ pub async fn mongodb_connect(chat_userid: &str) -> mongodb::error::Result<MongoR
 }
 
 pub async fn mongodb_update(chat_userid: &str, update_chat: &str, nc_count: i32) -> mongodb::error::Result<MongoResponse> {
-    let db_password = env::var("MONGODB_PASS")
-        .expect("MONGODB_PASS environment variable not set.");
+    let db_password = env::var("MONGODB_PASSWORD")
+        .expect("MONGODB_PASSWORD environment variable not set.");
 
-    let user_name = env::var("USER_NAME")
-        .expect("USER_NAME environment variable not set.");
+    let user_name = env::var("MONGODB_USER_NAME")
+        .expect("MONGODB_USER_NAME environment variable not set.");
 
     let uri = format!(
         "mongodb+srv://{}:{}@cluster0.klhsa.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",

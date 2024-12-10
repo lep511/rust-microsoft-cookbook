@@ -1,5 +1,5 @@
 use reqwest::{ Client, Body };
-use crate::bot::guideline_bot;
+use super::bot::guideline_bot;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::env;
@@ -84,9 +84,13 @@ pub async fn generate_content(input_text: &str) -> Result<LlmResponse, Box<dyn s
     let api_key = env::var("GOOGLE_API_KEY")
         .expect("GOOGLE_API_KEY environment variable is not set");
 
+    let model_name = "gemini-exp-1206";
+    // let model_name = "gemini-1.5-flash-002";
+
     // Construct the URL with the API key
     let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key={}",
+        "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
+        model_name,
         api_key
     );
 

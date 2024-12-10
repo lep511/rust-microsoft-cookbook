@@ -1,16 +1,13 @@
-mod gemini;
-mod mongodb;
+use lambda_http::{Body, Error, Request, RequestExt, Response};
+use gemini_lib::{ LlmResponse, OrderState, generate_content };
+use mongodb_lib::{ MongoResponse, mongodb_connect, mongodb_update };
+
+mod gemini_lib;
+mod mongodb_lib;
 mod bot;
 
-use lambda_http::{run, service_fn, tracing, Body, Error, Request, RequestExt, Response};
-use lambda_http::http::StatusCode;
-// use serde::{Deserialize, Serialize};
-// use serde_json::json;
-use gemini::{ LlmResponse, OrderState, generate_content };
-use mongodb::{ MongoResponse, mongodb_connect, mongodb_update };
-
-async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
-    // Extract some useful information from the request    
+pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
+    // Extract some useful information from the request
     let prompt = event
         .query_string_parameters_ref()
         .and_then(|params| params.first("prompt"))
@@ -21,22 +18,12 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
         .and_then(|params| params.first("user_id"))
         .unwrap_or("None");
 
-    if prompt == "None" {
-        let message = "No prompt text.".to_string();
-        let resp = Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .header("content-type", "text/html")
-            .body(message.into())
-            .map_err(Box::new)?;
-        return Ok(resp)
-    }
-
     let mongo_result: MongoResponse = match mongodb_connect(&user_id).await {
         Ok(mongo_result) => mongo_result,
         Err(e) => {
             let message = format!("Initial connection to MongoDB fails: {}", e);
             let resp = Response::builder()
-                .status(StatusCode::BAD_REQUEST)
+                .status(408)
                 .header("content-type", "text/html")
                 .body(message.into())
                 .map_err(Box::new)?;
@@ -58,7 +45,7 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
         Err(e) => {
             let message = format!("Error generating content: {}", e);
             let resp = Response::builder()
-                .status(StatusCode::BAD_REQUEST)
+                .status(405)
                 .header("content-type", "text/html")
                 .body(message.into())
                 .map_err(Box::new)?;
@@ -67,9 +54,7 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     };
 
     let text_parts = llm_result.gemini_response.candidates[0].content.parts[0].text.clone();
-
-    let update_chat = format!("{}\nResponse {}\n\n{}\n", input_text, nc_count, text_parts);
-    
+    let update_chat = format!("{}\nResponse {}\n\n{}\n", input_text, nc_count, text_parts); 
     println!("{}", update_chat);
 
     let resp: OrderState = match serde_json::from_str(&text_parts) {
@@ -77,7 +62,7 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
         Err(e) => {
             let message = format!("Error parsing JSON: {}", e);
             let resp = Response::builder()
-                .status(StatusCode::BAD_REQUEST)
+                .status(404)
                 .header("content-type", "text/html")
                 .body(message.into())
                 .map_err(Box::new)?;
@@ -90,7 +75,7 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
         Err(e) => {
             let message = format!("Error when updating data in MongoDB: {}", e);
             let resp = Response::builder()
-                .status(StatusCode::BAD_REQUEST)
+                .status(400)
                 .header("content-type", "text/html")
                 .body(message.into())
                 .map_err(Box::new)?;
@@ -102,38 +87,10 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
 
     let message = resp.response.ok_or("Response is missing")?;
     let resp = Response::builder()
-        .status(StatusCode::OK)
+        .status(200)
         .header("content-type", "text/html")
         .body(message.into())
         .map_err(Box::new)?;
     
     Ok(resp)
-
-    // match generate_content(&prompt, &mongo_result).await {
-    //     Ok(resp) => {
-    //         let message = resp.response.ok_or("Response is missing")?;
-    //         let resp = Response::builder()
-    //             .status(StatusCode::OK)
-    //             .header("content-type", "text/html")
-    //             .body(message.into())
-    //             .map_err(Box::new)?;
-    //         return Ok(resp)
-    //     }
-    //     Err(e) => {
-    //         let message = format!("Error generating content: {}", e);
-    //         let resp = Response::builder()
-    //             .status(StatusCode::BAD_REQUEST)
-    //             .header("content-type", "text/html")
-    //             .body(message.into())
-    //             .map_err(Box::new)?;
-    //         return Ok(resp)
-    //     }
-    // }
-}
-
-#[tokio::main]
-async fn main() -> Result<(), Error> {
-    tracing::init_default_subscriber();
-
-    run(service_fn(function_handler)).await
 }

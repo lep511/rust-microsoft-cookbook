@@ -1,4 +1,3 @@
-use lambda_http::{Body, Error, Request, RequestExt, Response};
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_dsql::auth_token::{AuthTokenGenerator, Config};
 use rand::Rng;
@@ -68,30 +67,32 @@ async fn example(cluster_endpoint: String, region: String) -> anyhow::Result<()>
     assert_eq!(row.try_get::<&str, _>("city")?, "Anytown");
     assert_eq!(row.try_get::<&str, _>("telephone")?, telephone);
 
-    // sqlx::query("DELETE FROM owner WHERE name='John Doe'")
-    //     .execute(&pool).await?;
+    sqlx::query("DELETE FROM owner WHERE name='John Doe'")
+        .execute(&pool).await?;
 
     pool.close().await;
     Ok(())
 }
 
-pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
-    // Extract some useful information from the request
-    let who = event
-        .query_string_parameters_ref()
-        .and_then(|params| params.first("name"))
-        .unwrap_or("world");
-    let message = format!("Hello {who}, this is an AWS Lambda HTTP request");
-
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cluster_endpoint = env::var("CLUSTER_ENDPOINT").expect("CLUSTER_ENDPOINT required");
     let region = env::var("REGION").expect("REGION of aws required");
-    let _ = example(cluster_endpoint, region).await?;
+    Ok(example(cluster_endpoint, region).await?)
+}
 
-    let resp = Response::builder()
-        .status(200)
-        .header("content-type", "text/html")
-        .body(message.into())
-        .map_err(Box::new)?;
+#[cfg(test)]
+mod tests {
 
-    Ok(resp)
+    use super::*;
+    use tokio::test;
+
+    #[test]
+    async fn test_crud() {
+        let cluster_endpoint = env::var("CLUSTER_ENDPOINT").expect("CLUSTER_ENDPOINT required");
+        let region = env::var("REGION").expect("REGION of aws required");
+        let result = example(cluster_endpoint, region).await;
+        assert!(result.is_ok());
+        println!("Successfully completed test run.");
+    }
 }

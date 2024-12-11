@@ -1,0 +1,11 @@
+[package]
+name = "sqs_sender_lambda"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aws-sdk-sqs = "1.50.0"
+aws-config = { version = "1.5.10", features = ["behavior-version-latest"] }
+lambda_http = "0.13.0"
+
+tokio = { version = "1", features = ["macros"] }

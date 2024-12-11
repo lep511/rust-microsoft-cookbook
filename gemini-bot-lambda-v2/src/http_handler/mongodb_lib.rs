@@ -102,7 +102,6 @@ pub async fn mongodb_update(chat_userid: &str, update_chat: &str, nc_count: i32)
     };
     
     let res: UpdateResult = my_coll.update_one(filter, update).await?;
-    println!("Updated documents: {}", res.modified_count);
 
     let mongo_response = MongoResponse {
         user_data: "update".to_string(),

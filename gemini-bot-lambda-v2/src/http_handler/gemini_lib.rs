@@ -84,8 +84,8 @@ pub async fn generate_content(input_text: &str) -> Result<LlmResponse, Box<dyn s
     let api_key = env::var("GOOGLE_API_KEY")
         .expect("GOOGLE_API_KEY environment variable is not set");
 
-    let model_name = "gemini-exp-1206";
-    // let model_name = "gemini-1.5-flash-002";
+    let model_name = "gemini-2.0-flash-exp";
+    // let model_name = "gemini-exp-1206";
 
     // Construct the URL with the API key
     let url = format!(

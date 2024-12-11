@@ -1,6 +1,6 @@
 # Introduction
 
-gemini-bot-lambda-v2 is a Rust project that implements an AWS Lambda function in Rust.
+sqs_sender_lambda is a Rust project that implements an AWS Lambda function in Rust.
 
 ## Prerequisites
 
@@ -53,11 +53,5 @@ Read more about invoking the function in [the Cargo Lambda documentation for the
 ## Deploying
 
 To deploy the project, run `cargo lambda deploy`. This will create an IAM role and a Lambda function in your AWS account.
-
-```bash
-cargo lambda build --arm64
-cargo lambda deploy --s3-bucket sam-cli-bucket-project-4545
-s3://sam-cli-bucket-project-4545/gemini-bot-lambda-v2
-```
 
 Read more about deploying your lambda function in [the Cargo Lambda documentation](https://www.cargo-lambda.info/commands/deploy.html).

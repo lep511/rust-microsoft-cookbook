@@ -1,6 +1,6 @@
 # Introduction
 
-gemini-bot-lambda-v2 is a Rust project that implements an AWS Lambda function in Rust.
+test_func is a Rust project that implements an AWS Lambda function in Rust.
 
 ## Prerequisites
 
@@ -41,11 +41,6 @@ For generic events, where you define the event data structure, you can create a 
 
 Then, run `cargo lambda invoke --data-file ./data.json` to invoke the function with the data in `data.json`.
 
-For HTTP events, you can also call the function directly with cURL or any other HTTP client. For example:
-
-```bash
-curl https://localhost:9000
-```
 
 Read more about running the local server in [the Cargo Lambda documentation for the `watch` command](https://www.cargo-lambda.info/commands/watch.html).
 Read more about invoking the function in [the Cargo Lambda documentation for the `invoke` command](https://www.cargo-lambda.info/commands/invoke.html).
@@ -53,11 +48,5 @@ Read more about invoking the function in [the Cargo Lambda documentation for the
 ## Deploying
 
 To deploy the project, run `cargo lambda deploy`. This will create an IAM role and a Lambda function in your AWS account.
-
-```bash
-cargo lambda build --arm64
-cargo lambda deploy --s3-bucket sam-cli-bucket-project-4545
-s3://sam-cli-bucket-project-4545/gemini-bot-lambda-v2
-```
 
 Read more about deploying your lambda function in [the Cargo Lambda documentation](https://www.cargo-lambda.info/commands/deploy.html).

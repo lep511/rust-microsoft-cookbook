@@ -1,33 +1,57 @@
-use lambda_http::{Body, Error, Request, RequestExt, Response};
+use lambda_runtime::{tracing, Error, LambdaEvent};
 use gemini_lib::{ LlmResponse, OrderState, generate_content };
 use mongodb_lib::{ MongoResponse, mongodb_connect, mongodb_update };
+use telegram_bot::send_message;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+// use serde_json;
 
 mod gemini_lib;
 mod mongodb_lib;
+mod telegram_bot;
 mod bot;
 
-pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
-    // Extract some useful information from the request
-    let prompt = event
-        .query_string_parameters_ref()
-        .and_then(|params| params.first("prompt"))
-        .unwrap_or("test2563kd98");
+#[derive(Debug, Serialize, Deserialize)]
+struct MessageBody {
+    update_id: i64,
+    message: MessageData,
+}
 
-    let user_id = event
-        .query_string_parameters_ref()
-        .and_then(|params| params.first("user_id"))
-        .unwrap_or("None");
+#[derive(Debug, Serialize, Deserialize)]
+struct MessageData {
+    message_id: i64,
+    // from: User,
+    // chat: Chat,
+    date: i64,
+    text: String,
+}
+
+pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Error> {
+    let payload = event.payload;
+    let payload_body = payload["body"].as_str().unwrap_or("no content");
+    tracing::info!("Payload: {:?}", payload_body);
+
+    if payload_body == "no content" {
+        println!("[ERROR] Body is empty");
+        return Ok(());
+    };
+
+    let body_data: MessageBody = match serde_json::from_str(payload_body) {
+        Ok(update) => update,
+        Err(e) => {
+            println!("[ERROR] Error parsing JSON: {}", e);
+            return Ok(());
+        }
+    };
+
+    let prompt = body_data.message.text;
+    let user_id = body_data.message.message_id.to_string();
 
     let mongo_result: MongoResponse = match mongodb_connect(&user_id).await {
         Ok(mongo_result) => mongo_result,
         Err(e) => {
-            let message = format!("Initial connection to MongoDB fails: {}", e);
-            let resp = Response::builder()
-                .status(408)
-                .header("content-type", "text/html")
-                .body(message.into())
-                .map_err(Box::new)?;
-            return Ok(resp)
+            println!("[ERROR] Initial connection to MongoDB fails: {}", e);
+            return Ok(());
         }
     };
 
@@ -43,54 +67,41 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     let llm_result: LlmResponse = match generate_content(&input_text).await {
         Ok(llm_result) => llm_result,
         Err(e) => {
-            let message = format!("Error generating content: {}", e);
-            let resp = Response::builder()
-                .status(405)
-                .header("content-type", "text/html")
-                .body(message.into())
-                .map_err(Box::new)?;
-            return Ok(resp)
+            println!("[ERROR] Error generating content: {}", e);
+            return Ok(());
         }
     };
 
     let text_parts = llm_result.gemini_response.candidates[0].content.parts[0].text.clone();
     let update_chat = format!("{}\nResponse {}\n\n{}\n", input_text, nc_count, text_parts); 
-    println!("{}", update_chat);
+    // println!("{}", update_chat);
 
     let resp: OrderState = match serde_json::from_str(&text_parts) {
         Ok(resp) => resp,
         Err(e) => {
-            let message = format!("Error parsing JSON: {}", e);
-            let resp = Response::builder()
-                .status(404)
-                .header("content-type", "text/html")
-                .body(message.into())
-                .map_err(Box::new)?;
-            return Ok(resp)
+            println!("[ERROR] Error parsing JSON: {}", e);
+            return Ok(());
         }
     };
 
     let mongo_result: MongoResponse = match mongodb_update(&user_id, &update_chat, nc_count).await {
         Ok(mongo_result) => mongo_result,
         Err(e) => {
-            let message = format!("Error when updating data in MongoDB: {}", e);
-            let resp = Response::builder()
-                .status(400)
-                .header("content-type", "text/html")
-                .body(message.into())
-                .map_err(Box::new)?;
-            return Ok(resp)
+            println!("[ERROR] Error when updating data in MongoDB: {}", e);
+            return Ok(());
         }
     };
 
-    println!("Ok {:?}", mongo_result);
-
+    //println!("Ok {:?}", mongo_result);
     let message = resp.response.ok_or("Response is missing")?;
-    let resp = Response::builder()
-        .status(200)
-        .header("content-type", "text/html")
-        .body(message.into())
-        .map_err(Box::new)?;
+    let text_msg = message.as_str();
+    let token = "7796241975:AAEnE3G8IaUhx-HydXlp5Yc0Fr8OQ0nHE3k";
+    let chat_id = 795876358;
+
+    match send_message(token, chat_id, text_msg).await {
+        Ok(_) => println!("Message sent successfully"),
+        Err(e) => println!("Error sending message: {}", e),
+    }
     
-    Ok(resp)
+    Ok(())
 }

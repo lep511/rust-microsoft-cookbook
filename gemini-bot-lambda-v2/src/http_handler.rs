@@ -1,29 +1,37 @@
 use lambda_runtime::{tracing, Error, LambdaEvent};
 use gemini_lib::{ LlmResponse, OrderState, generate_content };
 use mongodb_lib::{ MongoResponse, mongodb_connect, mongodb_update };
-use telegram_bot::send_message;
-use serde::{Deserialize, Serialize};
+use telegram_bot::{ send_message, hold_on_message };
+use serde::Deserialize;
 use serde_json::Value;
-// use serde_json;
+use std::env;
 
 mod gemini_lib;
 mod mongodb_lib;
 mod telegram_bot;
 mod bot;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct MessageBody {
     update_id: i64,
     message: MessageData,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct MessageData {
     message_id: i64,
-    // from: User,
+    from: UserData,
     // chat: Chat,
     date: i64,
     text: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct UserData {
+    id: i32,
+    is_bot: bool,
+    first_name: String,
+    language_code: String,
 }
 
 pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Error> {
@@ -44,8 +52,22 @@ pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Err
         }
     };
 
+    let token = match env::var("TELEGRAM_BOT_TOKEN")  {
+        Ok(token) => token,
+        Err(e) => {
+            println!("[ERROR] Error getting environment variable TELEGRAM_BOT_TOKEN: {}", e);
+            return Ok(());
+        }
+    };
+
     let prompt = body_data.message.text;
-    let user_id = body_data.message.message_id.to_string();
+    let chat_id = body_data.message.from.id;
+    let user_id = chat_id.to_string();
+
+    match hold_on_message(&token.as_str(), chat_id).await {
+        Ok(_) => println!("Message hold on sent successfully"),
+        Err(e) => println!("Error sending message: {}", e),
+    };
 
     let mongo_result: MongoResponse = match mongodb_connect(&user_id).await {
         Ok(mongo_result) => mongo_result,
@@ -95,10 +117,8 @@ pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Err
     //println!("Ok {:?}", mongo_result);
     let message = resp.response.ok_or("Response is missing")?;
     let text_msg = message.as_str();
-    let token = "7796241975:AAEnE3G8IaUhx-HydXlp5Yc0Fr8OQ0nHE3k";
-    let chat_id = 795876358;
 
-    match send_message(token, chat_id, text_msg).await {
+    match send_message(token.as_str(), chat_id, text_msg).await {
         Ok(_) => println!("Message sent successfully"),
         Err(e) => println!("Error sending message: {}", e),
     }

@@ -55,7 +55,7 @@ Read more about invoking the function in [the Cargo Lambda documentation for the
 To deploy the project, run `cargo lambda deploy`. This will create an IAM role and a Lambda function in your AWS account.
 
 ```bash
-cargo lambda build --arm64
+cargo lambda build --arm64 --release
 cargo lambda deploy --s3-bucket sam-cli-bucket-project-4545
 s3://sam-cli-bucket-project-4545/gemini-bot-lambda-v2
 ```

@@ -14,6 +14,7 @@ reqwest = { version = "0.12.9", default-features = false, features = [
 ] }
 
 tokio = { version = "1", features = ["macros"] }
+rand = "0.8.5"
 
 [package.metadata.lambda.deploy]
 memory = 128                                    # Function's memory

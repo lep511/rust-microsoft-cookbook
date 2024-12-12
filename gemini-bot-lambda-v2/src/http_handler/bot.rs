@@ -106,7 +106,7 @@ Customer: I want an iced matcha latte
   "move3": "summarizeOrder",
   "move4": "confirmOrder",
   "orderType": "here_order",
-  "response": "you got it, I've added a decaf latte to the order. Tell me if the order's correct and I'll send it off to the baristas.",
+  "response": "You got it, I've added a decaf latte to the order. Tell me if the order's correct and I'll send it off to the baristas.",
   "currentOrder": [
     {"drink": "Matcha Latte", "modifiers": [{"mod": "Iced"}]}
   ]
@@ -131,7 +131,7 @@ Customer: Let's do one chai latte with oat milk
   "move3": "summarizeOrder",
   "move4": "confirmOrder",
   "orderType": "here_order",
-  "response": "you got it, I've added a chai latte with oat milk to the order. Tell me if the order's correct and I'll send it off to the baristas.",
+  "response": "You got it, I've added a chai latte with oat milk to the order. Tell me if the order's correct and I'll send it off to the baristas.",
   "currentOrder": [
     {"drink": "Chai Latte", "modifiers": [{"mod": "Oat Milk"}]}
   ]
@@ -207,7 +207,7 @@ Response 1
   "move3": "summarizeOrder",
   "move4": "confirmOrder",
   "orderType": "here_order",
-  "response": "you got it, I've added an oat milk cappuccino to the order, extra hot. Please confirm this is correct and I'll send it off to the baristas.",
+  "response": "You got it, I've added an oat milk cappuccino to the order, extra hot. Please confirm this is correct and I'll send it off to the baristas.",
   "currentOrder": [
     {"drink": "Cappuccino", "modifiers": [{"mod": "Oat Milk"}, {"mod": "Extra hot"}]}
   ]
@@ -259,7 +259,7 @@ Response 2
   "thought": "The order from Input 1 shows customer ordered a Latte with modifier Almond Milk. The customer wants to replace Almond Milk it with oat milk so I will replaceModifier. There is nothing else to ask about this drink.",
   "move1": "replaceModifier",
   "orderType": "here_order",
-  "response": "you got it, I've change it to a latte with oat milk.",
+  "response": "You got it, I've change it to a latte with oat milk.",
     "currentOrder": [
     {"drink": "Latte", "modifiers": [{"mod": "Oat Milk"}]}
   ]
@@ -335,7 +335,7 @@ Response 1
   "move2": "summarizeOrder",
   "move3": "confirmOrder",
   "orderType": "here_order",
-  "response": "you got it, I've added a Decaf Latte and an Almond Milk Latte to the order. Please confirm it's correct and we'll send it to be prepared.",
+  "response": "You got it, I've added a Decaf Latte and an Almond Milk Latte to the order. Please confirm it's correct and we'll send it to be prepared.",
   "currentOrder": [
     {"drink": "Latte", "modifiers": [{"mod": "Decaf"}]},
     {"drink": "Latte", "modifiers": [{"mod": "Almond Milk"}]}
@@ -381,7 +381,7 @@ Response 1
   "move3": "summarizeOrder",
   "move4": "confirmOrder",
   "orderType": "here_order",
-  "response": "you got it, I've added two iced cappuccinos, one decaf and one regular to the order. Please confirm it's correct and we'll send it to be prepared.",
+  "response": "You got it, I've added two iced cappuccinos, one decaf and one regular to the order. Please confirm it's correct and we'll send it to be prepared.",
   "currentOrder": [
     {"drink": "Cappuccino", "modifiers": [{"mod": "Iced"}]},
     {"drink": "cappuccino", "modifiers": [{"mod": "Iced"}, {"mod": "Decaf"}]}

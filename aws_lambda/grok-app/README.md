@@ -56,10 +56,9 @@ To deploy the project, run `cargo lambda deploy`. This will create an IAM role a
 
 ```bash
 cargo lambda build --arm64 --release
-cargo lambda deploy --s3-bucket sam-cli-bucket-project-4545
-s3://sam-cli-bucket-project-4545/gemini-bot-lambda-v2
+cargo lambda deploy
 ```
 
-**Telegram configuration:** [LINK](https://www.linkedin.com/pulse/building-telegram-bot-aws-api-gateway-lambda-nithin-kumar-yadla/)
+Telegram configuration: [LINK](https://www.linkedin.com/pulse/building-telegram-bot-aws-api-gateway-lambda-nithin-kumar-yadla/)
 
 Read more about deploying your lambda function in [the Cargo Lambda documentation](https://www.cargo-lambda.info/commands/deploy.html).

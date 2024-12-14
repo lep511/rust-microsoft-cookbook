@@ -6,6 +6,9 @@ use futures::StreamExt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+static LANGUAGE_MODEL: &str = "grok-2-1212";
+const MAX_TOKENS_STREAM: u8 = 12;
+
 #[derive(Serialize)]
 pub struct ChatCompletionRequest {
     messages: Vec<Message>,
@@ -59,7 +62,7 @@ pub async fn get_grok_response(
                 content: prompt,
             },
         ],
-        model: "grok-beta".to_string(),
+        model: LANGUAGE_MODEL.to_string(),
         stream: true,
         temperature: 0.9,
     };
@@ -111,7 +114,7 @@ pub async fn get_grok_response(
                                 Ok(stream_response) => {
                                     if let Some(content) = stream_response.choices[0].delta.content.as_ref() {
                                         complete_text = complete_text + content;
-                                        if counter > 12 {
+                                        if counter > MAX_TOKENS_STREAM {
                                             send_telegram_message(
                                                 telegram_client.clone(),
                                                 telegram_bot_token.clone(),

@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 static LANGUAGE_MODEL: &str = "grok-2-1212";
+static LANGUAGE_VISION_MODEL: &str = "grok-2-vision-1212";
 const MAX_TOKENS_STREAM: u8 = 12;
 
 #[derive(Serialize)]
@@ -38,34 +39,122 @@ struct StreamDelta {
     content: Option<String>,
 }
 
+#[derive(Deserialize, Debug)]
+struct TelegramGetFile {
+    ok: bool,
+    result: Option<FileInfo>,
+    error_code: Option<i32>,
+    description: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+struct FileInfo {
+    file_id: String,
+    file_unique_id: String,
+    file_size: i64,
+    file_path: Option<String>,
+}
+
 pub async fn get_grok_response(
     prompt: String, 
     xai_api_key: String, 
     telegram_bot_token: String, 
-    telegram_chat_id: String
-) -> Result<String, Box<dyn std::error::Error>> {
+    telegram_chat_id: String,
+    is_image: bool,
+    ) -> Result<String, Box<dyn std::error::Error>> {
 
     let client = Client::new();
     let telegram_client = Arc::new(Client::new());
 
     // Get system data from system_bot file
     let system_data = guideline_bot().expect("Failed to load system data");
-
-    let request_body = ChatCompletionRequest {
-        messages: vec![
-            Message {
-                role: "system".to_string(),
-                content: system_data,
-            },
-            Message {
-                role: "user".to_string(),
-                content: prompt,
-            },
-        ],
-        model: LANGUAGE_MODEL.to_string(),
-        stream: true,
-        temperature: 0.9,
+    
+    let request_body = match is_image {
+        true => {
+            let file_id = prompt;
+            let image_url = match telegram_file_url(
+                file_id,
+                telegram_bot_token.clone(),
+                telegram_client.clone(),
+            ).await {
+                Ok(url) => url,
+                Err(e) => return Err(e.into()),
+            };
+            json!({
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": image_url,
+                                    "detail": "high"
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": "Please provide a detailed description of the image."
+                            }
+                        ]
+                    }
+                ],
+                "model": LANGUAGE_VISION_MODEL,
+                "stream": true,
+                "temperature": 0.9
+            })
+        },
+        false => {
+            json!({
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": system_data
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "model": LANGUAGE_MODEL,
+                "stream": true,
+                "temperature": 0.9
+            })
+        }
     };
+
+    // let request_body: ChatCompletionRequest = match is_image {
+    //     true => ChatCompletionRequest {
+    //         messages: vec![
+    //             Message {
+    //                 role: "system".to_string(),
+    //                 content: system_data,
+    //             },
+    //             Message {
+    //                 role: "user".to_string(),
+    //                 content: 
+    //             },
+    //         ],
+    //         model: LANGUAGE_VISION_MODEL.to_string(),
+    //         stream: true,
+    //         temperature: 0.9,
+    //     },
+    //     false => ChatCompletionRequest {
+    //         messages: vec![
+    //             Message {
+    //                 role: "system".to_string(),
+    //                 content: system_data,
+    //             },
+    //             Message {
+    //                 role: "user".to_string(),
+    //                 content: prompt,
+    //             },
+    //         ],
+    //         model: LANGUAGE_MODEL.to_string(),
+    //         stream: true,
+    //         temperature: 0.9,
+    //     },
+    // };
 
     let response: Response = match client
         .post("https://api.x.ai/v1/chat/completions")
@@ -106,7 +195,7 @@ pub async fn get_grok_response(
                                     complete_text.clone(),
                                     current_telegram_message_id.clone()
                                 ).await;
-                                let message_response = String::from("Stream completed.");
+                                let message_response = String::from("Message sent successfully.");
                                 return Ok(message_response);
                             }
 
@@ -205,5 +294,42 @@ async fn send_telegram_message(
             },
             Err(e) => eprintln!("Error sending message to Telegram: {}", e),
         }
+    }
+}
+
+async fn telegram_file_url(
+    file_id: String, 
+    telegram_bot_token: String,
+    telegram_client: Arc<Client>,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+    
+    let telegram_api_url = format!(
+        "https://api.telegram.org/bot{}/getFile?file_id={}", 
+        telegram_bot_token,
+        file_id,
+    );
+    
+    let file_info: TelegramGetFile = telegram_client
+        .get(telegram_api_url)
+        .send()
+        .await?
+        .json()
+        .await?;
+
+    if file_info.ok {
+        let file_path = file_info.result.unwrap().file_path.unwrap();
+        let file_url = format!(
+            "https://api.telegram.org/file/bot{}/{}", 
+            telegram_bot_token, 
+            file_path,
+        );
+        // let image_response = client.get(&file_url).send().await?;
+        // let bytes = image_response.bytes().await?;
+        // std::fs::write("image.jpg", &bytes)?;
+        // println!("Image saved as image.jpg");
+        println!("File url get successfully");
+        Ok(file_url)
+    } else {
+        Err(format!("Error getting file info: {:?}", file_info.description).into())
     }
 }

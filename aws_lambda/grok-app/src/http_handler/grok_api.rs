@@ -1,8 +1,10 @@
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
 use super::system_bot::guideline_bot;
+use base64::{engine::general_purpose::STANDARD, Engine};
 use serde_json::json;
 use futures::StreamExt;
+use std::fs;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -72,7 +74,7 @@ pub async fn get_grok_response(
     let request_body = match is_image {
         true => {
             let file_id = prompt;
-            let image_url = match telegram_file_url(
+            let image_base64 = match telegram_file_url(
                 file_id,
                 telegram_bot_token.clone(),
                 telegram_client.clone(),
@@ -83,18 +85,22 @@ pub async fn get_grok_response(
             json!({
                 "messages": [
                     {
+                        "role": "system",
+                        "content": system_data
+                    },
+                    {
                         "role": "user",
                         "content": [
                             {
                                 "type": "image_url",
                                 "image_url": {
-                                    "url": image_url,
+                                    "url": format!("data:image/jpeg;base64,{}", image_base64),
                                     "detail": "high"
                                 }
                             },
                             {
                                 "type": "text",
-                                "text": "Please provide a detailed description of the image."
+                                "text": "Explain this code in Rust."
                             }
                         ]
                     }
@@ -123,39 +129,6 @@ pub async fn get_grok_response(
         }
     };
 
-    // let request_body: ChatCompletionRequest = match is_image {
-    //     true => ChatCompletionRequest {
-    //         messages: vec![
-    //             Message {
-    //                 role: "system".to_string(),
-    //                 content: system_data,
-    //             },
-    //             Message {
-    //                 role: "user".to_string(),
-    //                 content: 
-    //             },
-    //         ],
-    //         model: LANGUAGE_VISION_MODEL.to_string(),
-    //         stream: true,
-    //         temperature: 0.9,
-    //     },
-    //     false => ChatCompletionRequest {
-    //         messages: vec![
-    //             Message {
-    //                 role: "system".to_string(),
-    //                 content: system_data,
-    //             },
-    //             Message {
-    //                 role: "user".to_string(),
-    //                 content: prompt,
-    //             },
-    //         ],
-    //         model: LANGUAGE_MODEL.to_string(),
-    //         stream: true,
-    //         temperature: 0.9,
-    //     },
-    // };
-
     let response: Response = match client
         .post("https://api.x.ai/v1/chat/completions")
         .header("Content-Type", "application/json")
@@ -163,16 +136,10 @@ pub async fn get_grok_response(
         .json(&request_body)
         .send()
         .await {
-            Ok(response) => {
-                if response.status().is_success() {
-                    response
-                } else {
-                    return Err(format!("Request failed with status: {}", response.status()).into());
-                }
-            },
+            Ok(response) => response,
             Err(e) => return Err(e.into()),
-        };  
-
+        };
+    
     if response.status().is_success() {
         let mut stream = response.bytes_stream();
         let current_telegram_message_id = Arc::new(Mutex::new(None));
@@ -323,12 +290,12 @@ async fn telegram_file_url(
             telegram_bot_token, 
             file_path,
         );
-        // let image_response = client.get(&file_url).send().await?;
-        // let bytes = image_response.bytes().await?;
+        let image_response = telegram_client.get(&file_url).send().await?;
+        let image_bytes = image_response.bytes().await?;
         // std::fs::write("image.jpg", &bytes)?;
         // println!("Image saved as image.jpg");
         println!("File url get successfully");
-        Ok(file_url)
+        Ok(STANDARD.encode(image_bytes))
     } else {
         Err(format!("Error getting file info: {:?}", file_info.description).into())
     }

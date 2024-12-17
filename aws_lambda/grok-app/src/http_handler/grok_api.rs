@@ -4,7 +4,6 @@ use super::system_bot::guideline_bot;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde_json::json;
 use futures::StreamExt;
-use std::fs;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -12,6 +11,7 @@ static LANGUAGE_MODEL: &str = "grok-2-1212";
 static LANGUAGE_VISION_MODEL: &str = "grok-2-vision-1212";
 const MAX_TOKENS_STREAM: u8 = 12;
 
+#[allow(dead_code)]
 #[derive(Serialize)]
 pub struct ChatCompletionRequest {
     messages: Vec<Message>,
@@ -20,27 +20,32 @@ pub struct ChatCompletionRequest {
     temperature: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Serialize)]
 pub struct Message {
     role: String,
     content: String,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct StreamResponse {
     choices: Vec<StreamChoice>,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct StreamChoice {
     delta: StreamDelta,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct StreamDelta {
     content: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct TelegramGetFile {
     ok: bool,
@@ -49,6 +54,7 @@ struct TelegramGetFile {
     description: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct FileInfo {
     file_id: String,
@@ -66,7 +72,6 @@ pub async fn get_grok_response(
     ) -> Result<String, Box<dyn std::error::Error>> {
 
     let client = Client::new();
-    let telegram_client = Arc::new(Client::new());
 
     // Get system data from system_bot file
     let system_data = guideline_bot().expect("Failed to load system data");
@@ -74,10 +79,9 @@ pub async fn get_grok_response(
     let request_body = match is_image {
         true => {
             let file_id = prompt;
-            let image_base64 = match telegram_file_url(
+            let image_base64 = match telegram_get_file_data(
                 file_id,
                 telegram_bot_token.clone(),
-                telegram_client.clone(),
             ).await {
                 Ok(url) => url,
                 Err(e) => return Err(e.into()),
@@ -156,7 +160,6 @@ pub async fn get_grok_response(
                             let json_part = part.trim_start_matches("data:");
                             if json_part.trim() == "[DONE]" {
                                 send_telegram_message(
-                                    telegram_client.clone(),
                                     telegram_bot_token.clone(),
                                     telegram_chat_id.clone(),
                                     complete_text.clone(),
@@ -172,7 +175,6 @@ pub async fn get_grok_response(
                                         complete_text = complete_text + content;
                                         if counter > MAX_TOKENS_STREAM {
                                             send_telegram_message(
-                                                telegram_client.clone(),
                                                 telegram_bot_token.clone(),
                                                 telegram_chat_id.clone(),
                                                 complete_text.clone(),
@@ -203,13 +205,13 @@ pub async fn get_grok_response(
     Ok(message_response)
 }
 
-async fn send_telegram_message(
-    client: Arc<Client>, 
+pub async fn send_telegram_message(
     bot_token: String, 
     chat_id: String, 
     text: String, 
     current_telegram_message_id: Arc<Mutex<Option<i64>>>
 ) {
+    let telegram_client = Arc::new(Client::new());
     let telegram_api_url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
     let mut message_body = json!({
         "chat_id": chat_id,
@@ -228,7 +230,7 @@ async fn send_telegram_message(
             "parse_mode": "markdown"
         });
             
-        let response = client
+        let _response = telegram_client
             .post(edit_message_url)
             .header("Content-Type", "application/json")
             .json(&message_body)
@@ -245,7 +247,7 @@ async fn send_telegram_message(
         //     Err(e) => eprintln!("Error editing message on Telegram: {}", e),
         // }
     }else {
-        let response = client
+        let response = telegram_client
             .post(telegram_api_url)
             .header("Content-Type", "application/json")
             .json(&message_body)
@@ -264,12 +266,12 @@ async fn send_telegram_message(
     }
 }
 
-async fn telegram_file_url(
+pub async fn telegram_get_file_data(
     file_id: String, 
     telegram_bot_token: String,
-    telegram_client: Arc<Client>,
     ) -> Result<String, Box<dyn std::error::Error>> {
     
+    let telegram_client = Arc::new(Client::new());
     let telegram_api_url = format!(
         "https://api.telegram.org/bot{}/getFile?file_id={}", 
         telegram_bot_token,

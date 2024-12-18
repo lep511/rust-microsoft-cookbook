@@ -12,6 +12,7 @@ struct MessageBody {
     message: MessageData,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
 struct MessageData {
     message_id: i64,

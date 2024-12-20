@@ -1,7 +1,7 @@
 // mod openai;
 // use openai::{ChatOpenAI, Message};
 mod gemini;
-use gemini::{ChatGemini, Content, ChatRequest, Part};
+use gemini::ChatGemini;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,29 +19,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     
     let model = ChatGemini::new("gemini-1.5-flash")?;
-    let content: Content = {
-        Content {
-            role: "user".to_string(),
-            parts: vec![Part {
-                text: Some("Explain the Pythagorean theorem to a 10-year-old.".to_string()),
-                function_call: None,
-            }],
-        }
-    };
     
-    let chat_request = ChatRequest {
-        contents: vec![content],
-        tools: None,
-        generation_config: None,
-    };
-    let response = model.invoke(chat_request).await?;
+    let model = model.with_temperature(0.9);
+    let model = model.with_max_tokens(2048);
+
+    let prompt = "Explain the Pythagorean theorem to a 10-year-old.";
+    let response = model.invoke(prompt).await?;
 
     if let Some(candidates) = response.candidates {
         for candidate in candidates {
             if let Some(content) = candidate.content {
                 for part in content.parts {
                     if let Some(text) = part.text {
-                        println!("Text: {}", text);
+                        println!("{}", text);
                     }
                 }
             }

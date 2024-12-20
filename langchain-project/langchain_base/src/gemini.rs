@@ -17,7 +17,7 @@ pub enum GeminiChatError {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct ChatRequest {
     pub contents: Vec<Content>,
     pub tools: Option<Vec<Value>>,
@@ -44,21 +44,20 @@ pub struct Part {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct  GenerationConfig {
-    pub temperature: f32,
-    #[serde(rename = "topK")]
-    pub top_p: f32,
+    pub temperature: Option<f32>,
     #[serde(rename = "topP")]
-    pub top_k: i32,
+    pub top_p: Option<f32>,
     #[serde(rename = "maxOutputTokens")]
-    pub max_output_tokens: i32,
+    pub max_output_tokens: Option<u32>,
     #[serde(rename = "responseMimeType")]
-    pub response_mime_type: String,
+    pub response_mime_type: Option<String>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ChatGemini {
     pub base_url: String,
+    pub contents: ChatRequest,
     pub client: Client,
 }
 
@@ -82,21 +81,41 @@ impl ChatGemini {
             model,
             api_key,
         );
+
+        let contents = ChatRequest {
+            contents: vec![Content {
+                role: "user".to_string(),
+                parts: vec![Part {
+                    text: Some("Hello!".to_string()),
+                    function_call: None,
+                }],
+            }],
+            tools: None,
+            generation_config: Some(GenerationConfig {
+                temperature: Some(0.9),
+                top_p: Some(1.0),
+                max_output_tokens: Some(2048),
+                response_mime_type: None,
+            }),
+        };
         
         Ok(Self {
             base_url,
+            contents,
             client: Client::builder()
                 .use_rustls_tls()
                 .build()?,
         })
     }
 
-    pub async fn invoke(&self, contents: ChatRequest) -> Result<ChatResponse, GeminiChatError> {
+    pub async fn invoke(mut self, prompt: &str) -> Result<ChatResponse, GeminiChatError> {
+
+        self.contents.contents[0].parts[0].text = Some(prompt.to_string());
         let response = self
             .client
-            .post(&self.base_url)
+            .post(self.base_url)
             .header("Content-Type", "application/json")
-            .json(&contents)
+            .json(&self.contents)
             .send()
             .await?
             .json::<serde_json::Value>()
@@ -112,22 +131,32 @@ impl ChatGemini {
         };
 
         if let Some(error) = chat_response.error {
-            println!("[ERROR] {}", error.message);
+            println!("[ERROR] {:?}", error);
             return Err(GeminiChatError::ResponseContentError);
         } else {
             Ok(chat_response)
         }
     }
 
-    // pub fn with_temperature(mut self, temperature: f32) -> Self {
-    //     self.temperature = temperature;
-    //     self
-    // }
+    pub fn with_temperature(mut self, temperature: f32) -> Self {
+        match &mut self.contents.generation_config {
+            Some(config) => {
+                config.temperature = Some(temperature);
+            }
+            None => ()
+        };
+        self
+    }
 
-    // pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
-    //     self.max_tokens = Some(max_tokens);
-    //     self
-    // }
+    pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
+        match &mut self.contents.generation_config {
+            Some(config) => {
+                config.max_output_tokens = Some(max_tokens);
+            }
+            None => ()
+        };
+        self
+    }
 }
 
 #[allow(dead_code)]
@@ -171,10 +200,10 @@ pub struct UsageMetadata {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorDetails {
-    pub code: i32,
-    pub message: String,
-    pub status: String,
-    pub details: Vec<ErrorDetail>,
+    pub code: Option<i32>,
+    pub message: Option<String>,
+    pub status: Option<String>,
+    pub details: Option<Vec<ErrorDetail>>,
 }
 
 #[allow(dead_code)]

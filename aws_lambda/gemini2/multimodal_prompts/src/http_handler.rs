@@ -1,25 +1,57 @@
-use lambda_http::{Body, Error, Request, RequestExt, Response};
+mod gemini_op;
 
-/// This is the main body for the function.
-/// Write your code inside it.
-/// There are some code example in the following URLs:
-/// - https://github.com/awslabs/aws-lambda-rust-runtime/tree/main/examples
+use gemini_op::get_gemini_response;
+use lambda_http::{Body, Error, Request, RequestExt, Response};
+use std::env;
+
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     // Extract some useful information from the request
-    let who = event
+    let prompt = event
         .query_string_parameters_ref()
-        .and_then(|params| params.first("name"))
-        .unwrap_or("world");
-    let message = format!("Hello {who}, this is an AWS Lambda HTTP request");
+        .and_then(|params| params.first("prompt"))
+        .unwrap_or("None");
 
-    // Return something that implements IntoResponse.
-    // It will be serialized to the right response event automatically by the runtime
-    let resp = Response::builder()
-        .status(200)
-        .header("content-type", "text/html")
-        .body(message.into())
-        .map_err(Box::new)?;
-    Ok(resp)
+    if prompt == "None" {
+        let resp = Response::builder()
+            .status(400)
+            .header("content-type", "text/html")
+            .body("Please provide a prompt in string parameters".into())
+            .map_err(Box::new)?;
+        return Ok(resp)
+    }
+
+    let google_api_token = match env::var("GOOGLE_API_TOKEN") {
+        Ok(val) => val,
+        Err(_) => {
+            let resp = Response::builder()
+                .status(404)
+                .header("content-type", "text/html")
+                .body("GOOGLE_API_TOKEN not set".into())
+                .map_err(Box::new)?;
+            return Ok(resp);
+        }
+    };
+
+    match get_gemini_response(&prompt, google_api_token).await {
+        Ok(content) => {
+            let message = "Ok";
+            let resp = Response::builder()
+                .status(200)
+                .header("content-type", "text/html")
+                .body(message.into())
+                .map_err(Box::new)?;
+            return Ok(resp)
+        }
+        Err(e) => {
+            let message = format!("Error getting response from Gemini - {}", e);
+            let resp = Response::builder()
+                .status(500)
+                .header("content-type", "text/html")
+                .body(message.into())
+                .map_err(Box::new)?;
+            return Ok(resp)
+        }
+    }
 }
 
 #[cfg(test)]

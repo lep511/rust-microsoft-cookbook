@@ -102,23 +102,21 @@ impl ChatGemini {
             .json::<serde_json::Value>()
             .await?;
 
-        println!("Response: {:?}", response);
-
-        if response["error"].is_object() {
-            println!("Response: {:?}", response);
-            return Err(GeminiChatError::ResponseContentError)
-        };
-
         let response = response.to_string();
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("Error: {:?}", e);
+                println!("[ERROR] {:?}", e);
                 return Err(GeminiChatError::ResponseContentError);
             }
         };
-        
-        Ok(chat_response)
+
+        if let Some(error) = chat_response.error {
+            println!("[ERROR] {}", error.message);
+            return Err(GeminiChatError::ResponseContentError);
+        } else {
+            Ok(chat_response)
+        }
     }
 
     // pub fn with_temperature(mut self, temperature: f32) -> Self {
@@ -135,43 +133,69 @@ impl ChatGemini {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChatResponse {
-    candidates: Vec<Candidate>,
-    model_version: Option<String>,
+    pub candidates: Option<Vec<Candidate>>,
+    pub model_version: Option<String>,
     #[serde(rename = "usageMetadata")]
-    usage_metadata: UsageMetadata,
+    pub usage_metadata: Option<UsageMetadata>,
+    pub error: Option<ErrorDetails>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Candidate {
     #[serde(rename = "avgLogprobs")]
-    avg_logprobs: Option<f64>,
-    content: Content,
+    pub avg_logprobs: Option<f64>,
+    pub content: Option<Content>,
     #[serde(rename = "finishReason")]
-    finish_reason: String,
+    pub finish_reason: Option<String>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FunctionCall {
-    args: FunctionArgs,
-    name: String,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct FunctionArgs {
-    location: String,
-    movie: String,
+    pub args: String,
+    pub name: String,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UsageMetadata {
     #[serde(rename = "candidatesTokenCount")]
-    candidates_token_count: i32,
+    pub candidates_token_count: i32,
     #[serde(rename = "promptTokenCount")]
-    prompt_token_count: i32,
+    pub rompt_token_count: i32,
     #[serde(rename = "totalTokenCount")]
-    total_token_count: i32,
+    pub total_token_count: i32,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorDetails {
+    pub code: i32,
+    pub message: String,
+    pub status: String,
+    pub details: Vec<ErrorDetail>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorDetail {
+    #[serde(rename = "@type")]
+    pub type_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub domain: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<Metadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locale: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Metadata {
+    pub service: String,
 }

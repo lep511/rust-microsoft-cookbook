@@ -89,14 +89,21 @@ impl ChatOpenAI {
             .await?
             .json::<serde_json::Value>()
             .await?;
-
+       
         let response = response.to_string();
-        match serde_json::from_str(&response) {
-            Ok(response_form) => Ok(response_form),
+        let chat_response: ChatResponse = match serde_json::from_str(&response) {
+            Ok(response_form) => response_form,
             Err(e) => {
-                println!("Error: {:?}", e);
-                Err(OpenAIChatError::ResponseContentError)
+                println!("[ERROR] {:?}", e);
+                return Err(OpenAIChatError::ResponseContentError);
             }
+        };
+
+        if let Some(error) = chat_response.error {
+            println!("[ERROR] {}", error.message);
+            return Err(OpenAIChatError::ResponseContentError);
+        } else {
+            Ok(chat_response)
         }
     }
 
@@ -114,13 +121,14 @@ impl ChatOpenAI {
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct ChatResponse {
-    pub choices: Vec<Choice>,
-    pub created: u64,
-    pub id: String,
-    pub model: String,
-    pub object: String,
-    pub system_fingerprint: String,
-    pub usage: Usage,
+    pub choices: Option<Vec<Choice>>,
+    pub created: Option<u64>,
+    pub id: Option<String>,
+    pub model: Option<String>,
+    pub object: Option<String>,
+    pub system_fingerprint: Option<String>,
+    pub usage: Option<Usage>,
+    pub error: Option<ErrorDetails>,
 }
 
 #[allow(dead_code)]
@@ -164,4 +172,14 @@ pub struct CompletionTokensDetails {
 pub struct PromptTokensDetails {
     pub audio_tokens: u32,
     pub cached_tokens: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorDetails {
+    pub code: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub param: Option<String>,
+    #[serde(rename = "type")]
+    pub error_type: String,
 }

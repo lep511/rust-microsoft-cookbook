@@ -18,8 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // println!("Response: {:?}", response);
 
     
-
-    let model = ChatGemini::new("gemini-2.0-flash-thinking-exp")?;
+    let model = ChatGemini::new("gemini-1.5-flash")?;
     let content: Content = {
         Content {
             role: "user".to_string(),
@@ -36,7 +35,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         generation_config: None,
     };
     let response = model.invoke(chat_request).await?;
-    println!("Response: {:?}", response);
+
+    if let Some(candidates) = response.candidates {
+        for candidate in candidates {
+            if let Some(content) = candidate.content {
+                for part in content.parts {
+                    if let Some(text) = part.text {
+                        println!("Text: {}", text);
+                    }
+                }
+            }
+        }
+    };
 
     Ok(())
 }

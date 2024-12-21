@@ -16,29 +16,19 @@ pub enum OpenAIChatError {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct ChatRequest {
     pub model: String,
     pub messages: Vec<Message>,
-    pub temperature: f32,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
     pub max_tokens: Option<u32>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Message {
-    pub role: String,
-    pub content: String,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ChatOpenAI {
     pub api_key: String,
-    pub model: String,
-    pub temperature: f32,
-    pub max_tokens: Option<u32>,
+    pub request: ChatRequest,
     pub client: Client,
 }
 
@@ -56,12 +46,22 @@ impl ChatOpenAI {
                 return Err(OpenAIChatError::EnvError(e));
             }
         };
+
+        let messages = vec![Message {
+            role: Some("user".to_string()),
+            content: Some("Hello!".to_string()),
+        }];
+
+        let request = ChatRequest {
+            model: model.to_string(),
+            messages: messages.clone(),
+            temperature: Some(0.9),
+            max_tokens: Some(1024),
+        };
         
         Ok(Self {
-            api_key,
-            model: model.to_string(),
-            temperature: 0.7,
-            max_tokens: None,
+            api_key: api_key,
+            request: request,
             client: Client::builder()
                 .use_rustls_tls()
                 .build()?,
@@ -69,22 +69,17 @@ impl ChatOpenAI {
     }
 
     pub async fn invoke(
-        &self,
-        messages: Vec<Message>,
+        mut self,
+        prompt: &str,
     ) -> Result<ChatResponse, OpenAIChatError> {
-        let request = ChatRequest {
-            model: self.model.clone(),
-            messages,
-            temperature: self.temperature,
-            max_tokens: self.max_tokens,
-        };
-
+        
+        self.request.messages[0].content = Some(prompt.to_string());
         let response = self
             .client
             .post(Self::OPENAI_BASE_URL)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
-            .json(&request)
+            .json(&self.request)
             .send()
             .await?
             .json::<serde_json::Value>()
@@ -108,14 +103,21 @@ impl ChatOpenAI {
     }
 
     pub fn with_temperature(mut self, temperature: f32) -> Self {
-        self.temperature = temperature;
+        self.request.temperature = Some(temperature);
         self
     }
 
     pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
-        self.max_tokens = Some(max_tokens);
+        self.request.max_tokens = Some(max_tokens);
         self
     }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Message {
+    pub role: Option<String>,
+    pub content: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -178,7 +180,6 @@ pub struct PromptTokensDetails {
 pub struct ErrorDetails {
     pub code: String,
     pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub param: Option<String>,
     #[serde(rename = "type")]
     pub error_type: String,

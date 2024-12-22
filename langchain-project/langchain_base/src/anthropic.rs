@@ -1,6 +1,7 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::time::Duration;
 use std::env;
 
 #[allow(dead_code)]
@@ -35,6 +36,7 @@ pub struct ChatRequest {
 pub struct ChatAnthropic {
     pub api_key: String,
     pub request: ChatRequest,
+    pub timeout: u64,
     pub client: Client,
 }
 
@@ -71,6 +73,7 @@ impl ChatAnthropic {
         Ok(Self {
             api_key: api_key,
             request: request,
+            timeout: 15 * 60, // default: 15 minutes 
             client: Client::builder()
                 .use_rustls_tls()
                 .build()?,
@@ -86,6 +89,7 @@ impl ChatAnthropic {
         let response = self
             .client
             .post(Self::ANTHROPIC_BASE_URL)
+            .timeout(Duration::from_secs(self.timeout))
             .header("x-api-key", self.api_key)
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")
@@ -95,8 +99,6 @@ impl ChatAnthropic {
             .json::<serde_json::Value>()
             .await?;
         
-        println!("[DEBUG] response: {:?}", response);
-
         let response = response.to_string();
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
@@ -112,6 +114,11 @@ impl ChatAnthropic {
         } else {
             Ok(chat_response)
         }
+    }
+
+    pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
+        self.timeout = timeout;
+        self
     }
 
     pub fn with_temperature(mut self, temperature: f32) -> Self {
@@ -161,6 +168,9 @@ pub struct ChatResponse {
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Content {
+    pub id: Option<String>,
+    pub input: Option<Value>,
+    pub name: Option<String>,
     pub text: Option<String>,
     #[serde(rename = "type")]
     pub content_type: Option<String>,

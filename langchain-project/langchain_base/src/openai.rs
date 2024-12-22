@@ -1,5 +1,6 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use std::env;
 
 #[allow(dead_code)]
@@ -29,6 +30,7 @@ pub struct ChatRequest {
 pub struct ChatOpenAI {
     pub api_key: String,
     pub request: ChatRequest,
+    pub timeout: u64,
     pub client: Client,
 }
 
@@ -62,6 +64,7 @@ impl ChatOpenAI {
         Ok(Self {
             api_key: api_key,
             request: request,
+            timeout: 15 * 60, // default: 15 minutes
             client: Client::builder()
                 .use_rustls_tls()
                 .build()?,
@@ -77,6 +80,7 @@ impl ChatOpenAI {
         let response = self
             .client
             .post(Self::OPENAI_BASE_URL)
+            .timeout(Duration::from_secs(self.timeout))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
             .json(&self.request)
@@ -109,6 +113,11 @@ impl ChatOpenAI {
 
     pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
         self.request.max_tokens = Some(max_tokens);
+        self
+    }
+
+    pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
+        self.timeout = timeout;
         self
     }
 }

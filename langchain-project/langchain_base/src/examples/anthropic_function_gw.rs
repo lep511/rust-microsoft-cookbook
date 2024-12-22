@@ -1,31 +1,33 @@
-mod anthropic;
-use anthropic::ChatAnthropic;
+use crate::anthropic::ChatAnthropic;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::env;
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
-struct WeatherResponse {
+pub struct WeatherResponse {
     main: MainWeather,
     name: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
-struct MainWeather {
+pub struct MainWeather {
     temp: f64,
     feels_like: f64,
     humidity: i32,
     pressure: i32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
-struct WeatherParams {
+pub struct WeatherParams {
     location: String,
     unit: String,
 }
 
-async fn get_weather(params: WeatherParams) -> Result<WeatherResponse, Box<dyn std::error::Error>> {
+pub async fn get_weather(params: WeatherParams) -> Result<WeatherResponse, Box<dyn std::error::Error>> {
     println!("Getting weather for {} in {}", params.location, params.unit);
 
     let api_key = env::var("OPENWEATHER_API_KEY")
@@ -61,7 +63,7 @@ async fn get_weather(params: WeatherParams) -> Result<WeatherResponse, Box<dyn s
     }
 }
 
-async fn sample_anthropic_function_gw() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
     let tool_data = json!({
         "name":"get_weather",
@@ -97,7 +99,6 @@ async fn sample_anthropic_function_gw() -> Result<(), Box<dyn std::error::Error>
         Some(candidates) => {
             for candidate in candidates {
                 println!("Response: {:?}", candidate);
-                let function_input = candidate.input.clone();
                 match candidate.input {
                     Some(input) => {
                         if let Ok(params) = serde_json::from_value::<WeatherParams>(input) {
@@ -122,9 +123,4 @@ async fn sample_anthropic_function_gw() -> Result<(), Box<dyn std::error::Error>
     };
 
     Ok(())
-}
-
-#[tokio::main]
-async fn main() {
-    let _ = sample_anthropic_function_gw().await;
 }

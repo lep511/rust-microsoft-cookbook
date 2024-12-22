@@ -1,5 +1,6 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use std::env;
 use serde_json::Value;
 
@@ -58,6 +59,7 @@ pub struct  GenerationConfig {
 pub struct ChatGemini {
     pub base_url: String,
     pub contents: ChatRequest,
+    pub timeout: u64,
     pub client: Client,
 }
 
@@ -100,8 +102,9 @@ impl ChatGemini {
         };
         
         Ok(Self {
-            base_url,
-            contents,
+            base_url: base_url,
+            contents: contents,
+            timeout: 15 * 60, // default: 15 minutes
             client: Client::builder()
                 .use_rustls_tls()
                 .build()?,
@@ -114,6 +117,7 @@ impl ChatGemini {
         let response = self
             .client
             .post(self.base_url)
+            .timeout(Duration::from_secs(self.timeout))
             .header("Content-Type", "application/json")
             .json(&self.contents)
             .send()
@@ -155,6 +159,11 @@ impl ChatGemini {
             }
             None => ()
         };
+        self
+    }
+    
+    pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
+        self.timeout = timeout;
         self
     }
 }

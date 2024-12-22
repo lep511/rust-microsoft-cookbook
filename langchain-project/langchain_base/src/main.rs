@@ -7,6 +7,44 @@ use gemini::ChatGemini;
 use anthropic::ChatAnthropic;
 
 use serde_json::json;
+use serde::{Deserialize, Serialize};
+
+async fn sample_anthropic_function_gsp() -> Result<(), Box<dyn std::error::Error>> {
+    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+    let tool_data = json!({
+        "name": "get_stock_price",
+        "description": "Retrieves the current stock price for a given ticker symbol. \
+                        The ticker symbol must be valid for a publicly traded company \
+                        on a major US stock exchange like NYSE or NASDAQ. \
+                        The tool will return the latest trade price in USD. \
+                        It should be used when the user asks about the current \
+                        or most recent price of a specific stock. \
+                        It will not provide any other information \
+                        about the stock or company.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "ticker": {
+              "type": "string",
+              "description": "The stock ticker symbol, e.g. AAPL for Apple Inc."
+            }
+          },
+          "required": ["ticker"]
+        }
+    });
+
+    let tools = vec![tool_data];
+    let tool_choice = json!({"type": "auto"});
+    let llm = llm.with_tools(tools, tool_choice);
+
+    let prompt = "How much is Tesla stock trading for? Before answering, explain your reasoning step-by-step in tags.";
+    let response = llm.invoke(prompt).await?;
+
+    println!("\n#### Example Anthropic Function Call ####");
+    println!("Response: {:?}", response);
+
+    Ok(())
+}
 
 async fn sample_anthropic() -> Result<(), Box<dyn std::error::Error>> {
     // Example simple shot
@@ -25,34 +63,6 @@ async fn sample_anthropic() -> Result<(), Box<dyn std::error::Error>> {
             println!("{:?}", candidate.text);
         }
     };
-
-    // Example Function Call
-    let llm = ChatAnthropic::new("claude-3-5-haiku-20241022")?;
-    let tool_data = json!({
-        "name":"get_weather",
-        "description":"Get the current weather in a given location",
-        "input_schema":{
-            "type":"object",
-            "properties":{
-                "location":{
-                    "type":"string",
-                    "description":"The city and state, e.g. San Francisco, CA"
-                }
-            },
-            "required":[
-                "location"
-            ]
-        }
-    });
-    let tools = vec![tool_data];
-    let tool_choice = json!({"type": "tool", "name": "get_weather"});
-    let llm = llm.with_tools(tools, tool_choice);
-
-    let prompt = "What is the weather like in San Francisco?";
-    let response = llm.invoke(prompt).await?;
-
-    println!("\n#### Example Anthropic Function Call ####");
-    println!("Response: {:?}", response);
 
     Ok(())
 }
@@ -107,6 +117,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // sample_anthropic().await?;
     // sample_gemini().await?;
     // sample_openai().await?;
+    sample_anthropic_function_gw().await?;
+    // sample_anthropic_function().await?;
 
     Ok(())
 }

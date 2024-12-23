@@ -1,8 +1,8 @@
-use crate::openai::{ChatOpenAI, ChatResponse};
+use crate::groc::{ChatGroc, ChatResponse};
 use std::time::Instant;
 
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatOpenAI::new("gpt-4o-mini")?;
+    let llm = ChatGroc::new("llama-3.3-70b-specdec")?;
     let llm = llm.with_temperature(0.9);
     let llm = llm.with_max_tokens(2048);
     let llm = llm.with_timeout_sec(30);
@@ -15,7 +15,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     let elapsed = start.elapsed().as_secs_f64();
     println!("[Task took {:.2} seconds]", elapsed);
 
-    println!("\n#### Example OpenAI simple shot ####");
+    println!("\n#### Example Groc simple shot ####");
     match response.choices {
         Some(candidates) => {
             for candidate in candidates {

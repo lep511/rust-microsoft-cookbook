@@ -1,0 +1,14 @@
+{
+  "employment_status": "Part-time",
+  "financial_stress": true,
+  "housing_insecurity": true,
+  "neighborhood_unsafety": true,
+  "food_insecurity": true,
+  "education_level": "High School",
+  "transportation_inaccessibility": true,
+  "social_isolation": true,
+  "health_insurance_inadequacy": true,
+  "skipped_care_due_to_cost": true,
+  "marital_status": "Divorced",
+  "language_barrier": false
+}

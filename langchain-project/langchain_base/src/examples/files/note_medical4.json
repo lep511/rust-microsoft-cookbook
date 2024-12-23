@@ -1,0 +1,14 @@
+{
+  "employment_status": "Full-time",
+  "financial_stress": false,
+  "housing_insecurity": false,
+  "neighborhood_unsafety": false,
+  "food_insecurity": false,
+  "education_level": "College",
+  "transportation_inaccessibility": false,
+  "social_isolation": false,
+  "health_insurance_inadequacy": false,
+  "skipped_care_due_to_cost": false,
+  "marital_status": "Married",
+  "language_barrier": false
+}

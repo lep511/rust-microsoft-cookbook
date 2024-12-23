@@ -1,0 +1,14 @@
+{
+  "employment_status": "Unemployed",
+  "financial_stress": true,
+  "housing_insecurity": true,
+  "neighborhood_unsafety": true,
+  "food_insecurity": true,
+  "education_level": "None",
+  "transportation_inaccessibility": false,
+  "social_isolation": true,
+  "health_insurance_inadequacy": true,
+  "skipped_care_due_to_cost": true,
+  "marital_status": "Single",
+  "language_barrier": true
+}

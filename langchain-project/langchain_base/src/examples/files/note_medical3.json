@@ -1,0 +1,14 @@
+{
+  "employment_status": "Retired",
+  "financial_stress": false,
+  "housing_insecurity": false,
+  "neighborhood_unsafety": false,
+  "food_insecurity": false,
+  "education_level": "College",
+  "transportation_inaccessibility": true,
+  "social_isolation": true,
+  "health_insurance_inadequacy": false,
+  "skipped_care_due_to_cost": false,
+  "marital_status": "Widowed",
+  "language_barrier": false
+}

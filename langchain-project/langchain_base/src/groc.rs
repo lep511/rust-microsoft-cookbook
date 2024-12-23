@@ -76,7 +76,8 @@ impl ChatGroc {
         prompt: &str,
     ) -> Result<ChatResponse, ChatGrocChatError> {
         
-        self.request.messages[0].content = Some(prompt.to_string());
+        let total_msg = self.request.messages.len() - 1;
+        self.request.messages[total_msg].content = Some(prompt.to_string());   
         let response = self
             .client
             .post(Self::GROC_BASE_URL)
@@ -118,6 +119,17 @@ impl ChatGroc {
 
     pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
         self.timeout = timeout;
+        self
+    }
+
+    pub fn with_system_prompt(mut self, system_prompt: &str) -> Self {
+        self.request.messages.insert(
+            0,
+            Message {
+                role: Some("system".to_string()),
+                content: Some(system_prompt.to_string()),
+            },
+        );
         self
     }
 }

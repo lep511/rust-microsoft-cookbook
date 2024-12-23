@@ -1,0 +1,19 @@
+Patient Name: Michael Chen
+Age: 54
+Medical Record:
+
+1998: Diagnosed with asthma, started on albuterol inhaler as needed
+2003: Developed seasonal allergies, prescribed loratadine
+2007: Sustained a mild concussion from a sports injury
+2010: Diagnosed with hyperlipidemia, started on simvastatin
+2012: Underwent an appendectomy due to acute appendicitis
+2014: Presented with carpal tunnel syndrome in right wrist, treated with splinting
+2015: Elevated blood pressure noted, started on hydrochlorothiazide
+2017: Colonoscopy showed no abnormalities, recommended routine follow-up
+2018: Admitted for a kidney stone, treated with pain medication and fluids
+2019: Developed plantar fasciitis (left foot), treated with physical therapy
+2020: Started on a higher dose of simvastatin due to persistently high LDL levels
+2021: Diagnosed with mild obstructive sleep apnea, started on CPAP therapy
+2022: Presented with a skin rash, diagnosed with eczema, started on topical steroids
+2023: Routine eye exam detected early signs of glaucoma, started on eye drops
+2024: Follow-up colonoscopy normal. Recommended repeat in 5 years.

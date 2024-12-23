@@ -5,8 +5,8 @@ use std::env;
 
 #[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
-pub enum OpenAIChatError {
-    #[error("OpenAI API key not found in environment variables")]
+pub enum XAIChatError {
+    #[error("X-AI API key not found in environment variables")]
     ApiKeyNotFound,
     #[error("Request error: {0}")]
     RequestError(#[from] reqwest::Error),
@@ -27,7 +27,7 @@ pub struct ChatRequest {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub struct ChatOpenAI {
+pub struct ChatXAI {
     pub api_key: String,
     pub request: ChatRequest,
     pub timeout: u64,
@@ -35,17 +35,17 @@ pub struct ChatOpenAI {
 }
 
 #[allow(dead_code)]
-impl ChatOpenAI {
-    const OPENAI_BASE_URL: &'static str = "https://api.openai.com/v1/chat/completions";
+impl ChatXAI {
+    const XAI_BASE_URL: &'static str = "https://api.x.ai/v1/chat/completions";
 
-    pub fn new(model: &str) -> Result<Self, OpenAIChatError> {
-        let api_key = match env::var("OPENAI_API_KEY") {
+    pub fn new(model: &str) -> Result<Self, XAIChatError> {
+        let api_key = match env::var("XAI_API_KEY") {
             Ok(key) => key,
             Err(env::VarError::NotPresent) => {
-                return Err(OpenAIChatError::ApiKeyNotFound);
+                return Err(XAIChatError::ApiKeyNotFound);
             }
             Err(e) => {
-                return Err(OpenAIChatError::EnvError(e));
+                return Err(XAIChatError::EnvError(e));
             }
         };
 
@@ -74,13 +74,14 @@ impl ChatOpenAI {
     pub async fn invoke(
         mut self,
         prompt: &str,
-    ) -> Result<ChatResponse, OpenAIChatError> {
-        
+    ) -> Result<ChatResponse, XAIChatError> {
+
         let total_msg = self.request.messages.len() - 1;
-        self.request.messages[total_msg].content = Some(prompt.to_string());   
+        self.request.messages[total_msg].content = Some(prompt.to_string());    
+        println!("request: {:?}", self.request);    
         let response = self
             .client
-            .post(Self::OPENAI_BASE_URL)
+            .post(Self::XAI_BASE_URL)
             .timeout(Duration::from_secs(self.timeout))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
@@ -95,13 +96,13 @@ impl ChatOpenAI {
             Ok(response_form) => response_form,
             Err(e) => {
                 println!("[ERROR] {:?}", e);
-                return Err(OpenAIChatError::ResponseContentError);
+                return Err(XAIChatError::ResponseContentError);
             }
         };
 
         if let Some(error) = chat_response.error {
             println!("[ERROR] {}", error.message);
-            return Err(OpenAIChatError::ResponseContentError);
+            return Err(XAIChatError::ResponseContentError);
         } else {
             Ok(chat_response)
         }
@@ -159,7 +160,6 @@ pub struct ChatResponse {
 pub struct Choice {
     pub finish_reason: String,
     pub index: u32,
-    pub logprobs: Option<serde_json::Value>,
     pub message: ChatMessage,
 }
 
@@ -174,29 +174,22 @@ pub struct ChatMessage {
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Usage {
-    pub completion_tokens: u32,
-    pub completion_tokens_details: CompletionTokensDetails,
-    pub prompt_tokens: u32,
+    pub completion_tokens: i64,
+    pub prompt_tokens: i64,
     pub prompt_tokens_details: PromptTokensDetails,
-    pub total_tokens: u32,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-pub struct CompletionTokensDetails {
-    pub accepted_prediction_tokens: u32,
-    pub audio_tokens: u32,
-    pub reasoning_tokens: u32,
-    pub rejected_prediction_tokens: u32,
+    pub total_tokens: i64,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct PromptTokensDetails {
-    pub audio_tokens: u32,
-    pub cached_tokens: u32,
+    pub audio_tokens: i64,
+    pub cached_tokens: i64,
+    pub image_tokens: i64,
+    pub text_tokens: i64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorDetails {
     pub code: String,

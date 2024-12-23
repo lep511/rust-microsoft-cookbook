@@ -2,13 +2,14 @@ mod anthropic;
 mod openai;
 mod gemini;
 mod groc;
+mod xai;
 mod examples;
 use examples::all_examples;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
-    let model = "groc";
+    let model = "anthropic";
 
     match all_examples(model).await {
         Ok(_) => (),

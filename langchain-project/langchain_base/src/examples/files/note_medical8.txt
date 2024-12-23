@@ -1,0 +1,21 @@
+Patient Name: Robert Miller
+Age: 62
+Medical Record:
+
+1995: Diagnosed with seasonal allergies, started on loratadine as needed
+2001: Sustained a fractured radius (left arm) after a fall, casted for 6 weeks
+2004: Diagnosed with gastroesophageal reflux disease (GERD), started on omeprazole
+2007: Colonoscopy revealed several benign polyps, polypectomy performed
+2009: Elevated cholesterol detected, prescribed atorvastatin
+2010: Admitted for acute bronchitis, treated with antibiotics and bronchodilators
+2012: Developed benign prostatic hyperplasia (BPH), started on tamsulosin
+2013: Underwent cataract surgery (left eye)
+2015: Diagnosed with sleep apnea, started using CPAP machine
+2016: Family history of melanoma prompted mole removal with biopsy, benign
+2017: Routine echocardiogram showed mild mitral valve regurgitation, monitored annually
+2018: Presented with severe back pain, diagnosed with lumbar spinal stenosis, started physical therapy
+2019: Increased atorvastatin dose due to persistent elevated LDL
+2020: Underwent cataract surgery (right eye)
+2021: Developed gout, prescribed allopurinol
+2022: Presented with right shoulder rotator cuff tear, started corticosteroid injections
+2023: Routine colonoscopy showed one small adenomatous polyp, polypectomy performed, follow-up scheduled in 3 years.

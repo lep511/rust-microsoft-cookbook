@@ -85,7 +85,8 @@ impl ChatAnthropic {
         prompt: &str,
     ) -> Result<ChatResponse, AnthropicChatError> {
         
-        self.request.messages[0].content = Some(prompt.to_string());
+        let total_msg = self.request.messages.len() - 1;
+        self.request.messages[total_msg].content = Some(prompt.to_string());   
         let response = self
             .client
             .post(Self::ANTHROPIC_BASE_URL)
@@ -140,6 +141,17 @@ impl ChatAnthropic {
         // https://docs.anthropic.com/en/docs/build-with-claude/tool-use#controlling-claudes-output
         self.request.tools = Some(tools);
         self.request.tool_choice = Some(tool_choice);
+        self
+    }
+
+    pub fn with_system_prompt(mut self, system_prompt: &str) -> Self {
+        self.request.messages.insert(
+            0,
+            Message {
+                role: Some("system".to_string()),
+                content: Some(system_prompt.to_string()),
+            },
+        );
         self
     }
 }

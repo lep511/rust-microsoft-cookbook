@@ -25,18 +25,18 @@ use std::io::Write;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct SocialDeterminants {
-    employment_status: String,
-    financial_stress: bool,
-    housing_insecurity: bool,
-    neighborhood_unsafety: bool,
-    food_insecurity: bool,
-    education_level: String,
-    transportation_inaccessibility: bool,
-    social_isolation: bool,
-    health_insurance_inadequacy: bool,
-    skipped_care_due_to_cost: bool,
-    marital_status: String,
-    language_barrier: bool,
+    employment_status: Option<String>,
+    financial_stress: Option<bool>,
+    housing_insecurity: Option<bool>,
+    neighborhood_unsafety: Option<bool>,
+    food_insecurity: Option<bool>,
+    education_level: Option<String>,
+    transportation_inaccessibility: Option<bool>,
+    social_isolation: Option<bool>,
+    health_insurance_inadequacy: Option<bool>,
+    skipped_care_due_to_cost: Option<bool>,
+    marital_status: Option<String>,
+    language_barrier: Option<bool>,
 }
 
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {

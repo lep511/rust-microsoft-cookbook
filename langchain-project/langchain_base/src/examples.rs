@@ -2,6 +2,7 @@ mod anthropic_base;
 mod anthropic_function_gw;
 mod anthropic_function_gsp;
 mod anthropic_code_execution;
+mod anthropic_image;
 mod anthropic_complex;
 mod gemini_base;
 mod gemini_thinking_mode;
@@ -17,8 +18,9 @@ pub(crate)async fn all_examples(model: &str) -> Result<(), Box<dyn std::error::E
             // anthropic_base::sample().await?;
             // anthropic_complex::sample().await?;
             // anthropic_function_gw::sample().await?;
-            // anthropic_function_gsp::sample().await?;
-            anthropic_code_execution::sample().await?;
+            anthropic_function_gsp::sample().await?;
+            // anthropic_code_execution::sample().await?;
+            // anthropic_image::sample().await?;
         },
         "gemini" => {
             gemini_base::sample().await?;

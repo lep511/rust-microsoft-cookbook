@@ -22,6 +22,8 @@ pub enum AnthropicChatError {
 pub struct ChatRequest {
     pub model: String,
     pub messages: Vec<Message>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system: Option<String>,
     pub temperature: Option<f32>,
     pub max_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,14 +57,21 @@ impl ChatAnthropic {
             }
         };
 
+        let content = vec![InputContent {
+            content_type: "text".to_string(),
+            text: Some("Hello, Claude".to_string()),
+            source: None,
+        }];
+
         let messages = vec![Message {
             role: Some("user".to_string()),
-            content: Some("Hello!".to_string()),
+            content: Some(content.clone()),
         }];
 
         let request = ChatRequest {
             model: model.to_string(),
             messages: messages.clone(),
+            system: None,
             temperature: Some(0.9),
             max_tokens: Some(1024),
             tools: None,
@@ -86,7 +95,12 @@ impl ChatAnthropic {
     ) -> Result<ChatResponse, AnthropicChatError> {
         
         let total_msg = self.request.messages.len() - 1;
-        self.request.messages[total_msg].content = Some(prompt.to_string());   
+        let content = vec![InputContent {
+            content_type: "text".to_string(),
+            text: Some(prompt.to_string()),
+            source: None,
+        }];
+        self.request.messages[total_msg].content = Some(content);   
         let response = self
             .client
             .post(Self::ANTHROPIC_BASE_URL)
@@ -97,7 +111,7 @@ impl ChatAnthropic {
             .json(&self.request)
             .send()
             .await?
-            .json::<serde_json::Value>()
+            .json::<Value>()
             .await?;
         
         let response = response.to_string();
@@ -145,12 +159,66 @@ impl ChatAnthropic {
     }
 
     pub fn with_system_prompt(mut self, system_prompt: &str) -> Self {
+        self.request.system = Some(system_prompt.to_string());
+        self
+    }
+
+    pub fn with_image_gif(mut self, image: &str) -> Self {
+        let content = vec![InputContent {
+            content_type: "image".to_string(),
+            text: None,
+            source: Some(Source {
+                source_type: "base64".to_string(),
+                media_type: "image/gif".to_string(),
+                data: image.to_string(),
+            }),
+        }];
         self.request.messages.insert(
             0,
             Message {
-                role: Some("system".to_string()),
-                content: Some(system_prompt.to_string()),
-            },
+                role: Some("user".to_string()),
+                content: Some(content),
+            }
+        );
+        self
+    }
+
+    pub fn with_image_png(mut self, image: &str) -> Self {
+        let content = vec![InputContent {
+            content_type: "image".to_string(),
+            text: None,
+            source: Some(Source {
+                source_type: "base64".to_string(),
+                media_type: "image/png".to_string(),
+                data: image.to_string(),
+            }),
+        }];
+        self.request.messages.insert(
+            0,
+            Message {
+                role: Some("user".to_string()),
+                content: Some(content),
+            }
+        );
+        self
+    }
+
+    pub fn with_image_jpeg(mut self, image: &str) -> Self {
+        let content = vec![InputContent {
+            content_type: "image".to_string(),
+            text: None,
+            source: Some(Source {
+                source_type: "base64".to_string(),
+                media_type: "image/jpeg".to_string(),
+                data: image.to_string(),
+            }),
+        }];
+        self.request.messages.insert(
+            0,
+            Message {
+                role: Some("user".to_string()),
+                content: Some(content),
+            }
         );
         self
     }
@@ -160,7 +228,27 @@ impl ChatAnthropic {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
     pub role: Option<String>,
-    pub content: Option<String>,
+    pub content: Option<Vec<InputContent>>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InputContent {
+    #[serde(rename = "type")]
+    content_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source: Option<Source>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Source {
+    #[serde(rename = "type")]
+    source_type: String,
+    media_type: String,
+    data: String,
 }
 
 #[allow(dead_code)]

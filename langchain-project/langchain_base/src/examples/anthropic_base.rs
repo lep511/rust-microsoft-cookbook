@@ -2,7 +2,10 @@ use crate::anthropic::ChatAnthropic;
 
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     // Example simple shot
-    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+    // claude-3-5-haiku-20241022	
+    // claude-3-5-sonnet-20241022
+
+    let llm = ChatAnthropic::new("claude-3-5-haiku-20241022")?;
     let llm = llm.with_max_tokens(1024);
     let llm = llm.with_temperature(0.9);
     let llm = llm.with_max_tokens(2048);

@@ -49,9 +49,7 @@ impl ChatOpenAI {
             }
         };
 
-        let dev_prompt = "You are intended to answer almost any question, often taking \
-                        an outside perspective on humanity, and you \
-                        always strive towards maximum helpfulness!".to_string();
+        let dev_prompt = "You are a helpful assistant.".to_string();
 
         let content = vec![InputContent {
             content_type: "text".to_string(),
@@ -60,7 +58,7 @@ impl ChatOpenAI {
         }];
 
         let messages = vec![Message {
-            role: Role::developer,
+            role: Role::Developer,
             content: content.clone(),
             recipient: None,
             end_turn: None,
@@ -94,7 +92,7 @@ impl ChatOpenAI {
             source: None,
         }];
         self.request.messages.push(Message {
-            role: Role::user,
+            role: Role::User,
             content: content.clone(),
             recipient: None,
             end_turn: None,
@@ -171,7 +169,7 @@ impl ChatOpenAI {
             source: None,
         }];
         self.request.messages.push(Message {
-            role: Role::assistant,
+            role: Role::Assistant,
             content: content.clone(),
             recipient: None,
             end_turn: None,
@@ -187,12 +185,13 @@ impl ChatOpenAI {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum Role {
-    platform,
-    developer,
-    user,
-    assistant,
-    tool,
+    Platform,
+    Developer,
+    User,
+    Assistant,
+    Tool,
 }
 
 #[allow(dead_code)]

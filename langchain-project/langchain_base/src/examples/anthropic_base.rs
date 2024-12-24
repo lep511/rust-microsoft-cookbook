@@ -1,5 +1,7 @@
+#[allow(dead_code)]
 use crate::anthropic::ChatAnthropic;
 
+#[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     // Example simple shot
     // claude-3-5-haiku-20241022	

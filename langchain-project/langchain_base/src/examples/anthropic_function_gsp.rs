@@ -1,6 +1,8 @@
+#[allow(dead_code)]
 use crate::anthropic::ChatAnthropic;
 use serde_json::json;
 
+#[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
     let tool_data = json!({

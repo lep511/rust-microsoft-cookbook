@@ -49,9 +49,11 @@ impl ChatGroc {
             }
         };
 
+        let system_prompt = "You are a helpful assistant.".to_string();
+
         let messages = vec![Message {
-            role: Some("user".to_string()),
-            content: Some("Hello!".to_string()),
+            role: Some("system".to_string()),
+            content: Some(system_prompt),
         }];
 
         let request = ChatRequest {
@@ -76,8 +78,11 @@ impl ChatGroc {
         prompt: &str,
     ) -> Result<ChatResponse, ChatGrocChatError> {
         
-        let total_msg = self.request.messages.len() - 1;
-        self.request.messages[total_msg].content = Some(prompt.to_string());   
+        let message = Message {
+            role: Some("user".to_string()),
+            content: Some(prompt.to_string()),
+        };
+        self.request.messages.push(message);  
         let response = self
             .client
             .post(Self::GROC_BASE_URL)
@@ -103,7 +108,19 @@ impl ChatGroc {
             println!("[ERROR] {}", error.message);
             return Err(ChatGrocChatError::ResponseContentError);
         } else {
-            Ok(chat_response)
+            let format_response = ChatResponse {
+                choices: chat_response.choices,
+                created: chat_response.created,
+                id: chat_response.id,
+                model: chat_response.model,
+                object: chat_response.object,
+                system_fingerprint: chat_response.system_fingerprint,
+                usage: chat_response.usage,
+                x_groq: chat_response.x_groq,
+                chat_history: Some(self.request.messages),
+                error: None,
+            };
+            Ok(format_response)
         }
     }
 
@@ -123,13 +140,20 @@ impl ChatGroc {
     }
 
     pub fn with_system_prompt(mut self, system_prompt: &str) -> Self {
-        self.request.messages.insert(
-            0,
-            Message {
-                role: Some("system".to_string()),
-                content: Some(system_prompt.to_string()),
-            },
-        );
+        self.request.messages[0].content = Some(system_prompt.to_string());
+        self
+    }
+
+    pub fn with_assistant_response(mut self,  assistant_response: &str) -> Self {
+        self.request.messages.push(Message {
+            role: Some("assistant".to_string()),
+            content: Some(assistant_response.to_string()),
+        });
+        self
+    }
+
+    pub fn with_chat_history(mut self, history: Vec<Message>) -> Self {
+        self.request.messages = history;
         self
     }
 }
@@ -152,6 +176,7 @@ pub struct ChatResponse {
     pub system_fingerprint: Option<String>,
     pub usage: Option<Usage>,
     pub x_groq: Option<XGroq>,
+    pub chat_history: Option<Vec<Message>>,
     pub error: Option<ErrorDetails>,
 }
 
@@ -194,7 +219,7 @@ pub struct PromptTokensDetails {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorDetails {
-    pub code: String,
+    pub code: Option<String>,
     pub message: String,
     pub param: Option<String>,
     #[serde(rename = "type")]

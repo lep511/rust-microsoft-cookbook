@@ -1,8 +1,10 @@
+#[allow(dead_code)]
 use crate::anthropic::ChatAnthropic;
 use std::fs::File;
 use std::io::Read;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
+#[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     // Read first image into a byte vector
     let mut file_01 = File::open("src/examples/files/image01.jpg")?;
@@ -25,6 +27,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     let response = llm.invoke(prompt).await?;
 
     println!("#### Example Anthropic Image Data ####");
+    #[allow(irrefutable_let_patterns)]
     if let Some(candidates) = response.content {
         for candidate in candidates {
             match candidate.text {

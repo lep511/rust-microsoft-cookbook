@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 mod anthropic_base;
 mod anthropic_function_gw;
 mod anthropic_function_gsp;
@@ -10,7 +11,9 @@ mod openai_base;
 mod openai_multiple_turns;
 mod groc_base;
 mod groc_medical_data;
+mod groc_multiple_turns;
 mod xai_base;
+mod xai_multiple_turns;
 
 pub(crate)async fn all_examples(model: &str) -> Result<(), Box<dyn std::error::Error>> {
     
@@ -29,14 +32,16 @@ pub(crate)async fn all_examples(model: &str) -> Result<(), Box<dyn std::error::E
         },
         "openai" => {
             // openai_base::sample().await?;
-            openai_multiple_turns::sample().await?;
+            // openai_multiple_turns::sample().await?;
         },
         "groc" => {
-            groc_base::sample().await?;
-            groc_medical_data::sample().await?;
+            // groc_base::sample().await?;
+            // groc_medical_data::sample().await?;
+            groc_multiple_turns::sample().await?;
         },
         "xai" => {
-            xai_base::sample().await?;
+            // xai_base::sample().await?;
+            xai_multiple_turns::sample().await?;
         },
         _ => {
             println!("Model not supported");

@@ -1,5 +1,7 @@
+#[allow(dead_code)]
 use crate::gemini::ChatGemini;
 
+#[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatGemini::new("gemini-1.5-flash")?;
     let llm = llm.with_temperature(0.9);

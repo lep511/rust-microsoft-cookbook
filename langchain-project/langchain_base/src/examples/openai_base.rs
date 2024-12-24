@@ -1,6 +1,8 @@
+#[allow(dead_code)]
 use crate::openai::{ChatOpenAI, ChatResponse};
 use std::time::Instant;
 
+#[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatOpenAI::new("gpt-4o-mini")?;
     let llm = llm.with_temperature(0.9);
@@ -22,6 +24,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     match response.choices {
         Some(candidates) => {
             for candidate in candidates {
+                #[allow(irrefutable_let_patterns)]
                 if let message = candidate.message {
                     println!("{}", message.content);
                 }

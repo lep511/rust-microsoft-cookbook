@@ -1,6 +1,8 @@
+#[allow(dead_code)]
 use crate::xai::{ChatXAI, ChatResponse};
 use std::time::Instant;
 
+#[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     
     let llm = ChatXAI::new("grok-2-1212")?;
@@ -24,6 +26,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     match response.choices {
         Some(candidates) => {
             for candidate in candidates {
+                #[allow(irrefutable_let_patterns)]
                 if let message = candidate.message {
                     println!("{}", message.content);
                 }

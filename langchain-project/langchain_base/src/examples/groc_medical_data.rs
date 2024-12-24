@@ -18,6 +18,7 @@
 // LLM to determine if certain social determinant features are met, output structured data and load it into
 // a database to be incorporated with the rest of our clinical data marts.
 
+#[allow(dead_code)]
 use crate::groc::{ChatGroc, ChatResponse};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -39,6 +40,7 @@ struct SocialDeterminants {
     language_barrier: Option<bool>,
 }
 
+#[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
 
     let prompt = "You are a medical coding API specializing in social determinants of health that responds in JSON. \
@@ -74,6 +76,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
         match response.choices {
             Some(candidates) => {
                 for candidate in candidates {
+                    #[allow(irrefutable_let_patterns)]
                     if let message = candidate.message {
                         let json_str = message.content.lines()
                             .skip(1) // Skip ```json

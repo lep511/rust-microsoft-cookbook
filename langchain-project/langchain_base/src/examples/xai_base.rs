@@ -2,6 +2,7 @@ use crate::xai::{ChatXAI, ChatResponse};
 use std::time::Instant;
 
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+    
     let llm = ChatXAI::new("grok-2-1212")?;
     let llm = llm.with_temperature(0.9);
     let llm = llm.with_max_tokens(2048);

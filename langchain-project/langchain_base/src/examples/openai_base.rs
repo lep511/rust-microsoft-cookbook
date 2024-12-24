@@ -7,6 +7,9 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     let llm = llm.with_max_tokens(2048);
     let llm = llm.with_timeout_sec(30);
 
+    let system_prompt = "You are a helpful assistant.";
+    let llm = llm.with_system_prompt(system_prompt);
+
     let prompt = "Explain the Pythagorean theorem to a 10-year-old.";
 
     let start = Instant::now();

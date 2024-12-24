@@ -49,9 +49,21 @@ impl ChatOpenAI {
             }
         };
 
+        let dev_prompt = "You are intended to answer almost any question, often taking \
+                        an outside perspective on humanity, and you \
+                        always strive towards maximum helpfulness!".to_string();
+
+        let content = vec![InputContent {
+            content_type: "text".to_string(),
+            text: Some(dev_prompt),
+            source: None,
+        }];
+
         let messages = vec![Message {
-            role: Some("user".to_string()),
-            content: Some("Hello!".to_string()),
+            role: Role::developer,
+            content: content.clone(),
+            recipient: None,
+            end_turn: None,
         }];
 
         let request = ChatRequest {
@@ -76,8 +88,17 @@ impl ChatOpenAI {
         prompt: &str,
     ) -> Result<ChatResponse, OpenAIChatError> {
         
-        let total_msg = self.request.messages.len() - 1;
-        self.request.messages[total_msg].content = Some(prompt.to_string());   
+        let content = vec![InputContent {
+            content_type: "text".to_string(),
+            text: Some(prompt.to_string()),
+            source: None,
+        }];
+        self.request.messages.push(Message {
+            role: Role::user,
+            content: content.clone(),
+            recipient: None,
+            end_turn: None,
+        });
         let response = self
             .client
             .post(Self::OPENAI_BASE_URL)
@@ -103,7 +124,18 @@ impl ChatOpenAI {
             println!("[ERROR] {}", error.message);
             return Err(OpenAIChatError::ResponseContentError);
         } else {
-            Ok(chat_response)
+            let format_response = ChatResponse {
+                choices: chat_response.choices,
+                created: chat_response.created,
+                id: chat_response.id,
+                model: chat_response.model,
+                object: chat_response.object,
+                system_fingerprint: chat_response.system_fingerprint,
+                usage: chat_response.usage,
+                chat_history: Some(self.request.messages),
+                error: None,
+            };
+            Ok(format_response)
         }
     }
 
@@ -123,22 +155,75 @@ impl ChatOpenAI {
     }
 
     pub fn with_system_prompt(mut self, system_prompt: &str) -> Self {
-        self.request.messages.insert(
-            0,
-            Message {
-                role: Some("system".to_string()),
-                content: Some(system_prompt.to_string()),
-            },
-        );
+        let content = vec![InputContent {
+            content_type: "text".to_string(),
+            text: Some(system_prompt.to_string()),
+            source: None,
+        }];
+        self.request.messages[0].content = content;
+        self
+    }
+
+    pub fn with_assistant_response(mut self,  assistant_response: &str) -> Self {
+        let content = vec![InputContent {
+            content_type: "text".to_string(),
+            text: Some(assistant_response.to_string()),
+            source: None,
+        }];
+        self.request.messages.push(Message {
+            role: Role::assistant,
+            content: content.clone(),
+            recipient: None,
+            end_turn: None,
+        });
+        self
+    }
+
+    pub fn with_chat_history(mut self, history: Vec<Message>) -> Self {
+        self.request.messages = history;
         self
     }
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Role {
+    platform,
+    developer,
+    user,
+    assistant,
+    tool,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
-    pub role: Option<String>,
-    pub content: Option<String>,
+    pub role: Role,
+    pub content: Vec<InputContent>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recipient: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_turn: Option<bool>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InputContent {
+    #[serde(rename = "type")]
+    content_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source: Option<Source>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Source {
+    #[serde(rename = "type")]
+    source_type: String,
+    media_type: String,
+    data: String,
 }
 
 #[allow(dead_code)]
@@ -151,6 +236,7 @@ pub struct ChatResponse {
     pub object: Option<String>,
     pub system_fingerprint: Option<String>,
     pub usage: Option<Usage>,
+    pub chat_history: Option<Vec<Message>>,
     pub error: Option<ErrorDetails>,
 }
 

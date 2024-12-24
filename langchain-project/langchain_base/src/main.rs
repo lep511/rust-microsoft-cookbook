@@ -9,7 +9,7 @@ use examples::all_examples;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
-    let model = "anthropic";
+    let model = "openai";
 
     match all_examples(model).await {
         Ok(_) => (),

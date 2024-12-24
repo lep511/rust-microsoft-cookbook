@@ -7,6 +7,7 @@ mod anthropic_complex;
 mod gemini_base;
 mod gemini_thinking_mode;
 mod openai_base;
+mod openai_multiple_turns;
 mod groc_base;
 mod groc_medical_data;
 mod xai_base;
@@ -27,7 +28,8 @@ pub(crate)async fn all_examples(model: &str) -> Result<(), Box<dyn std::error::E
             gemini_thinking_mode::sample().await?;
         },
         "openai" => {
-            openai_base::sample().await?;
+            // openai_base::sample().await?;
+            openai_multiple_turns::sample().await?;
         },
         "groc" => {
             groc_base::sample().await?;

@@ -4,12 +4,12 @@ mod gemini;
 mod groc;
 mod xai;
 mod examples;
-use examples::all_examples;
+use examples::{Models, all_examples};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
-    let model = "xai";
+    let model = Models::Xai;
 
     match all_examples(model).await {
         Ok(_) => (),

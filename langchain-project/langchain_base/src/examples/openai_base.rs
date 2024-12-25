@@ -6,13 +6,18 @@ use std::time::Instant;
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatOpenAI::new("gpt-4o-mini")?;
     let llm = llm.with_temperature(0.9);
-    let llm = llm.with_max_tokens(2048);
+    let llm = llm.with_max_completion_tokens(2048);
     let llm = llm.with_timeout_sec(30);
+    let llm = llm.with_presence_penalty(1.5);
+    let llm = llm.with_frequency_penalty(1.5);
+    let llm = llm.with_n_completion(2);
+
+    let llm = llm.with_top_p(0.4); // Recommend altering top_p with temperature but not both.
 
     let system_prompt = "You are a helpful assistant.";
     let llm = llm.with_system_prompt(system_prompt);
 
-    let prompt = "Explain the Pythagorean theorem to a 10-year-old.";
+    let prompt = "Only say It's a test.";
 
     let start = Instant::now();
     let response: ChatResponse = llm.invoke(prompt).await?;

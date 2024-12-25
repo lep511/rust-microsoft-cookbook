@@ -5,7 +5,7 @@ use crate::openai::{ChatOpenAI, ChatResponse};
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatOpenAI::new("gpt-4o-mini")?;
     let llm = llm.with_temperature(0.9);
-    let llm = llm.with_max_tokens(2048);
+    let llm = llm.with_max_completion_tokens(2048);
     let llm = llm.with_timeout_sec(30);
 
     let system_prompt = "You are a customer service assistant for Acme Corp. \

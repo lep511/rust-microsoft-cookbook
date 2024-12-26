@@ -1,0 +1,30 @@
+Patient Name: Jason Tran
+Age: 25
+Medical Record:
+
+2010 (11 yrs): Diagnosed with asthma, started on albuterol inhaler
+2012 (13 yrs): First football concussion, brief loss of consciousness
+2013 (14 yrs): Fractured right tibia during soccer, surgical fixation
+2014 (15 yrs): Second concussion, resulting in post-concussion syndrome
+  - Symptoms: headaches, dizziness, memory problems
+  - Referred to pediatric neurologist, cognitive rehabilitation therapy
+2015 (16 yrs): Developed anxiety and depression, started on fluoxetine
+2016 (17 yrs): ACL tear (left knee) during basketball, reconstructive surgery
+  - 6-month rehabilitation, switched to non-contact sports
+2017 (18 yrs): Graduated high school, started college on academic scholarship
+2018 (19 yrs): Diagnosed with PTSD related to sports injuries
+  - Started cognitive-behavioral therapy (CBT)
+2019 (20 yrs): Tried to return to basketball, experienced panic attack
+  - Increased therapy sessions, added exposure therapy
+2020 (21 yrs): COVID-19 pandemic, remote learning, reported increased anxiety
+  - Started mindfulness meditation and yoga
+2021 (22 yrs): Diagnosed with sleep apnea, started CPAP therapy
+  - Sleep study suggested link between concussions and sleep disorder
+2022 (23 yrs): Gradual return to low-impact sports (swimming, cycling)
+  - Reported improved mood and sleep quality
+2023 (24 yrs): Graduated college, started job in sports analytics
+  - Continuing therapy, now biweekly
+  - Volunteering with youth concussion awareness program
+2024 (25 yrs): Annual check-up - asthma well-controlled, mental health stable
+  - No sports-related injuries in past 2 years
+  - Training for first half-marathon

@@ -1,0 +1,80 @@
+{
+  "name": "Jason Tran",
+  "age": 25,
+  "key_diagnoses": [
+    {
+      "diagnosis": "Asthma",
+      "year": 2010
+    },
+    {
+      "diagnosis": "Concussion",
+      "year": 2012
+    },
+    {
+      "diagnosis": "Post-Concussion Syndrome",
+      "year": 2014
+    },
+    {
+      "diagnosis": "Anxiety and Depression",
+      "year": 2015
+    },
+    {
+      "diagnosis": "ACL Tear",
+      "year": 2016
+    },
+    {
+      "diagnosis": "PTSD",
+      "year": 2018
+    },
+    {
+      "diagnosis": "Sleep Apnea",
+      "year": 2021
+    }
+  ],
+  "medications": [
+    {
+      "name": "Albuterol",
+      "purpose": "Asthma management"
+    },
+    {
+      "name": "Fluoxetine",
+      "purpose": "Anxiety and Depression"
+    }
+  ],
+  "other_treatments": [
+    {
+      "treatment": "Cognitive Rehabilitation Therapy",
+      "purpose": "Post-Concussion Syndrome"
+    },
+    {
+      "treatment": "Reconstructive Surgery",
+      "purpose": "ACL Tear repair"
+    },
+    {
+      "treatment": "Cognitive-Behavioral Therapy (CBT)",
+      "purpose": "PTSD and Mental Health"
+    },
+    {
+      "treatment": "Exposure Therapy",
+      "purpose": "Panic Attack Management"
+    },
+    {
+      "treatment": "Mindfulness Meditation and Yoga",
+      "purpose": "Anxiety Management"
+    },
+    {
+      "treatment": "CPAP Therapy",
+      "purpose": "Sleep Apnea"
+    }
+  ],
+  "recent_concerns": [
+    "Training for first half-marathon",
+    "Stable mental health and well-controlled asthma"
+  ],
+  "action_items": [
+    "Monitor progress with half-marathon training",
+    "Continue monitoring mental health stability",
+    "Ensure asthma remains well-controlled",
+    "Review effectiveness of ongoing therapy"
+  ]
+}

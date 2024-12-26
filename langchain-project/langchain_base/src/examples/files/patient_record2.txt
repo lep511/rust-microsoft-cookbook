@@ -1,0 +1,24 @@
+Patient Name: Lily Chen
+Age: 8
+Medical Record:
+
+2016 (Birth): Born at 34 weeks, diagnosed with Tetralogy of Fallot (TOF)
+  - Immediate surgery to place a shunt for increased pulmonary blood flow
+2016 (3 months): Echocardiogram showed worsening right ventricular hypertrophy
+2017 (8 months): Complete repair of TOF (VSD closure, pulmonary valve replacement, RV outflow tract repair)
+2017 (10 months): Developed post-operative arrhythmias, started on amiodarone
+2018 (14 months): Developmental delay noted, referred to early intervention services
+2018 (18 months): Speech therapy initiated for delayed language development
+2019 (2 years): Diagnosed with failure to thrive, started on high-calorie diet
+2019 (2.5 years): Occupational therapy started for fine motor skill delays
+2020 (3 years): Cardiac catheterization showed mild pulmonary stenosis
+2020 (3.5 years): Diagnosed with sensory processing disorder (SPD)
+2021 (4 years): Started integrated preschool program with IEP (Individualized Education Plan)
+2021 (4.5 years): Hospitalized for RSV bronchiolitis, required brief oxygen support
+2022 (5 years): Echocardiogram showed progression of pulmonary stenosis, balloon valvuloplasty performed
+2022 (5.5 years): Diagnosed with attention-deficit/hyperactivity disorder (ADHD), started behavioral therapy
+2023 (6 years): Cochlear implant surgery for sensorineural hearing loss
+2023 (7 years): Started mainstream school with continued IEP support
+2024 (7.5 years): Occupational therapy discontinued, met fine motor skill goals
+2024 (8 years): Periodic cardiac follow-up shows stable pulmonary valve function
+2024 (8 years): Speech development progressing well, ongoing therapy

@@ -1,0 +1,156 @@
+I need your help summarizing patient medical records for our team of doctors.
+We have a series of follow-up appointments tomorrow, and the doctors need quick, insightful summaries to prepare. 
+
+Please provide these summaries in JSON format with the following structure:
+{
+  "name": "Patient's full name",
+  "age": patient's age as an integer,
+  "key_diagnoses": [
+    {
+      "diagnosis": "Primary diagnosis",
+      "year": year of diagnosis as an integer
+    },
+    ...
+  ],
+  "medications": [
+    {
+      "name": "Medication name",
+      "purpose": "Brief description of what it's for"
+    },
+    ...
+  ],
+  "other_treatments": [
+    {
+      "treatment": "Treatment name",
+      "purpose": "Brief description of what it's for"
+    },
+    ...
+  ],
+  "recent_concerns": [
+    "Brief statement of recent health issue or concern"
+  ],
+  "action_items": [
+    "Action item 1",
+    "Action item 2",
+    ...
+  ]
+}
+
+Here's an example of how we'd like the summaries formatted:
+
+Patient Name: Ethan Blackwood
+Age: 55
+Medical Record:
+
+2010: Annual check-up, mild hypertension noted
+  - Started on lifestyle modifications (diet, exercise)
+2012: Diagnosed with moderate depression following job loss
+  - Started on sertraline and cognitive-behavioral therapy (CBT)
+2014: New job, reported improved mood
+  - Continued sertraline, reduced CBT sessions
+2015: Mild back pain, diagnosed with early degenerative disc disease
+  - Physical therapy and over-the-counter NSAIDs prescribed
+2016: Hypertension worsened, started on lisinopril
+2017: Routine colonoscopy showed benign polyps, removed during procedure
+2018: Developed persistent cough, chest X-ray clear
+  - Diagnosed with Gastroesophageal Reflux Disease (GERD)
+  - Started on omeprazole
+2019: Diagnosed with obstructive sleep apnea (OSA)
+  - Started CPAP therapy, reported improved energy levels
+2020: COVID-19 pandemic, worked from home
+  - Reported increased anxiety, CBT sessions resumed (telehealth)
+  - COVID-19 vaccination (Moderna, both doses)
+2021: Mild knee pain, MRI showed minor meniscus tear
+  - Arthroscopic surgery recommended, patient opted for conservative management
+2022: Annual check-up showed pre-diabetes (A1C: 6.1%)
+  - Intensified lifestyle modifications, referred to nutritionist
+- Discontinued omeprazole due to resolved GERD symptoms
+2023: Blood tests showed elevated PSA (Prostate-Specific Antigen)
+  - Prostate biopsy performed, results negative for cancer
+- Knee pain worsened, agreed to arthroscopic surgery
+2024: Post-op knee recovery: good, continuing physical therapy
+  - A1C levels improved (5.8%), pre-diabetes resolved
+  - Stress test normal, but mild LVH on echocardiogram
+  - Started on low-dose ACE inhibitor for cardioprotection
+
+
+Result example:
+{
+  "name": "Ethan Blackwood",
+  "age": 55,
+  "key_diagnoses": [
+    {
+      "diagnosis": "Hypertension",
+      "year": 2010
+    },
+    {
+      "diagnosis": "Depression",
+      "year": 2012
+    },
+    {
+      "diagnosis": "Degenerative Disc Disease",
+      "year": 2015
+    },
+    {
+      "diagnosis": "Gastroesophageal Reflux Disease (GERD)",
+      "year": 2018
+    },
+    {
+      "diagnosis": "Obstructive Sleep Apnea (OSA)",
+      "year": 2019
+    },
+    {
+      "diagnosis": "Pre-diabetes",
+      "year": 2022
+    },
+    {
+      "diagnosis": "Left Ventricular Hypertrophy (LVH)",
+      "year": 2024
+    }
+  ],
+  "medications": [
+    {
+      "name": "Lisinopril",
+      "purpose": "Hypertension management"
+    },
+    {
+      "name": "Sertraline",
+      "purpose": "Depression"
+    },
+    {
+      "name": "ACE inhibitor (low-dose)",
+      "purpose": "Cardioprotection"
+    }
+  ],
+  "other_treatments": [
+    {
+      "treatment": "Cognitive Behavioral Therapy (CBT)",
+      "purpose": "Depression management"
+    },
+    {
+      "treatment": "Physical therapy",
+      "purpose": "Back pain and knee recovery"
+    },
+    {
+      "treatment": "CPAP therapy",
+      "purpose": "Obstructive Sleep Apnea"
+    },
+    {
+      "treatment": "Arthroscopic knee surgery",
+      "purpose": "Meniscus tear repair"
+    }
+  ],
+  "recent_concerns": [
+    "Worsening knee pain, addressed with surgery",
+    "Elevated PSA (2023), biopsy negative",
+    "Mild left ventricular hypertrophy (2024)"
+  ],
+  "action_items": [
+    "Follow up on post-op knee recovery and PT progress",
+    "Monitor PSA levels and prostate health",
+    "Assess cardiac health post-LVH finding",
+    "Review blood pressure management"
+  ]
+}
+
+Now, please summarize the following patient record in the same format.  Output only the JSON data.

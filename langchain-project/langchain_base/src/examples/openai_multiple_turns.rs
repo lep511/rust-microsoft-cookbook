@@ -27,8 +27,8 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
             for candidate in candidates {
                 #[allow(irrefutable_let_patterns)]
                 if let message = candidate.message {
-                    message_assistant = message.content;
-                    println!("{}", message_assistant);
+                    message_assistant = message.content.expect("Response fail!");
+                    println!("{:?}", message_assistant);
                 }
             }
         }
@@ -51,7 +51,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
             for candidate in candidates {
                 #[allow(irrefutable_let_patterns)]
                 if let message = candidate.message {
-                    println!("{}", message.content);
+                    println!("{:?}", message.content);
                 }
             }
         }

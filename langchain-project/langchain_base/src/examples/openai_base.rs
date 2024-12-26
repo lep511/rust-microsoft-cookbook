@@ -10,7 +10,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     let llm = llm.with_timeout_sec(30);
     let llm = llm.with_presence_penalty(1.5);
     let llm = llm.with_frequency_penalty(1.5);
-    let llm = llm.with_n_completion(2);
+    let llm = llm.with_n_completion(1);
 
     let llm = llm.with_top_p(0.4); // Recommend altering top_p with temperature but not both.
 
@@ -31,7 +31,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
             for candidate in candidates {
                 #[allow(irrefutable_let_patterns)]
                 if let message = candidate.message {
-                    println!("{}", message.content);
+                    println!("{:?}", message.content);
                 }
             }
         }

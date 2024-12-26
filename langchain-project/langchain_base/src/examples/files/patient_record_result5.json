@@ -1,0 +1,149 @@
+{
+  "name": "Amira Khan",
+  "age": 36,
+  "key_diagnoses": [
+    {
+      "diagnosis": "Fibromyalgia",
+      "year": 2011
+    },
+    {
+      "diagnosis": "Cutaneous Lupus Erythematosus (CLE)",
+      "year": 2012
+    },
+    {
+      "diagnosis": "Systemic Lupus Erythematosus (SLE)",
+      "year": 2013
+    },
+    {
+      "diagnosis": "Lupus Nephritis (Class III)",
+      "year": 2014
+    },
+    {
+      "diagnosis": "Interstitial Lung Disease (ILD)",
+      "year": 2015
+    },
+    {
+      "diagnosis": "Secondary Sjögren's Syndrome",
+      "year": 2016
+    },
+    {
+      "diagnosis": "Lupus Cerebritis",
+      "year": 2017
+    },
+    {
+      "diagnosis": "Avascular Necrosis (AVN) of Hip",
+      "year": 2018
+    },
+    {
+      "diagnosis": "Steroid-induced Diabetes",
+      "year": 2021
+    },
+    {
+      "diagnosis": "Diastolic Dysfunction",
+      "year": 2023
+    }
+  ],
+  "medications": [
+    {
+      "name": "Pregabalin",
+      "purpose": "Fibromyalgia"
+    },
+    {
+      "name": "Topical Corticosteroids",
+      "purpose": "Cutaneous Lupus"
+    },
+    {
+      "name": "Hydroxychloroquine",
+      "purpose": "SLE"
+    },
+    {
+      "name": "Prednisone",
+      "purpose": "SLE and various complications"
+    },
+    {
+      "name": "Mycophenolate Mofetil",
+      "purpose": "Lupus Nephritis"
+    },
+    {
+      "name": "Cyclophosphamide",
+      "purpose": "Interstitial Lung Disease"
+    },
+    {
+      "name": "Pilocarpine",
+      "purpose": "Sjögren's Syndrome"
+    },
+    {
+      "name": "Rituximab",
+      "purpose": "Lupus Cerebritis"
+    },
+    {
+      "name": "Belimumab",
+      "purpose": "Reduce SLE flare frequency"
+    },
+    {
+      "name": "Metformin",
+      "purpose": "Steroid-induced Diabetes"
+    },
+    {
+      "name": "Insulin",
+      "purpose": "Steroid-induced Diabetes"
+    },
+    {
+      "name": "ACE Inhibitors",
+      "purpose": "Diastolic Dysfunction"
+    },
+    {
+      "name": "Abatacept",
+      "purpose": "SLE flare management"
+    }
+  ],
+  "other_treatments": [
+    {
+      "treatment": "Physical Therapy",
+      "purpose": "Fibromyalgia and joint health"
+    },
+    {
+      "treatment": "Sunscreen",
+      "purpose": "Cutaneous Lupus"
+    },
+    {
+      "treatment": "Home Oxygen Therapy",
+      "purpose": "Interstitial Lung Disease"
+    },
+    {
+      "treatment": "Artificial Tears",
+      "purpose": "Sjögren's Syndrome"
+    },
+    {
+      "treatment": "Total Hip Replacement",
+      "purpose": "Avascular Necrosis of Hip"
+    },
+    {
+      "treatment": "Telemedicine",
+      "purpose": "SLE management during COVID-19"
+    },
+    {
+      "treatment": "Home Infusions",
+      "purpose": "SLE management during COVID-19"
+    },
+    {
+      "treatment": "Cardio-rehab",
+      "purpose": "Diastolic Dysfunction"
+    },
+    {
+      "treatment": "Yoga",
+      "purpose": "Joint health"
+    }
+  ],
+  "recent_concerns": [
+    "Improvement in all organ systems noted in 2024",
+    "Planning pregnancy, high-risk OB consultation"
+  ],
+  "action_items": [
+    "Monitor and adjust immunosuppressant medications",
+    "Continue physical therapy and yoga for joint health",
+    "Follow up on cardiovascular health and diastolic dysfunction",
+    "Manage steroid-induced diabetes with endocrinologist and nutritionist",
+    "Prepare for high-risk pregnancy with OB consultation"
+  ]
+}

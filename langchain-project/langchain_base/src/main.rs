@@ -9,6 +9,7 @@ use examples::{Models, all_examples};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
+    // OpenAI, Anthropic, Gemini, Groc, Xai,
     let model = Models::Xai;
 
     match all_examples(model).await {

@@ -1,0 +1,23 @@
+Patient Name: Evelyn Thompson
+Age: 78
+Medical Record:
+
+1985: Diagnosed with type 2 diabetes, started on metformin
+1992: Developed hypertension, prescribed lisinopril
+1998: Total hip replacement (right) due to osteoarthritis
+2000: Diagnosed with hypothyroidism, started on levothyroxine
+2003: Cataract surgery (both eyes)
+2005: Admitted for atrial fibrillation, started on warfarin
+2008: Vitamin B12 deficiency diagnosed, monthly injections started
+2010: Increased metformin dose due to rising A1C levels
+2011: Admitted for transient ischemic attack (TIA), added aspirin to regimen
+2013: Diagnosed with stage 2 breast cancer, underwent lumpectomy and radiation
+2014: Started on anastrozole for breast cancer recurrence prevention
+2015: Developed chronic kidney disease (CKD) stage 3, metformin adjusted
+2017: Total knee replacement (left) due to osteoarthritis
+2018: Hospitalized for pneumonia, treated with IV antibiotics
+2019: Mild cognitive impairment noted, started on donepezil
+2020: Lisinopril dosage increased due to refractory hypertension
+2021: Recurrent UTIs, prescribed low-dose prophylactic antibiotics
+2022: Annual mammogram clear, but eGFR shows worsening kidney function
+2023: Mobility declining, started physical therapy and home health aide visits

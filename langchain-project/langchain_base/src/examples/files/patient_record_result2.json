@@ -1,0 +1,105 @@
+{
+  "name": "Lily Chen",
+  "age": 8,
+  "key_diagnoses": [
+    {
+      "diagnosis": "Tetralogy of Fallot (TOF)",
+      "year": 2016
+    },
+    {
+      "diagnosis": "Right Ventricular Hypertrophy",
+      "year": 2016
+    },
+    {
+      "diagnosis": "Post-operative Arrhythmias",
+      "year": 2017
+    },
+    {
+      "diagnosis": "Developmental Delay",
+      "year": 2018
+    },
+    {
+      "diagnosis": "Failure to Thrive",
+      "year": 2019
+    },
+    {
+      "diagnosis": "Sensory Processing Disorder (SPD)",
+      "year": 2020
+    },
+    {
+      "diagnosis": "Mild Pulmonary Stenosis",
+      "year": 2020
+    },
+    {
+      "diagnosis": "Attention-Deficit/Hyperactivity Disorder (ADHD)",
+      "year": 2022
+    },
+    {
+      "diagnosis": "Sensorineural Hearing Loss",
+      "year": 2023
+    }
+  ],
+  "medications": [
+    {
+      "name": "Amiodarone",
+      "purpose": "Post-operative arrhythmia management"
+    }
+  ],
+  "other_treatments": [
+    {
+      "treatment": "Shunt Surgery",
+      "purpose": "Increase pulmonary blood flow for TOF"
+    },
+    {
+      "treatment": "Complete TOF Repair",
+      "purpose": "VSD closure, pulmonary valve replacement, RV outflow tract repair"
+    },
+    {
+      "treatment": "Early Intervention Services",
+      "purpose": "Developmental delay"
+    },
+    {
+      "treatment": "Speech Therapy",
+      "purpose": "Delayed language development"
+    },
+    {
+      "treatment": "Occupational Therapy",
+      "purpose": "Fine motor skill delays"
+    },
+    {
+      "treatment": "High-Calorie Diet",
+      "purpose": "Failure to thrive"
+    },
+    {
+      "treatment": "Cardiac Catheterization",
+      "purpose": "Evaluate pulmonary stenosis"
+    },
+    {
+      "treatment": "Balloon Valvuloplasty",
+      "purpose": "Treat progression of pulmonary stenosis"
+    },
+    {
+      "treatment": "Behavioral Therapy",
+      "purpose": "ADHD management"
+    },
+    {
+      "treatment": "Cochlear Implant Surgery",
+      "purpose": "Sensorineural hearing loss"
+    },
+    {
+      "treatment": "Integrated Preschool Program with IEP",
+      "purpose": "Support developmental and educational needs"
+    }
+  ],
+  "recent_concerns": [
+    "Stable pulmonary valve function post-valvuloplasty",
+    "Progressing well with speech therapy",
+    "Discontinuation of occupational therapy due to met goals"
+  ],
+  "action_items": [
+    "Continue periodic cardiac follow-up to monitor TOF and pulmonary valve function",
+    "Review progress and ongoing needs for speech therapy",
+    "Monitor ADHD symptoms and effectiveness of behavioral therapy",
+    "Assess hearing and cochlear implant function"
+  ]
+}

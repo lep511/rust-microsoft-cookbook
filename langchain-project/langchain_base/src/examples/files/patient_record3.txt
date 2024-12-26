@@ -1,0 +1,23 @@
+Patient Name: Marcus Reyes
+Age: 42
+Medical Record:
+
+2001: Diagnosed with generalized anxiety disorder (GAD), started on paroxetine
+2003: Diagnosed with major depressive disorder (MDD), added bupropion
+2005: Hospitalized for suicidal ideation, added cognitive behavioral therapy (CBT)
+2007: Diagnosed with attention-deficit/hyperactivity disorder (ADHD), started on methylphenidate
+2009: Reported side effects from paroxetine, switched to escitalopram
+2012: Diagnosed with obstructive sleep apnea (OSA), started CPAP therapy
+2014: Diagnosed with hypertension, started on losartan
+2015: Weight gain noted, referred to nutritionist
+2016: Diagnosed with type 2 diabetes, started on metformin
+2017: Hospitalized for diabetic ketoacidosis (DKA), insulin therapy initiated
+2018: Reported nightmares, switched from bupropion to venlafaxine
+2019: Gastroesophageal reflux disease (GERD) diagnosis, started on omeprazole
+2020: Divorce, increased therapy sessions, added dialectical behavior therapy (DBT)
+2021: Developed plantar fasciitis, prescribed orthotics and physical therapy
+2022: Admitted for panic attack, mistaken for myocardial infarction, cardiac workup negative
+2023: Attempted suicide, inpatient psychiatric treatment for 30 days
+2023: Post-discharge, started on new antipsychotic (quetiapine) and mood stabilizer (lamotrigine)
+2024: Reports improvement in mood and sleep, weight loss noted
+2024: A1C levels improved, insulin dose decreased

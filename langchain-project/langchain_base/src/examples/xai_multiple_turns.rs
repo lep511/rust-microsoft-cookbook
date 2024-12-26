@@ -21,7 +21,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
 
     let response: ChatResponse = llm.invoke(prompt).await?;
 
-    let mut message_assistant = String::new();
+    let message_assistant = String::new();
 
     println!("\n#### Turn 1 ####");
     match response.choices {
@@ -29,8 +29,8 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
             for candidate in candidates {
                 #[allow(irrefutable_let_patterns)]
                 if let message = candidate.message {
-                    message_assistant = message.content;
-                    println!("{}", message_assistant);
+                    message.content.expect("Response fail!");
+                    println!("{:?}", message_assistant);
                 }
             }
         }
@@ -54,7 +54,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
             for candidate in candidates {
                 #[allow(irrefutable_let_patterns)]
                 if let message = candidate.message {
-                    println!("{}", message.content);
+                    println!("{:?}", message.content);
                 }
             }
         }

@@ -24,6 +24,10 @@ pub struct ChatRequest {
     pub temperature: Option<f32>,
     pub max_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub frequency_penalty: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub presence_penalty: Option<f32>,
@@ -79,6 +83,8 @@ impl ChatXAI {
             messages: messages.clone(),
             temperature: Some(0.9),
             max_tokens: Some(1024),
+            tools: None,
+            tool_choice: None,
             frequency_penalty: None,
             presence_penalty: None,
             top_p: None,
@@ -253,6 +259,16 @@ impl ChatXAI {
         self.request.messages = history;
         self
     }
+
+    pub fn with_tools(mut self, tools_data: Vec<serde_json::Value>) -> Self {
+        self.request.tools = Some(tools_data);
+        self
+    }
+    
+    pub fn with_tool_choice(mut self, tool_choice: serde_json::Value) -> Self {
+        self.request.tool_choice = Some(tool_choice);
+        self
+    }
 }
 
 #[allow(dead_code)]
@@ -291,20 +307,20 @@ pub struct ChatResponse {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct InputContent {
     #[serde(rename = "type")]
-    content_type: String,
+    pub content_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    text: Option<String>,
+    pub text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    source: Option<Source>,
+    pub source: Option<Source>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Source {
     #[serde(rename = "type")]
-    source_type: String,
-    media_type: String,
-    data: String,
+    pub source_type: String,
+    pub media_type: String,
+    pub data: String,
 }
 
 #[allow(dead_code)]
@@ -318,9 +334,10 @@ pub struct Choice {
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct ChatMessage {
-    pub content: String,
+    pub content: Option<String>,
     pub refusal: Option<String>,
     pub role: String,
+    pub tool_calls: Option<Vec<serde_json::Value>>,
 }
 
 #[allow(dead_code)]

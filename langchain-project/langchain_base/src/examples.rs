@@ -9,11 +9,14 @@ mod gemini_base;
 mod gemini_thinking_mode;
 mod openai_base;
 mod openai_multiple_turns;
+mod openai_functions;
 mod groc_base;
 mod groc_medical_data;
 mod groc_multiple_turns;
 mod xai_base;
+mod xai_medical_prompt;
 mod xai_multiple_turns;
+mod xai_functions;
 
 #[allow(dead_code)]
 pub enum Models {
@@ -36,8 +39,9 @@ pub(crate)async fn all_examples(model: Models) -> Result<(), Box<dyn std::error:
             // anthropic_image::sample().await?;
         }
         Models::OpenAI => {
-            openai_base::sample().await?;
+            // penai_base::sample().await?;
             // openai_multiple_turns::sample().await?;
+            openai_functions::sample().await?
         }
         Models::Gemini => {
             // gemini_base::gemini_base().await?;
@@ -49,8 +53,10 @@ pub(crate)async fn all_examples(model: Models) -> Result<(), Box<dyn std::error:
             groc_multiple_turns::sample().await?;
         }
         Models::Xai => {
-            xai_base::sample().await?;
+            // xai_base::sample().await?;
             // xai_multiple_turns::sample().await?;
+            // xai_medical_prompt::sample().await?
+            xai_functions::sample().await?
         }
     }    
     Ok(())

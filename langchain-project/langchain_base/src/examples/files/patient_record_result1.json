@@ -1,0 +1,117 @@
+{
+  "name": "Evelyn Thompson",
+  "age": 78,
+  "key_diagnoses": [
+    {
+      "diagnosis": "Type 2 Diabetes",
+      "year": 1985
+    },
+    {
+      "diagnosis": "Hypertension",
+      "year": 1992
+    },
+    {
+      "diagnosis": "Osteoarthritis",
+      "year": 1998
+    },
+    {
+      "diagnosis": "Hypothyroidism",
+      "year": 2000
+    },
+    {
+      "diagnosis": "Atrial Fibrillation",
+      "year": 2005
+    },
+    {
+      "diagnosis": "Vitamin B12 Deficiency",
+      "year": 2008
+    },
+    {
+      "diagnosis": "Breast Cancer (Stage 2)",
+      "year": 2013
+    },
+    {
+      "diagnosis": "Chronic Kidney Disease (Stage 3)",
+      "year": 2015
+    },
+    {
+      "diagnosis": "Mild Cognitive Impairment",
+      "year": 2019
+    }
+  ],
+  "medications": [
+    {
+      "name": "Metformin",
+      "purpose": "Type 2 Diabetes management"
+    },
+    {
+      "name": "Lisinopril",
+      "purpose": "Hypertension management"
+    },
+    {
+      "name": "Levothyroxine",
+      "purpose": "Hypothyroidism"
+    },
+    {
+      "name": "Warfarin",
+      "purpose": "Atrial Fibrillation anticoagulation"
+    },
+    {
+      "name": "Vitamin B12 injections",
+      "purpose": "Vitamin B12 deficiency"
+    },
+    {
+      "name": "Aspirin",
+      "purpose": "Prevention of recurrent TIA"
+    },
+    {
+      "name": "Anastrozole",
+      "purpose": "Breast cancer recurrence prevention"
+    },
+    {
+      "name": "Donepezil",
+      "purpose": "Mild Cognitive Impairment"
+    },
+    {
+      "name": "Prophylactic antibiotics",
+      "purpose": "Recurrent UTIs"
+    }
+  ],
+  "other_treatments": [
+    {
+      "treatment": "Total hip replacement (right)",
+      "purpose": "Osteoarthritis"
+    },
+    {
+      "treatment": "Cataract surgery (both eyes)",
+      "purpose": "Vision correction"
+    },
+    {
+      "treatment": "Lumpectomy and radiation",
+      "purpose": "Breast cancer treatment"
+    },
+    {
+      "treatment": "Total knee replacement (left)",
+      "purpose": "Osteoarthritis"
+    },
+    {
+      "treatment": "Physical therapy",
+      "purpose": "Mobility improvement"
+    },
+    {
+      "treatment": "Home health aide visits",
+      "purpose": "Support with daily activities"
+    }
+  ],
+  "recent_concerns": [
+    "Worsening kidney function (2022)",
+    "Declining mobility (2023)",
+    "Recurrent UTIs (2021)"
+  ],
+  "action_items": [
+    "Monitor kidney function and adjust medications as needed",
+    "Assess effectiveness of physical therapy and mobility aids",
+    "Review and manage recurrent UTIs",
+    "Evaluate cognitive status and adjust treatment if necessary"
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "name": "Marcus Reyes",
+  "age": 42,
+  "key_diagnoses": [
+    {
+      "diagnosis": "Generalized Anxiety Disorder (GAD)",
+      "year": 2001
+    },
+    {
+      "diagnosis": "Major Depressive Disorder (MDD)",
+      "year": 2003
+    },
+    {
+      "diagnosis": "Attention-Deficit/Hyperactivity Disorder (ADHD)",
+      "year": 2007
+    },
+    {
+      "diagnosis": "Obstructive Sleep Apnea (OSA)",
+      "year": 2012
+    },
+    {
+      "diagnosis": "Hypertension",
+      "year": 2014
+    },
+    {
+      "diagnosis": "Type 2 Diabetes",
+      "year": 2016
+    },
+    {
+      "diagnosis": "Gastroesophageal Reflux Disease (GERD)",
+      "year": 2019
+    },
+    {
+      "diagnosis": "Plantar Fasciitis",
+      "year": 2021
+    }
+  ],
+  "medications": [
+    {
+      "name": "Escitalopram",
+      "purpose": "Anxiety and depression management"
+    },
+    {
+      "name": "Methylphenidate",
+      "purpose": "ADHD"
+    },
+    {
+      "name": "Losartan",
+      "purpose": "Hypertension management"
+    },
+    {
+      "name": "Metformin",
+      "purpose": "Type 2 Diabetes management"
+    },
+    {
+      "name": "Insulin",
+      "purpose": "Type 2 Diabetes management"
+    },
+    {
+      "name": "Omeprazole",
+      "purpose": "GERD management"
+    },
+    {
+      "name": "Venlafaxine",
+      "purpose": "Depression management"
+    },
+    {
+      "name": "Quetiapine",
+      "purpose": "Mood stabilization and antipsychotic"
+    },
+    {
+      "name": "Lamotrigine",
+      "purpose": "Mood stabilization"
+    }
+  ],
+  "other_treatments": [
+    {
+      "treatment": "Cognitive Behavioral Therapy (CBT)",
+      "purpose": "Mental health management"
+    },
+    {
+      "treatment": "CPAP therapy",
+      "purpose": "Obstructive Sleep Apnea"
+    },
+    {
+      "treatment": "Dialectical Behavior Therapy (DBT)",
+      "purpose": "Mental health management"
+    },
+    {
+      "treatment": "Orthotics and Physical Therapy",
+      "purpose": "Plantar Fasciitis"
+    },
+    {
+      "treatment": "Inpatient psychiatric treatment",
+      "purpose": "Suicide prevention and mental health stabilization"
+    }
+  ],
+  "recent_concerns": [
+    "Attempted suicide in 2023, followed by inpatient treatment",
+    "Improvement in mood and sleep in 2024",
+    "Weight loss noted in 2024",
+    "A1C levels improved in 2024, insulin dose decreased"
+  ],
+  "action_items": [
+    "Monitor mental health status post-inpatient treatment",
+    "Assess effectiveness of new medication regimen",
+    "Review diabetes management and insulin therapy",
+    "Follow up on weight management progress",
+    "Evaluate ongoing need for psychiatric therapies"
+  ]
+}

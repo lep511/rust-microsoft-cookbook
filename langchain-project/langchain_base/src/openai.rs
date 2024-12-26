@@ -24,6 +24,10 @@ pub struct ChatRequest {
     pub temperature: Option<f32>,
     pub max_completion_tokens:  Option<u32>, // For O1 models
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<ResponseFormat>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub frequency_penalty: Option<f32>,
@@ -93,6 +97,8 @@ impl ChatOpenAI {
             model: model.to_string(),
             messages: messages.clone(),
             temperature: Some(0.9),
+            tools: None,
+            tool_choice: None,
             max_completion_tokens: Some(1024),
             response_format: Some(response_format),
             frequency_penalty: None,
@@ -130,7 +136,7 @@ impl ChatOpenAI {
             end_turn: None,
         });
 
-        // let pretty_json = match serde_json::to_string_pretty(&self.request) {
+        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
         //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
         //     Err(e) => {
         //         println!("[ERROR] {:?}", e);
@@ -148,6 +154,13 @@ impl ChatOpenAI {
             .await?
             .json::<serde_json::Value>()
             .await?;
+
+        // let _pretty_json = match serde_json::to_string_pretty(&response) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
         
         let response = response.to_string();
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
@@ -278,6 +291,16 @@ impl ChatOpenAI {
         self.request.messages = history;
         self
     }
+
+    pub fn with_tools(mut self, tools_data: Vec<serde_json::Value>) -> Self {
+        self.request.tools = Some(tools_data);
+        self
+    }
+
+    pub fn with_tool_choice(mut self, tool_choice: serde_json::Value) -> Self {
+        self.request.tool_choice = Some(tool_choice);
+        self
+    }
 }
 
 #[allow(dead_code)]
@@ -306,20 +329,20 @@ pub struct Message {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct InputContent {
     #[serde(rename = "type")]
-    content_type: String,
+    pub content_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    text: Option<String>,
+    pub text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    source: Option<Source>,
+    pub source: Option<Source>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Source {
     #[serde(rename = "type")]
-    source_type: String,
-    media_type: String,
-    data: String,
+    pub source_type: String,
+    pub media_type: String,
+    pub data: String,
 }
 
 #[allow(dead_code)]
@@ -348,9 +371,10 @@ pub struct Choice {
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct ChatMessage {
-    pub content: String,
+    pub content: Option<String>,
     pub refusal: Option<String>,
     pub role: String,
+    pub tool_calls: Option<Vec<serde_json::Value>>,
 }
 
 #[allow(dead_code)]
@@ -381,9 +405,9 @@ pub struct PromptTokensDetails {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorDetails {
-    pub code: String,
+    pub code: Option<String>,
     pub message: String,
     pub param: Option<String>,
     #[serde(rename = "type")]
-    pub error_type: String,
+    pub error_type: Option<String>,
 }

@@ -1,0 +1,44 @@
+Patient Name: Amira Khan
+Age: 36
+Medical Record:
+
+2011: Recurrent joint pain and fatigue, initial diagnosis of fibromyalgia
+  - Started on pregabalin and physical therapy
+2012: Developed persistent rash and photosensitivity
+  - Dermatologist diagnosed cutaneous lupus (CLE)
+  - Started on topical corticosteroids and sunscreen
+2013: Complained of severe fatigue, hair loss, and cognitive issues ("brain fog")
+  - Blood tests showed positive ANA and anti-dsDNA antibodies
+  - Diagnosed with Systemic Lupus Erythematosus (SLE)
+  - Started on hydroxychloroquine and low-dose prednisone
+2014: Hospitalized for lupus nephritis (class III)
+  - Renal biopsy confirmed diagnosis
+  - Started on mycophenolate mofetil and increased prednisone
+2015: Developed interstitial lung disease (ILD) secondary to SLE
+  - Started on cyclophosphamide pulse therapy
+  - Required home oxygen therapy
+2016: Diagnosed with secondary Sjögren's syndrome
+  - Symptoms: dry eyes, dry mouth
+  - Started on pilocarpine and artificial tears
+2017: Hospitalized for lupus cerebritis
+  - Symptoms: seizures, confusion, memory loss
+  - MRI showed brain inflammation
+  - Treated with high-dose steroids and rituximab
+2018: Developed avascular necrosis (AVN) of hip, steroid-induced
+  - Underwent total hip replacement surgery
+2019: Started on belimumab to reduce flare frequency
+  - Gradual reduction in prednisone dosage
+2020: COVID-19 pandemic, self-isolated due to immunosuppression
+  - Telemedicine follow-ups, home infusions
+2021: Diagnosed with steroid-induced diabetes
+  - Started on metformin and insulin
+  - Referred to endocrinologist and nutritionist
+2022: Flare-up of lupus, increased joint pain and fatigue
+  - Adjusted medications: increased mycophenolate, added abatacept
+2023: Cardiovascular screening due to long-term steroid use
+  - Echo showed early signs of diastolic dysfunction
+  - Started on ACE inhibitors, referred to cardio-rehab
+2024: Improvement noted in all organ systems
+  - Tapering immunosuppressants, monitoring closely
+  - Continues physical therapy, yoga for joint health
+  - Planning pregnancy, consulted with high-risk OB

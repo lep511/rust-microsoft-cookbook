@@ -21,7 +21,10 @@ pub enum GeminiChatError {
 #[derive(Debug, Serialize, Clone)]
 pub struct ChatRequest {
     pub contents: Vec<Content>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<Value>>,
+    #[serde(rename = "systemInstruction")]
+    pub system_instruction: Option<Content>,
     #[serde(rename = "generationConfig")]
     pub generation_config: Option<GenerationConfig>,
 }
@@ -38,6 +41,7 @@ pub struct Content {
 pub struct Part {
     #[serde(default)]
     pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "functionCall", default)]
     pub function_call: Option<FunctionCall>,
 }
@@ -46,6 +50,8 @@ pub struct Part {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct  GenerationConfig {
     pub temperature: Option<f32>,
+    #[serde(rename = "topK")]
+    pub top_k: Option<u32>,
     #[serde(rename = "topP")]
     pub top_p: Option<f32>,
     #[serde(rename = "maxOutputTokens")]
@@ -58,7 +64,7 @@ pub struct  GenerationConfig {
 #[derive(Debug, Clone)]
 pub struct ChatGemini {
     pub base_url: String,
-    pub contents: ChatRequest,
+    pub request: ChatRequest,
     pub timeout: u64,
     pub client: Client,
 }
@@ -84,26 +90,28 @@ impl ChatGemini {
             api_key,
         );
 
-        let contents = ChatRequest {
+        let request = ChatRequest {
             contents: vec![Content {
                 role: "user".to_string(),
                 parts: vec![Part {
-                    text: Some("Hello!".to_string()),
+                    text: Some("Init message.".to_string()),
                     function_call: None,
                 }],
             }],
             tools: None,
+            system_instruction: None,
             generation_config: Some(GenerationConfig {
                 temperature: Some(0.9),
-                top_p: Some(1.0),
+                top_k: Some(40),
+                top_p: Some(0.95),
                 max_output_tokens: Some(2048),
-                response_mime_type: None,
+                response_mime_type: Some("text/plain".to_string()),
             }),
         };
         
         Ok(Self {
             base_url: base_url,
-            contents: contents,
+            request: request,
             timeout: 15 * 60, // default: 15 minutes
             client: Client::builder()
                 .use_rustls_tls()
@@ -113,17 +121,43 @@ impl ChatGemini {
 
     pub async fn invoke(mut self, prompt: &str) -> Result<ChatResponse, GeminiChatError> {
 
-        self.contents.contents[0].parts[0].text = Some(prompt.to_string());
+        if self.request.contents[0].parts[0].text == Some("Init message.".to_string()) {
+            self.request.contents[0].parts[0].text = Some(prompt.to_string());
+        } else {
+            let content = Content {
+                role: "user".to_string(),
+                parts: vec![Part {
+                    text: Some(prompt.to_string()),
+                    function_call: None,
+                }],
+            };
+            self.request.contents.push(content);
+        }
+
+        let _pretty_json = match serde_json::to_string_pretty(&self.request) {
+            Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+            }
+        };
+
         let response = self
             .client
             .post(self.base_url)
             .timeout(Duration::from_secs(self.timeout))
             .header("Content-Type", "application/json")
-            .json(&self.contents)
+            .json(&self.request)
             .send()
             .await?
             .json::<serde_json::Value>()
             .await?;
+
+        // let _pretty_json = match serde_json::to_string_pretty(&response) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
 
         let response = response.to_string();
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
@@ -138,22 +172,45 @@ impl ChatGemini {
             println!("[ERROR] {:?}", error);
             return Err(GeminiChatError::ResponseContentError);
         } else {
-            Ok(chat_response)
+            let format_response = ChatResponse {
+                candidates: chat_response.candidates,
+                model_version: chat_response.model_version,
+                usage_metadata: chat_response.usage_metadata,
+                chat_history: Some(self.request.contents.clone()),
+                error: None,
+            };
+            Ok(format_response)
         }
     }
 
     pub fn with_temperature(mut self, temperature: f32) -> Self {
-        match &mut self.contents.generation_config {
-            Some(config) => {
-                config.temperature = Some(temperature);
-            }
-            None => ()
-        };
+        if temperature < 0.0 || temperature > 2.0 {
+            println!("[ERROR] Temperature must be between 0.0 and 2.0.");
+            self
+        } else {
+            match &mut self.request.generation_config {
+                Some(config) => {
+                    config.temperature = Some(temperature);
+                }
+                None => ()
+            };
+            self
+        }
+    }
+
+    pub fn with_system_prompt(mut self, system_prompt: &str) -> Self {
+        self.request.system_instruction = Some(Content {
+            role: "user".to_string(),
+            parts: vec![Part {
+                text: Some(system_prompt.to_string()),
+                function_call: None,
+            }],
+        });
         self
     }
 
     pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
-        match &mut self.contents.generation_config {
+        match &mut self.request.generation_config {
             Some(config) => {
                 config.max_output_tokens = Some(max_tokens);
             }
@@ -166,6 +223,36 @@ impl ChatGemini {
         self.timeout = timeout;
         self
     }
+
+    pub fn with_assistant_response(mut self,  assistant_response: &str) -> Self {
+        let content = Content {
+            role: "model".to_string(),
+            parts: vec![Part {
+                text: Some(assistant_response.to_string()),
+                function_call: None,
+            }],
+        };
+        self.request.contents.push(content);
+        self
+    }
+
+    pub fn with_chat_history(mut self, history: Vec<Content>) -> Self {
+        self.request.contents = history;
+        self
+    }
+
+    pub fn with_multiple_parts(mut self, parts: Vec<Part>) -> Self {
+        if self.request.contents[0].parts[0].text == Some("Init message.".to_string()) {
+            self.request.contents[0].parts = parts;
+        } else {
+            let content = Content {
+                role: "user".to_string(),
+                parts: parts,
+            };
+            self.request.contents.push(content);
+        }
+        self
+    }
 }
 
 #[allow(dead_code)]
@@ -175,6 +262,7 @@ pub struct ChatResponse {
     pub model_version: Option<String>,
     #[serde(rename = "usageMetadata")]
     pub usage_metadata: Option<UsageMetadata>,
+    pub chat_history: Option<Vec<Content>>,
     pub error: Option<ErrorDetails>,
 }
 

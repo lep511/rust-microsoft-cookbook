@@ -7,6 +7,8 @@ mod anthropic_image;
 mod anthropic_complex;
 mod gemini_base;
 mod gemini_thinking_mode;
+mod gemini_find_brands;
+mod gemini_find_multiple_turns;
 mod openai_base;
 mod openai_multiple_turns;
 mod openai_functions;
@@ -44,8 +46,10 @@ pub(crate)async fn all_examples(model: Models) -> Result<(), Box<dyn std::error:
             openai_functions::sample().await?
         }
         Models::Gemini => {
-            // gemini_base::gemini_base().await?;
-            // gemini_thinking_mode::gemini_thinking_mode().await?;
+            // gemini_base::sample().await?;
+            // gemini_thinking_mode::sample().await?;
+            // gemini_find_brands::sample().await?
+            gemini_find_multiple_turns::sample().await?
         }
         Models::Groc => {
             // groc_base::sample().await?;

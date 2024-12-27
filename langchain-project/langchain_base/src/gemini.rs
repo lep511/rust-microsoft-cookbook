@@ -236,6 +236,8 @@ impl ChatGemini {
         headers.insert("X-Goog-Upload-Header-Content-Type", HeaderValue::from_str(&mime_type)?);
         headers.insert("Content-Type", HeaderValue::from_static("application/json"));
 
+        // Initial resumable request defining metadata
+        // The upload url is in the response headers dump them to a file
         let initial_resp = self
             .client
             .post(upload_url)
@@ -262,6 +264,7 @@ impl ChatGemini {
         upload_headers.insert("X-Goog-Upload-Offset", HeaderValue::from_static("0"));
         upload_headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("upload, finalize")); 
 
+        // Upload the actual bytes
         let upload_resp: Value = self
             .client
             .post(upload_url)

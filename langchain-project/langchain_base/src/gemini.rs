@@ -1,8 +1,9 @@
 use reqwest::Client;
+use reqwest::{self, header::{HeaderMap, HeaderValue}};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use std::env;
-use serde_json::Value;
+use std::{env, fs};
+use serde_json::{json, Value};
 
 #[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
@@ -44,6 +45,25 @@ pub struct Part {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "functionCall", default)]
     pub function_call: Option<FunctionCall>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inline_data: Option<InlineData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_data: Option<FileData>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InlineData {
+    pub mime_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FileData {
+    pub mime_type: String,
+    pub file_uri: String,
 }
 
 #[allow(dead_code)]
@@ -96,6 +116,8 @@ impl ChatGemini {
                 parts: vec![Part {
                     text: Some("Init message.".to_string()),
                     function_call: None,
+                    inline_data: None,
+                    file_data: None,
                 }],
             }],
             tools: None,
@@ -129,6 +151,8 @@ impl ChatGemini {
                 parts: vec![Part {
                     text: Some(prompt.to_string()),
                     function_call: None,
+                    inline_data: None,
+                    file_data: None,
                 }],
             };
             self.request.contents.push(content);
@@ -183,6 +207,80 @@ impl ChatGemini {
         }
     }
 
+    pub async fn media_upload(mut self, img_path: &str, mime_type: &str) -> Result<String, Box<dyn std::error::Error>> {
+        let api_key = match env::var("GEMINI_API_KEY") {
+            Ok(key) => key,
+            Err(env::VarError::NotPresent) => {
+                println!("[ERROR] GEMINI_API_KEY not found in environment variables");
+                return Err(Box::new(GeminiChatError::ApiKeyNotFound));
+            }
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(Box::new(GeminiChatError::EnvError(e)));
+            }
+        };
+
+        let upload_url = format!(
+            "https://generativelanguage.googleapis.com/upload/v1beta/files?key={}",
+            api_key
+        );
+        
+        let display_name = "TEXT";
+        let num_bytes = fs::metadata(&img_path)?.len();
+        let num_bytes = num_bytes.to_string();
+
+        let mut headers = HeaderMap::new();
+        headers.insert("X-Goog-Upload-Protocol", HeaderValue::from_static("resumable"));
+        headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("start"));
+        headers.insert("X-Goog-Upload-Header-Content-Length", HeaderValue::from_str(&num_bytes)?);
+        headers.insert("X-Goog-Upload-Header-Content-Type", HeaderValue::from_str(&mime_type)?);
+        headers.insert("Content-Type", HeaderValue::from_static("application/json"));
+
+        let initial_resp = self
+            .client
+            .post(upload_url)
+            .headers(headers)
+            .json(&json!({
+                "file": {
+                    "display_name": display_name
+                }
+            }))
+            .send()
+            .await?;
+
+        // Get upload URL from response headers
+        let upload_url = initial_resp
+            .headers()
+            .get("x-goog-upload-url")
+            .ok_or("Missing upload URL")?
+            .to_str()?;
+
+        // Upload file content
+        let file_content = fs::read(&img_path)?;
+        let mut upload_headers = HeaderMap::new();
+        upload_headers.insert("Content-Length", HeaderValue::from_str(&num_bytes)?);
+        upload_headers.insert("X-Goog-Upload-Offset", HeaderValue::from_static("0"));
+        upload_headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("upload, finalize")); 
+
+        let upload_resp: Value = self
+            .client
+            .post(upload_url)
+            .headers(upload_headers)
+            .body(file_content)
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        let file_uri = upload_resp["file"]["uri"]
+            .as_str()
+            .ok_or("Missing file URI")?
+            .trim_matches('"')
+            .to_string();
+
+        Ok(file_uri)
+    }
+
     pub fn with_temperature(mut self, temperature: f32) -> Self {
         if temperature < 0.0 || temperature > 2.0 {
             println!("[ERROR] Temperature must be between 0.0 and 2.0.");
@@ -204,6 +302,8 @@ impl ChatGemini {
             parts: vec![Part {
                 text: Some(system_prompt.to_string()),
                 function_call: None,
+                inline_data: None,
+                file_data: None,
             }],
         });
         self
@@ -230,6 +330,8 @@ impl ChatGemini {
             parts: vec![Part {
                 text: Some(assistant_response.to_string()),
                 function_call: None,
+                inline_data: None,
+                file_data: None,
             }],
         };
         self.request.contents.push(content);
@@ -251,6 +353,40 @@ impl ChatGemini {
             };
             self.request.contents.push(content);
         }
+        self
+    }
+
+    pub fn with_image(mut self, image: &str, mime_type: &str) -> Self {
+        let content = Content {
+            role: "user".to_string(),
+            parts: vec![Part {
+                text: None,
+                function_call: None,
+                inline_data: Some(InlineData {
+                    mime_type: mime_type.to_string(),
+                    data: Some(image.to_string()),
+                }),
+                file_data: None,
+            }],
+        };
+        self.request.contents.push(content);
+        self
+    }
+
+    pub fn with_image_url(mut self, image_url: String, mime_type: &str) -> Self {
+        let content = Content {
+            role: "user".to_string(),
+            parts: vec![Part {
+                text: None,
+                function_call: None,
+                inline_data: None,
+                file_data: Some(FileData {
+                    mime_type: mime_type.to_string(),
+                    file_uri: image_url,
+                }),
+            }]
+        };
+        self.request.contents.push(content);
         self
     }
 }

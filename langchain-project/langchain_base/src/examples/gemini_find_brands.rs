@@ -49,6 +49,8 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
         let part = Part {
             text: Some(test_case.text.to_string()),
             function_call: None,
+            inline_data: None,
+            file_data: None,
         };
         parts.push(part);
     }

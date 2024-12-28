@@ -5,6 +5,9 @@ use std::time::Duration;
 use std::{env, fs};
 use serde_json::{json, Value};
 
+pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
+pub static UPLOAD_BASE_URL: &str = "https://generativelanguage.googleapis.com/upload/v1beta";
+
 #[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
 pub enum GeminiChatError {
@@ -105,7 +108,8 @@ impl ChatGemini {
         };
         
         let base_url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
+            "{}/models/{}:generateContent?key={}",
+            GEMINI_BASE_URL,
             model,
             api_key,
         );
@@ -207,7 +211,7 @@ impl ChatGemini {
         }
     }
 
-    pub async fn media_upload(mut self, img_path: &str, mime_type: &str) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn media_upload(self, img_path: &str, mime_type: &str) -> Result<String, Box<dyn std::error::Error>> {
         let api_key = match env::var("GEMINI_API_KEY") {
             Ok(key) => key,
             Err(env::VarError::NotPresent) => {
@@ -221,7 +225,8 @@ impl ChatGemini {
         };
 
         let upload_url = format!(
-            "https://generativelanguage.googleapis.com/upload/v1beta/files?key={}",
+            "{}/files?key={}",
+            UPLOAD_BASE_URL,
             api_key
         );
         
@@ -236,8 +241,6 @@ impl ChatGemini {
         headers.insert("X-Goog-Upload-Header-Content-Type", HeaderValue::from_str(&mime_type)?);
         headers.insert("Content-Type", HeaderValue::from_static("application/json"));
 
-        // Initial resumable request defining metadata
-        // The upload url is in the response headers dump them to a file
         let initial_resp = self
             .client
             .post(upload_url)
@@ -264,7 +267,6 @@ impl ChatGemini {
         upload_headers.insert("X-Goog-Upload-Offset", HeaderValue::from_static("0"));
         upload_headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("upload, finalize")); 
 
-        // Upload the actual bytes
         let upload_resp: Value = self
             .client
             .post(upload_url)

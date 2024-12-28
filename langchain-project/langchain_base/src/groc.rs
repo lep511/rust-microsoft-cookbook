@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use std::env;
 
+pub static GROC_BASE_URL: &str = "https://api.groq.com/openai/v1/chat/completions";
+
 #[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
 pub enum ChatGrocChatError {
@@ -36,8 +38,6 @@ pub struct ChatGroc {
 
 #[allow(dead_code)]
 impl ChatGroc {
-    const GROC_BASE_URL: &'static str = "https://api.groq.com/openai/v1/chat/completions";
-
     pub fn new(model: &str) -> Result<Self, ChatGrocChatError> {
         let api_key = match env::var("GROC_API_KEY") {
             Ok(key) => key,
@@ -85,7 +85,7 @@ impl ChatGroc {
         self.request.messages.push(message);  
         let response = self
             .client
-            .post(Self::GROC_BASE_URL)
+            .post(GROC_BASE_URL)
             .timeout(Duration::from_secs(self.timeout))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")

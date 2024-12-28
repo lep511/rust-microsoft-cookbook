@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use std::env;
 
+pub static XAI_BASE_URL: &str = "https://api.x.ai/v1/chat/completions";
+
 #[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
 pub enum XAIChatError {
@@ -52,8 +54,6 @@ pub struct ChatXAI {
 
 #[allow(dead_code)]
 impl ChatXAI {
-    const XAI_BASE_URL: &'static str = "https://api.x.ai/v1/chat/completions";
-
     pub fn new(model: &str) -> Result<Self, XAIChatError> {
         let api_key = match env::var("XAI_API_KEY") {
             Ok(key) => key,
@@ -120,7 +120,7 @@ impl ChatXAI {
         });  
         let response = self
             .client
-            .post(Self::XAI_BASE_URL)
+            .post(XAI_BASE_URL)
             .timeout(Duration::from_secs(self.timeout))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")

@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use std::env;
 
+pub static OPENAI_BASE_URL: &str = "https://api.openai.com/v1/chat/completions";
+
 #[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
 pub enum OpenAIChatError {
@@ -61,8 +63,6 @@ pub struct ChatOpenAI {
 
 #[allow(dead_code)]
 impl ChatOpenAI {
-    const OPENAI_BASE_URL: &'static str = "https://api.openai.com/v1/chat/completions";
-
     pub fn new(model: &str) -> Result<Self, OpenAIChatError> {
         let api_key = match env::var("OPENAI_API_KEY") {
             Ok(key) => key,
@@ -145,7 +145,7 @@ impl ChatOpenAI {
 
         let response = self
             .client
-            .post(Self::OPENAI_BASE_URL)
+            .post(OPENAI_BASE_URL)
             .timeout(Duration::from_secs(self.timeout))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")

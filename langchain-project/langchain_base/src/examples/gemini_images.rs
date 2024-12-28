@@ -1,8 +1,8 @@
 #[allow(dead_code)]
 use crate::gemini::ChatGemini;
-use std::fs::File;
-use std::io::Read;
-use base64::{Engine as _, engine::general_purpose::STANDARD};
+// use std::fs::File;
+// use std::io::Read;
+// use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 #[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {

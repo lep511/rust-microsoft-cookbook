@@ -1,6 +1,6 @@
 #[allow(dead_code)]
 use crate::openai::{ChatOpenAI, ChatResponse};
-use serde_json::{json};
+use serde_json::json;
 
 #[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {

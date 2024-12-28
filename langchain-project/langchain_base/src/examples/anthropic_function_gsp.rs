@@ -16,14 +16,14 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
                         It will not provide any other information \
                         about the stock or company.",
         "input_schema": {
-          "type": "object",
-          "properties": {
+        "type": "object",
+        "properties": {
             "ticker": {
-              "type": "string",
-              "description": "The stock ticker symbol, e.g. AAPL for Apple Inc."
+            "type": "string",
+            "description": "The stock ticker symbol, e.g. AAPL for Apple Inc."
             }
-          },
-          "required": ["ticker"]
+        },
+        "required": ["ticker"]
         }
     });
 
@@ -36,6 +36,19 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n#### Example Anthropic Function Call ####");
     println!("Response: {:?}", response);
+
+    if let Some(contents) = &response.content {
+        let function_content = &contents[1];
+        assert_eq!(function_content.name, Some("get_stock_price".to_string()));
+        assert_eq!(function_content.content_type, Some("tool_use".to_string()));
+        if let Some(input) = &function_content.input {
+            assert_eq!(input["ticker"], "TSLA");
+        } else {
+            panic!("Input should not be None");
+        }
+    } else {
+        panic!("Content should not be None");
+    }
 
     Ok(())
 }

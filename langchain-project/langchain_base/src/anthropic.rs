@@ -59,7 +59,7 @@ impl ChatAnthropic {
 
         let content = vec![InputContent {
             content_type: "text".to_string(),
-            text: Some("Hello, Claude".to_string()),
+            text: Some("Init message.".to_string()),
             source: None,
         }];
 
@@ -93,14 +93,22 @@ impl ChatAnthropic {
         mut self,
         prompt: &str,
     ) -> Result<ChatResponse, AnthropicChatError> {
-        
-        let total_msg = self.request.messages.len() - 1;
-        let content = vec![InputContent {
-            content_type: "text".to_string(),
-            text: Some(prompt.to_string()),
-            source: None,
-        }];
-        self.request.messages[total_msg].content = Some(content);   
+        if let Some(content) = &mut self.request.messages[0].content {
+            if content[0].text == Some("Init message.".to_string()) {
+                content[0].text = Some(prompt.to_string());
+            } else {
+                let content = vec![InputContent {
+                    content_type: "text".to_string(),
+                    text: Some(prompt.to_string()),
+                    source: None,
+                }];
+                self.request.messages.push(Message {
+                    role: Some("user".to_string()),
+                    content: Some(content.clone()),
+                });
+            }
+        };
+
         let response = self
             .client
             .post(ANTHROPIC_BASE_URL)
@@ -127,7 +135,20 @@ impl ChatAnthropic {
             println!("[ERROR] {}", error.message);
             return Err(AnthropicChatError::ResponseContentError);
         } else {
-            Ok(chat_response)
+            let format_response: ChatResponse = ChatResponse {
+                id: chat_response.id,
+                content: chat_response.content,
+                model: chat_response.model,
+                role: chat_response.role,
+                stop_reason: chat_response.stop_reason,
+                stop_sequence: chat_response.stop_sequence,
+                response_type: chat_response.response_type,
+                chat_history: Some(self.request.messages.clone()),
+                usage: chat_response.usage,
+                error: None,
+            };
+
+            Ok(format_response)
         }
     }
 
@@ -163,6 +184,27 @@ impl ChatAnthropic {
         self
     }
 
+    pub fn with_assistant_response(mut self,  assistant_response: &str) -> Self {
+        let content = vec![InputContent {
+            content_type: "text".to_string(),
+            text: Some(assistant_response.to_string()),
+            source: None,
+        }];
+
+        self.request.messages.push(
+            Message {
+                role: Some("assistant".to_string()),
+                content: Some(content),
+            }
+        );
+        self
+    }
+
+    pub fn with_chat_history(mut self, history: Vec<Message>) -> Self {
+        self.request.messages = history;
+        self
+    }
+
     pub fn with_image_gif(mut self, image: &str) -> Self {
         let content = vec![InputContent {
             content_type: "image".to_string(),
@@ -173,8 +215,8 @@ impl ChatAnthropic {
                 data: image.to_string(),
             }),
         }];
-        self.request.messages.insert(
-            0,
+
+        self.request.messages.push(
             Message {
                 role: Some("user".to_string()),
                 content: Some(content),
@@ -193,8 +235,7 @@ impl ChatAnthropic {
                 data: image.to_string(),
             }),
         }];
-        self.request.messages.insert(
-            0,
+        self.request.messages.push(
             Message {
                 role: Some("user".to_string()),
                 content: Some(content),
@@ -213,8 +254,7 @@ impl ChatAnthropic {
                 data: image.to_string(),
             }),
         }];
-        self.request.messages.insert(
-            0,
+        self.request.messages.push(
             Message {
                 role: Some("user".to_string()),
                 content: Some(content),
@@ -261,8 +301,9 @@ pub struct ChatResponse {
     pub stop_reason: Option<String>,
     pub stop_sequence: Option<String>,
     #[serde(rename = "type")]
-    response_type: String,
+    pub response_type: String,
     pub usage: Option<Usage>,
+    pub chat_history: Option<Vec<Message>>,
     pub error: Option<ErrorDetails>,
 }
 
@@ -275,14 +316,6 @@ pub struct Content {
     pub text: Option<String>,
     #[serde(rename = "type")]
     pub content_type: Option<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-pub struct ChatMessage {
-    pub content: String,
-    pub refusal: Option<String>,
-    pub role: String,
 }
 
 #[allow(dead_code)]

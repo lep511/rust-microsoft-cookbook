@@ -34,10 +34,10 @@ pub(crate)async fn all_examples(model: Models) -> Result<(), Box<dyn std::error:
     
     match model {
         Models::Anthropic => {
-            // anthropic_base::sample().await?;
+            anthropic_base::sample().await?;
             // anthropic_complex::sample().await?;
             // anthropic_function_gw::sample().await?;
-            anthropic_function_gsp::sample().await?;
+            // anthropic_function_gsp::sample().await?;
             // anthropic_code_execution::sample().await?;
             // anthropic_image::sample().await?;
         }

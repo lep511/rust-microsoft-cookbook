@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::Read;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
+
 #[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     // Read first image into a byte vector

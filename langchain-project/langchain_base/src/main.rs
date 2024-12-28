@@ -10,7 +10,7 @@ use examples::{Models, all_examples};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // OpenAI, Anthropic, Gemini, Groc, Xai,
-    let model = Models::OpenAI;
+    let model = Models::Anthropic;
 
     match all_examples(model).await {
         Ok(_) => (),

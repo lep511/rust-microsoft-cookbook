@@ -4,6 +4,8 @@ use serde_json::Value;
 use std::time::Duration;
 use std::env;
 
+pub static ANTHROPIC_BASE_URL: &str = "https://api.anthropic.com/v1/messages";
+
 #[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
 pub enum AnthropicChatError {
@@ -44,8 +46,6 @@ pub struct ChatAnthropic {
 
 #[allow(dead_code)]
 impl ChatAnthropic {
-    const ANTHROPIC_BASE_URL: &'static str = "https://api.anthropic.com/v1/messages";
-
     pub fn new(model: &str) -> Result<Self, AnthropicChatError> {
         let api_key = match env::var("ANTHROPIC_API_KEY") {
             Ok(key) => key,
@@ -103,7 +103,7 @@ impl ChatAnthropic {
         self.request.messages[total_msg].content = Some(content);   
         let response = self
             .client
-            .post(Self::ANTHROPIC_BASE_URL)
+            .post(ANTHROPIC_BASE_URL)
             .timeout(Duration::from_secs(self.timeout))
             .header("x-api-key", self.api_key)
             .header("anthropic-version", "2023-06-01")

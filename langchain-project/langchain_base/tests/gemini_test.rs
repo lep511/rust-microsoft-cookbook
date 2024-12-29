@@ -2,8 +2,10 @@ use langchain_base::gemini::ChatGemini;
 use std::fs::File;
 use std::io::Read;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use serde_json::json;
 
 static GEMINI_MODEL: &str = "gemini-2.0-flash-exp";
+static GEMINI_MODEL_CACHE: &str = "gemini-1.5-flash-001";
 
 #[tokio::test]
 async fn gemini_simple_shot() {
@@ -258,6 +260,112 @@ async fn gemini_multiple_turns() {
                             "Text '{}' did not match any of the expected values", 
                             text_l
                         );
+                    }
+                }
+            }
+        }
+    };
+}
+
+#[tokio::test]
+async fn gemini_upload_cache() {
+    let llm = match ChatGemini::new(GEMINI_MODEL_CACHE) {
+        Ok(llm) => llm,
+        Err(e) => panic!("Error: {}", e),
+    };
+
+    // Read first file into a byte vector
+    let mut file_01 = match File::open("tests/files/apolo11.txt") {
+        Ok(file) => file,
+        Err(e) => panic!("Error: {}", e),
+    };
+    let mut buffer_01 = Vec::new();
+    match file_01.read_to_end(&mut buffer_01) {
+        Ok(_) => {},
+        Err(e) => panic!("Error: {}", e),
+    }
+    
+    // Convert to base64
+    let base64_string_01 = STANDARD.encode(&buffer_01);
+
+    let system_instruction = "You are an expert at analyzing transcripts.";
+    
+    let cache_url = match llm.clone().cache_upload(
+            base64_string_01,
+            "text/plain",
+            system_instruction
+        ).await {
+            Ok(cache_url) => cache_url,
+            Err(e) => panic!("Error: {}", e),
+    };
+
+    assert!(
+        cache_url.starts_with("cachedContents/"), 
+        "Cache url '{}' doesn't start with 'cachedContents/'", 
+        cache_url
+    );
+
+    let llm = llm.with_cached_content(cache_url);
+    let prompt = "Is this a transcript of Apollo 11? Answer only with yes or no.";
+
+    let response = match llm.invoke(prompt).await {
+        Ok(response) => response,
+        Err(e) => panic!("Error: {}", e),
+    };
+
+    if let Some(candidates) = response.candidates {
+        for candidate in candidates {
+            if let Some(content) = candidate.content {
+                for part in content.parts {
+                    if let Some(text) = part.text {
+                        let _text = text.to_lowercase().replace("\n", "");
+                        let _text = _text.trim();
+                        assert_eq!(_text, "yes");
+                    }
+                }
+            }
+        }
+    };
+}
+
+#[tokio::test]
+async fn gemini_response_schema() {
+
+    let llm = match ChatGemini::new(GEMINI_MODEL) {
+        Ok(llm) => llm,
+        Err(e) => panic!("Error: {}", e),
+    };
+
+    let response_schema = json!({
+        "type":"object",
+        "properties":{
+            "response":{
+                "type":"string",
+                "enum":[
+                    "yes",
+                    "no"
+                ]
+            }
+        }
+    });
+    let llm = llm.with_response_schema(response_schema);
+    let prompt = "Please answer the following question with only yes or no: Is the sky blue during a clear day?";
+
+    let response = match llm.invoke(prompt).await {
+        Ok(response) => response,
+        Err(e) => panic!("Error: {}", e),
+    };
+
+    if let Some(candidates) = response.candidates {
+        for candidate in candidates {
+            if let Some(content) = candidate.content {
+                for part in content.parts {
+                    if let Some(text) = part.text {
+                        let json_data = match serde_json::from_str::<serde_json::Value>(&text) {
+                            Ok(json) => json,
+                            Err(e) => panic!("Error: {}", e),
+                        };
+                        assert_eq!(json_data["response"], "yes");
                     }
                 }
             }

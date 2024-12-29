@@ -3,7 +3,7 @@ use reqwest::{self, header::{HeaderMap, HeaderValue}};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use std::{env, fs};
-use serde_json::{json, Value};
+use serde_json::json;
 
 pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 pub static UPLOAD_BASE_URL: &str = "https://generativelanguage.googleapis.com/upload/v1beta";
@@ -26,7 +26,7 @@ pub enum GeminiChatError {
 pub struct ChatRequest {
     pub contents: Vec<Content>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<Vec<Value>>,
+    pub tools: Option<Vec<serde_json::Value>>,
     #[serde(rename = "systemInstruction")]
     pub system_instruction: Option<Content>,
     #[serde(rename = "generationConfig")]
@@ -94,6 +94,8 @@ pub struct  GenerationConfig {
     pub max_output_tokens: Option<u32>,
     #[serde(rename = "responseMimeType")]
     pub response_mime_type: Option<String>,
+    #[serde(rename = "responseSchema")]
+    pub response_schema: Option<serde_json::Value>,
 }
 
 #[allow(dead_code)]
@@ -162,6 +164,7 @@ impl ChatGemini {
                 top_p: Some(0.95),
                 max_output_tokens: Some(2048),
                 response_mime_type: Some("text/plain".to_string()),
+                response_schema: None,
             }),
         };
         
@@ -287,7 +290,7 @@ impl ChatGemini {
         upload_headers.insert("X-Goog-Upload-Offset", HeaderValue::from_static("0"));
         upload_headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("upload, finalize")); 
 
-        let upload_resp: Value = self
+        let upload_resp: serde_json::Value = self
             .client
             .post(upload_url)
             .headers(upload_headers)
@@ -348,7 +351,7 @@ impl ChatGemini {
             ttl: "300s".to_string(),
         };
 
-        let cache_resp: Value = self
+        let cache_resp: serde_json::Value = self
             .client
             .post(url_cache)
             .headers(headers)
@@ -399,6 +402,17 @@ impl ChatGemini {
         match &mut self.request.generation_config {
             Some(config) => {
                 config.max_output_tokens = Some(max_tokens);
+            }
+            None => ()
+        };
+        self
+    }
+
+    pub fn with_response_schema(mut self, response_schema: serde_json::Value) -> Self {
+        match &mut self.request.generation_config {
+            Some(config) => {
+                config.response_schema = Some(response_schema);
+                config.response_mime_type = Some("application/json".to_string());
             }
             None => ()
         };

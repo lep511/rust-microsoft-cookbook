@@ -3,6 +3,7 @@ use crate::gemini::ChatGemini;
 use std::fs::File;
 use std::io::Read;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use serde_json::json;
 
 #[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,7 +27,22 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     println!("cache_url: {}", cache_url);
 
     let llm = llm.with_cached_content(cache_url);
-    let prompt = "Summarize briefly this transcript";
+
+    let response_schema = json!({
+        "type":"object",
+        "properties":{
+            "response":{
+                "type":"string",
+                "enum":[
+                    "yes",
+                    "no"
+                ]
+            }
+        }
+    });
+
+    let llm = llm.with_response_schema(response_schema);
+    let prompt = "Is this a transcript of Apollo 11? Answer only with yes or no.";
 
     let response = llm.invoke(prompt).await?;
 

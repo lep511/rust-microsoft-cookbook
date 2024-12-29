@@ -1,50 +1,26 @@
 #[allow(dead_code)]
 use crate::gemini::ChatGemini;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Write, Read};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde_json::json;
+use std::path::Path;
 
 #[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatGemini::new("gemini-1.5-flash-001")?;
-    // Read first image into a byte vector
-    let mut file_01 = File::open("tests/files/apolo11.txt")?;
-    let mut buffer_01 = Vec::new();
-    file_01.read_to_end(&mut buffer_01)?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+
+    let file_path = "tests/files/test.pdf";
+    let file_mime = "application/pdf";
     
-    // Convert to base64
-    let base64_string_01 = STANDARD.encode(&buffer_01);
+    let file_url = llm.clone().media_upload(file_path, file_mime).await?;
+    let prompt = "Give me a summary of this pdf file.";
 
-    let system_instruction = "You are an expert at analyzing transcripts.";
-    
-    let cache_url = llm.clone().cache_upload(
-        base64_string_01,
-        "text/plain",
-        system_instruction
-    ).await?;
-
-    println!("cache_url: {}", cache_url);
-
-    let llm = llm.with_cached_content(cache_url);
-
-    let response_schema = json!({
-        "type":"object",
-        "properties":{
-            "response":{
-                "type":"string",
-                "enum":[
-                    "yes",
-                    "no"
-                ]
-            }
-        }
-    });
-
-    let llm = llm.with_response_schema(response_schema);
-    let prompt = "Is this a transcript of Apollo 11? Answer only with yes or no.";
-
+    let llm = llm.with_file_url(file_url, file_mime);
+    let llm = llm.with_timeout_sec(30);
     let response = llm.invoke(prompt).await?;
+
+    let mut result = String::from("");
 
     if let Some(candidates) = response.candidates {
         for candidate in candidates {
@@ -52,11 +28,23 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
                 for part in content.parts {
                     if let Some(text) = part.text {
                         println!("{}", text);
+                        result.push_str(&text);
                     }
                 }
             }
         }
     };
+
+    // Save result to file.md
+    let file_path = "tests/output/test-pdf.md";
+    let mut file = File::create(file_path)?;
+    file.write_all(result.as_bytes())?;
+    println!("Result saved to {}", file_path);
+
+    // Check if the file exists
+    let path = Path::new(file_path);
+    assert!(path.exists(), "File was not created!");
+    println!("File was created successfully!");
 
     Ok(())
 }

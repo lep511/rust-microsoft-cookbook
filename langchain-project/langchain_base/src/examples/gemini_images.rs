@@ -39,7 +39,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     // );
     // let prompt = "Compare the two pictures provided";
 
-    let llm = llm.with_image_url(
+    let llm = llm.with_file_url(
         file_url,
         file_mime,
     );

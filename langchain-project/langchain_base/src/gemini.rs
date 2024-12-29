@@ -483,7 +483,7 @@ impl ChatGemini {
         self
     }
 
-    pub fn with_image_url(mut self, image_url: String, mime_type: &str) -> Self {
+    pub fn with_file_url(mut self, image_url: String, mime_type: &str) -> Self {
         let content = Content {
             role: "user".to_string(),
             parts: vec![Part {

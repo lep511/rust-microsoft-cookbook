@@ -5,6 +5,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde_json::json;
 
 static GEMINI_MODEL: &str = "gemini-2.0-flash-exp";
+static GEMINI_MODEL_THINK: &str = "gemini-2.0-flash-thinking-exp";
 static GEMINI_MODEL_CACHE: &str = "gemini-1.5-flash-001";
 
 #[tokio::test]
@@ -366,6 +367,44 @@ async fn gemini_response_schema() {
                             Err(e) => panic!("Error: {}", e),
                         };
                         assert_eq!(json_data["response"], "yes");
+                    }
+                }
+            }
+        }
+    };
+}
+
+#[tokio::test]
+async fn gemini_think_mode() {
+
+    let llm = match ChatGemini::new(GEMINI_MODEL_THINK) {
+        Ok(llm) => llm,
+        Err(e) => panic!("Error: {}", e),
+    };
+
+    let prompt = "What is the geometric monthly fecal coliform mean of a \
+                  distribution system with the following FC counts: \
+                  24, 15, 7, 16, 31 and 23? The result will be inputted \
+                  into a NPDES DMR, therefore, round to the nearest whole number. \
+                  Response at the end with SOLUTION: number(integer)";
+
+    let llm = llm.with_temperature(1.0);
+    let llm = llm.with_top_k(64);
+    
+    let response = match llm.invoke(prompt).await {
+        Ok(response) => response,
+        Err(e) => panic!("Error: {}", e),
+    };
+
+    if let Some(candidates) = response.candidates {
+        for candidate in candidates {
+            if let Some(content) = candidate.content {
+                for part in content.parts {
+                    if let Some(text) = part.text {
+                        let is_last_eight = text.split('\n')
+                            .last()
+                            .map_or(false, |word| word == "18.");
+                        assert_eq!(is_last_eight, true);
                     }
                 }
             }

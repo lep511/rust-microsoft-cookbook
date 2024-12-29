@@ -15,8 +15,8 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     let prompt = "What is the geometric monthly fecal coliform mean of a \
                   distribution system with the following FC counts: \
                   24, 15, 7, 16, 31 and 23? The result will be inputted \
-                  into a NPDES DMR, therefore, \
-                  round to the nearest whole number";
+                  into a NPDES DMR, therefore, round to the nearest whole number. \
+                  Response at the end with SOLUTION: number(integer)";
 
     // NOTE: the correct answer is 18
    

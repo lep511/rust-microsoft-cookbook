@@ -371,18 +371,23 @@ impl ChatGemini {
     }
 
     pub fn with_temperature(mut self, temperature: f32) -> Self {
-        if temperature < 0.0 || temperature > 2.0 {
-            println!("[ERROR] Temperature must be between 0.0 and 2.0.");
-            self
-        } else {
-            match &mut self.request.generation_config {
-                Some(config) => {
-                    config.temperature = Some(temperature);
-                }
-                None => ()
-            };
-            self
-        }
+        match &mut self.request.generation_config {
+            Some(config) => {
+                config.temperature = Some(temperature);
+            }
+            None => ()
+        };
+        self
+    }
+
+    pub fn with_top_k(mut self, top_k: u32) -> Self {
+        match &mut self.request.generation_config {
+            Some(config) => {
+                config.top_k = Some(top_k);
+            }
+            None => ()
+        };
+        self
     }
 
     pub fn with_system_prompt(mut self, system_prompt: &str) -> Self {

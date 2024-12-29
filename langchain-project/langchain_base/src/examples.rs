@@ -10,6 +10,7 @@ mod gemini_thinking_mode;
 mod gemini_find_brands;
 mod gemini_find_multiple_turns;
 mod gemini_images;
+mod gemini_cache_content;
 mod openai_base;
 mod openai_multiple_turns;
 mod openai_functions;
@@ -51,7 +52,8 @@ pub(crate)async fn all_examples(model: Models) -> Result<(), Box<dyn std::error:
             // gemini_thinking_mode::sample().await?;
             // gemini_find_brands::sample().await?
             // gemini_find_multiple_turns::sample().await?
-            gemini_images::sample().await?
+            // gemini_images::sample().await?
+            gemini_cache_content::sample().await?
         }
         Models::Groc => {
             // groc_base::sample().await?;

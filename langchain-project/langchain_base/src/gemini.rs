@@ -31,6 +31,9 @@ pub struct ChatRequest {
     pub system_instruction: Option<Content>,
     #[serde(rename = "generationConfig")]
     pub generation_config: Option<GenerationConfig>,
+    #[serde(rename = "cachedContent")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cached_content: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -43,7 +46,7 @@ pub struct Content {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Part {
-    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "functionCall", default)]
@@ -71,6 +74,16 @@ pub struct FileData {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CacheRequest {
+    pub model: String,
+    pub contents: Vec<Content>,
+    #[serde(rename = "systemInstruction")]
+    pub system_instruction: Content,
+    pub ttl: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct  GenerationConfig {
     pub temperature: Option<f32>,
     #[serde(rename = "topK")]
@@ -87,6 +100,7 @@ pub struct  GenerationConfig {
 #[derive(Debug, Clone)]
 pub struct ChatGemini {
     pub base_url: String,
+    pub model: String,
     pub request: ChatRequest,
     pub timeout: u64,
     pub client: Client,
@@ -94,18 +108,33 @@ pub struct ChatGemini {
 
 #[allow(dead_code)]
 impl ChatGemini {
-    pub fn new(model: &str) -> Result<Self, GeminiChatError> {
-        let api_key = match env::var("GEMINI_API_KEY") {
-            Ok(key) => key,
+    fn get_api_key() -> Result<String, GeminiChatError> {
+        match env::var("GEMINI_API_KEY") {
+            Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
                 println!("[ERROR] GEMINI_API_KEY not found in environment variables");
-                return Err(GeminiChatError::ApiKeyNotFound);
+                Err(GeminiChatError::ApiKeyNotFound)
             }
             Err(e) => {
                 println!("[ERROR] {:?}", e);
-                return Err(GeminiChatError::EnvError(e));
+                Err(GeminiChatError::EnvError(e))
             }
-        };
+        }
+    }
+
+    pub fn new(model: &str) -> Result<Self, GeminiChatError> {
+        // let api_key = match env::var("GEMINI_API_KEY") {
+        //     Ok(key) => key,
+        //     Err(env::VarError::NotPresent) => {
+        //         println!("[ERROR] GEMINI_API_KEY not found in environment variables");
+        //         return Err(GeminiChatError::ApiKeyNotFound);
+        //     }
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //         return Err(GeminiChatError::EnvError(e));
+        //     }
+        // };
+        let api_key = Self::get_api_key()?;
         
         let base_url = format!(
             "{}/models/{}:generateContent?key={}",
@@ -126,6 +155,7 @@ impl ChatGemini {
             }],
             tools: None,
             system_instruction: None,
+            cached_content: None,
             generation_config: Some(GenerationConfig {
                 temperature: Some(0.9),
                 top_k: Some(40),
@@ -137,6 +167,7 @@ impl ChatGemini {
         
         Ok(Self {
             base_url: base_url,
+            model: model.to_string(),
             request: request,
             timeout: 15 * 60, // default: 15 minutes
             client: Client::builder()
@@ -162,12 +193,12 @@ impl ChatGemini {
             self.request.contents.push(content);
         }
 
-        let _pretty_json = match serde_json::to_string_pretty(&self.request) {
-            Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-            Err(e) => {
-                println!("[ERROR] {:?}", e);
-            }
-        };
+        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
 
         let response = self
             .client
@@ -212,18 +243,7 @@ impl ChatGemini {
     }
 
     pub async fn media_upload(self, img_path: &str, mime_type: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let api_key = match env::var("GEMINI_API_KEY") {
-            Ok(key) => key,
-            Err(env::VarError::NotPresent) => {
-                println!("[ERROR] GEMINI_API_KEY not found in environment variables");
-                return Err(Box::new(GeminiChatError::ApiKeyNotFound));
-            }
-            Err(e) => {
-                println!("[ERROR] {:?}", e);
-                return Err(Box::new(GeminiChatError::EnvError(e)));
-            }
-        };
-
+        let api_key = Self::get_api_key()?;
         let upload_url = format!(
             "{}/files?key={}",
             UPLOAD_BASE_URL,
@@ -286,6 +306,67 @@ impl ChatGemini {
         Ok(file_uri)
     }
 
+    pub async fn cache_upload(self, data: String, mime_type: &str, instruction: &str) -> Result<String, Box<dyn std::error::Error>> {
+        let api_key = Self::get_api_key()?;
+        let url_cache = format!(
+            "{}/cachedContents?key={}", 
+            GEMINI_BASE_URL,
+            api_key
+        );
+
+        let mut headers = HeaderMap::new();
+        headers.insert("Content-Type", HeaderValue::from_static("application/json"));
+        let model_name = format!("models/{}", self.model);
+
+        let part_system_instruction = vec![Part {
+            text: Some(instruction.to_string()),
+            function_call: None,
+            inline_data: None,
+            file_data: None,
+        }];
+
+        let system_instruction = Content {
+            role: "user".to_string(),
+            parts: part_system_instruction,
+        };
+
+        let cache_request = CacheRequest {
+            model: model_name,
+            contents: vec![Content {
+                role: "user".to_string(),
+                parts: vec![Part {
+                    text: None,
+                    function_call: None,
+                    inline_data: Some(InlineData {
+                        mime_type: mime_type.to_string(),
+                        data: Some(data),
+                    }),
+                    file_data: None,
+                }],
+            }],
+            system_instruction: system_instruction,
+            ttl: "300s".to_string(),
+        };
+
+        let cache_resp: Value = self
+            .client
+            .post(url_cache)
+            .headers(headers)
+            .json(&cache_request)
+            .send()
+            .await?
+            .json()
+            .await?;
+    
+        let cache_name = cache_resp["name"]
+            .as_str()
+            .ok_or("Missing cache name")?
+            .trim_matches('"')
+            .to_string();
+
+        Ok(cache_name)
+    }
+
     pub fn with_temperature(mut self, temperature: f32) -> Self {
         if temperature < 0.0 || temperature > 2.0 {
             println!("[ERROR] Temperature must be between 0.0 and 2.0.");
@@ -340,6 +421,11 @@ impl ChatGemini {
             }],
         };
         self.request.contents.push(content);
+        self
+    }
+
+    pub fn with_cached_content(mut self, cache_name: String) -> Self {
+        self.request.cached_content = Some(cache_name);
         self
     }
 

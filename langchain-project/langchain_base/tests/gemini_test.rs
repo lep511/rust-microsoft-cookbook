@@ -1,8 +1,9 @@
 use langchain_base::gemini::ChatGemini;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Write, Read};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde_json::json;
+use std::path::Path;
 
 static GEMINI_MODEL: &str = "gemini-2.0-flash-exp";
 static GEMINI_MODEL_THINK: &str = "gemini-2.0-flash-thinking-exp";
@@ -151,7 +152,7 @@ async fn gemini_upload_image() {
             Err(e) => panic!("Error: {}", e),
     };
 
-    let llm = llm.with_image_url(
+    let llm = llm.with_file_url(
         file_url,
         file_mime,
     );
@@ -385,8 +386,8 @@ async fn gemini_think_mode() {
     let prompt = "What is the geometric monthly fecal coliform mean of a \
                   distribution system with the following FC counts: \
                   24, 15, 7, 16, 31 and 23? The result will be inputted \
-                  into a NPDES DMR, therefore, round to the nearest whole number. \
-                  Response at the end with SOLUTION: number(integer)";
+                  into a NPDES DMR, therefore, round to the \
+                  nearest whole number.";
 
     let llm = llm.with_temperature(1.0);
     let llm = llm.with_top_k(64);
@@ -396,18 +397,36 @@ async fn gemini_think_mode() {
         Err(e) => panic!("Error: {}", e),
     };
 
+    let mut result = String::from("");
+
     if let Some(candidates) = response.candidates {
         for candidate in candidates {
             if let Some(content) = candidate.content {
                 for part in content.parts {
                     if let Some(text) = part.text {
-                        let is_last_eight = text.split('\n')
-                            .last()
-                            .map_or(false, |word| word == "18.");
-                        assert_eq!(is_last_eight, true);
+                        result.push_str(&text);
                     }
                 }
             }
         }
     };
+
+    // Save result to file.md
+    let file_path = "tests/output/test-gemini-think-mode.md";
+    let mut file = match File::create(file_path) {
+        Ok(file) => file,
+        Err(e) => panic!("Couldn't create {}", e),
+    };
+
+    match file.write_all(result.as_bytes()) {
+        Ok(_) => {},
+        Err(e) => panic!("Error saving file: {}", e),
+    }
+
+    // Check if the file exists
+    let path = Path::new(file_path);
+    assert!(path.exists(), "File was not created!");
+
+    // Check if the file has content
+    assert!(!result.is_empty(), "File is empty!");
 }

@@ -245,15 +245,59 @@ impl ChatGemini {
         }
     }
 
-    pub async fn media_upload(self, img_path: &str, mime_type: &str) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn media_upload(mut self, img_path: &str, mut mime_type: &str) 
+    -> Result<Self, Box<dyn std::error::Error>> {
         let api_key = Self::get_api_key()?;
         let upload_url = format!(
             "{}/files?key={}",
             UPLOAD_BASE_URL,
             api_key
-        );
+        );      
         
-        let display_name = "TEXT";
+        let display_name = match img_path.split('/').last() {
+            Some(name) => name,
+            None => "TEXT",
+        };
+
+        if mime_type == "auto" {
+            let ext = img_path.split('.').last().unwrap();
+            let mime = match ext {
+                "jpg" | "jpeg" => "image/jpeg",
+                "png"   =>  "image/png",
+                "webp"  =>  "image/webp",
+                "gif"   =>  "image/gif",
+                "mp4"   =>  "video/mp4",
+                "flv"   =>  "video/x-flv",
+                "mov"   =>  "video/quicktime",
+                "mpg"   =>  "video/mpeg",
+                "mpeg"  =>  "video/mpeg",
+                "3gp"   =>  "video/3gpp",
+                "webm"  =>  "video/webm",
+                "wmv"   =>  "video/x-ms-wmv",
+                "pdf"   =>  "application/pdf",
+                "doc"   =>  "application/msword",
+                "docx"  =>  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "rtf"   =>  "application/rtf",
+                "dot"   =>  "application/msword",
+                "dotx"  =>  "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+                "txt"   =>  "text/plain",
+                "csv"   =>  "text/csv",
+                "tsv"   =>  "text/tab-separated-values",
+                "xls"   =>  "application/vnd.ms-excel",
+                "xlsx"  =>  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "mp3"   =>  "audio/mpeg",
+                "aac"   =>  "audio/aac",
+                "mpa"   =>  "audio/mpeg",
+                "m4a"   =>  "audio/mp4",
+                "flac"  =>  "audio/flac",
+                "opus"  =>  "audio/opus",
+                "pcm"   =>  "audio/pcm",
+                "wav"   =>  "audio/wav",
+                _ => "text/plain",
+            };
+            mime_type = mime;
+        }
+
         let num_bytes = fs::metadata(&img_path)?.len();
         let num_bytes = num_bytes.to_string();
 
@@ -299,14 +343,41 @@ impl ChatGemini {
             .await?
             .json()
             .await?;
+        
+        // Wait for video processing
+        if mime_type.starts_with("video") {
+            tokio::time::sleep(Duration::from_secs(5)).await;
+        }
 
         let file_uri = upload_resp["file"]["uri"]
             .as_str()
             .ok_or("Missing file URI")?
             .trim_matches('"')
             .to_string();
+        
+        let content = Content {
+            role: "user".to_string(),
+            parts: vec![Part {
+                text: None,
+                function_call: None,
+                inline_data: None,
+                file_data: Some(FileData {
+                    mime_type: mime_type.to_string(),
+                    file_uri: file_uri,
+                }),
+            }]
+        };
+        self.request.contents.push(content);
 
-        Ok(file_uri)
+        Ok(
+            Self{
+                base_url: self.base_url, 
+                model: self.model, 
+                request: self.request, 
+                timeout: self.timeout,
+                client: self.client,
+            }
+        )
     }
 
     pub async fn cache_upload(self, data: String, mime_type: &str, instruction: &str) -> Result<String, Box<dyn std::error::Error>> {

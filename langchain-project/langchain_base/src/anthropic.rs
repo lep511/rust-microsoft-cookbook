@@ -2,22 +2,10 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::Duration;
+use crate::llmerror::AnthropicChatError;
 use std::env;
 
 pub static ANTHROPIC_BASE_URL: &str = "https://api.anthropic.com/v1/messages";
-
-#[allow(dead_code)]
-#[derive(Debug, thiserror::Error)]
-pub enum AnthropicChatError {
-    #[error("ANTHROPIC API key not found in environment variables")]
-    ApiKeyNotFound,
-    #[error("Request error: {0}")]
-    RequestError(#[from] reqwest::Error),
-    #[error("Environment error: {0}")]
-    EnvError(#[from] env::VarError),
-    #[error("Failed to get response content")]
-    ResponseContentError,
-}
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]

@@ -1,22 +1,10 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use crate::llmerror::ChatGrocChatError;
 use std::env;
 
 pub static GROC_BASE_URL: &str = "https://api.groq.com/openai/v1/chat/completions";
-
-#[allow(dead_code)]
-#[derive(Debug, thiserror::Error)]
-pub enum ChatGrocChatError {
-    #[error("Groc API key not found in environment variables")]
-    ApiKeyNotFound,
-    #[error("Request error: {0}")]
-    RequestError(#[from] reqwest::Error),
-    #[error("Environment error: {0}")]
-    EnvError(#[from] env::VarError),
-    #[error("Failed to get response content")]
-    ResponseContentError,
-}
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]

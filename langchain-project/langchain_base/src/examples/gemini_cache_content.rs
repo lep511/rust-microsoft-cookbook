@@ -1,45 +1,17 @@
 #[allow(dead_code)]
 use crate::gemini::ChatGemini;
-use std::fs::File;
-use base64::{Engine as _, engine::general_purpose::STANDARD};
-use serde_json::json;
 
 #[allow(dead_code)]
 pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
-    let mut llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = llm.with_temperature(0.9);
+    let llm = llm.with_max_tokens(2048);
 
-    let type_file = "audio";
-    let mut prompt = "Describe this image";
-
-    match type_file {
-        "image" => {
-            let file_path = "tests/files/image01.jpg";
-            llm = llm.media_upload(file_path, "auto").await?;
-        },
-        "video" => {
-            let file_path = "tests/files/sample.mp4";
-            llm = llm.media_upload(file_path, "auto").await?;
-            prompt = "Describe this video clip";
-        },
-        "pdf" => {
-            let file_path = "tests/files/test.pdf";
-            llm = llm.media_upload(file_path, "auto").await?;
-            prompt = "Summarize this document";
-        },
-        "audio" => {
-            let file_path = "tests/files/sample.mp3";
-            llm = llm.media_upload(file_path, "auto").await?;
-            prompt = "Summarize in a few lines this audio clip";
-        },
-        _ => {
-            let file_path = "tests/files/sample.csv";
-            llm = llm.media_upload(file_path, "auto").await?;
-            prompt = "Summarize this document";
-        }
-    }
-
+    let llm = llm.with_system_prompt("You are a helpful assistant.");
+    let prompt = "Only say It's a test.";
     let response = llm.invoke(prompt).await?;
 
+    println!("\n#### Example Gemini simple shot ####");
     if let Some(candidates) = response.candidates {
         for candidate in candidates {
             if let Some(content) = candidate.content {

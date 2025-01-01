@@ -30,7 +30,6 @@ pub enum Models {
     Xai,
 }
 
-
 pub(crate)async fn all_examples(model: Models) -> Result<(), Box<dyn std::error::Error>> {
     
     match model {
@@ -43,9 +42,9 @@ pub(crate)async fn all_examples(model: Models) -> Result<(), Box<dyn std::error:
             // anthropic_image::sample().await?;
         }
         Models::OpenAI => {
-            // penai_base::sample().await?;
+            openai_base::sample().await?;
             // openai_multiple_turns::sample().await?;
-            openai_functions::sample().await?
+            // openai_functions::sample().await?
         }
         Models::Gemini => {
             // gemini_base::sample().await?;

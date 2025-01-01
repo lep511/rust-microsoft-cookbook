@@ -145,17 +145,11 @@ async fn gemini_upload_image() {
     let file_path = "tests/files/image03.png";
     let file_mime = "image/png";
 
-    let file_url: String = match llm.clone()
-        .media_upload(file_path, file_mime)
-        .await {
-            Ok(file_url) => file_url,
-            Err(e) => panic!("Error: {}", e),
+    let llm = match llm.media_upload(file_path, file_mime).await {
+        Ok(llm) => llm,
+        Err(e) => panic!("Error: {}", e),
     };
 
-    let llm = llm.with_file_url(
-        file_url,
-        file_mime,
-    );
     let prompt = "You can say if this image is real or fantastic. \
                 Just respond with one word: REAL or FANTASTIC.";
 

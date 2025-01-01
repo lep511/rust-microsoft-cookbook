@@ -37,7 +37,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     let prompt = "What is the weather like in Boston today?";
     let response: ChatResponse = llm.invoke(prompt).await?;
 
-    println!("\n#### Example OpenAI functions ####");
+    println!("\n#### Example XAi functions ####");
     match response.choices {
         Some(candidates) => {
             for candidate in candidates {

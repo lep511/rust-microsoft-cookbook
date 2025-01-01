@@ -4,13 +4,14 @@ mod gemini;
 mod groc;
 mod xai;
 mod examples;
+mod llmerror;
 use examples::{Models, all_examples};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // OpenAI, Anthropic, Gemini, Groc, Xai,
-    let model = Models::Gemini;
+    let model = Models::Xai;
 
     match all_examples(model).await {
         Ok(_) => (),

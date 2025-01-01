@@ -4,22 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use std::{env, fs};
 use serde_json::json;
+use crate::llmerror::GeminiChatError;
 
 pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 pub static UPLOAD_BASE_URL: &str = "https://generativelanguage.googleapis.com/upload/v1beta";
-
-#[allow(dead_code)]
-#[derive(Debug, thiserror::Error)]
-pub enum GeminiChatError {
-    #[error("Gemini API key not found in environment variables")]
-    ApiKeyNotFound,
-    #[error("Request error: {0}")]
-    RequestError(#[from] reqwest::Error),
-    #[error("Environment error: {0}")]
-    EnvError(#[from] env::VarError),
-    #[error("Failed to get response content")]
-    ResponseContentError,
-}
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]
@@ -98,18 +86,7 @@ pub struct  GenerationConfig {
     pub response_schema: Option<serde_json::Value>,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-pub struct ChatGemini {
-    pub base_url: String,
-    pub model: String,
-    pub request: ChatRequest,
-    pub timeout: u64,
-    pub client: Client,
-}
-
-#[allow(dead_code)]
-impl ChatGemini {
+pub trait GetApiKey {
     fn get_api_key() -> Result<String, GeminiChatError> {
         match env::var("GEMINI_API_KEY") {
             Ok(key) => Ok(key),
@@ -123,19 +100,21 @@ impl ChatGemini {
             }
         }
     }
+}
 
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct ChatGemini {
+    pub base_url: String,
+    pub model: String,
+    pub request: ChatRequest,
+    pub timeout: u64,
+    pub client: Client,
+}
+
+#[allow(dead_code)]
+impl ChatGemini {
     pub fn new(model: &str) -> Result<Self, GeminiChatError> {
-        // let api_key = match env::var("GEMINI_API_KEY") {
-        //     Ok(key) => key,
-        //     Err(env::VarError::NotPresent) => {
-        //         println!("[ERROR] GEMINI_API_KEY not found in environment variables");
-        //         return Err(GeminiChatError::ApiKeyNotFound);
-        //     }
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //         return Err(GeminiChatError::EnvError(e));
-        //     }
-        // };
         let api_key = Self::get_api_key()?;
         
         let base_url = format!(
@@ -553,24 +532,35 @@ impl ChatGemini {
         self.request.contents.push(content);
         self
     }
-
-    pub fn with_file_url(mut self, image_url: String, mime_type: &str) -> Self {
-        let content = Content {
-            role: "user".to_string(),
-            parts: vec![Part {
-                text: None,
-                function_call: None,
-                inline_data: None,
-                file_data: Some(FileData {
-                    mime_type: mime_type.to_string(),
-                    file_uri: image_url,
-                }),
-            }]
-        };
-        self.request.contents.push(content);
-        self
-    }
 }
+
+impl GetApiKey for ChatGemini {}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct EmbedGemini {
+    pub base_url: String,
+    pub model: String,
+    pub request: ChatRequest,
+    pub timeout: u64,
+    pub client: Client,
+}
+
+// #[allow(dead_code)]
+// impl EmbedGemini {
+//     fn get_api_key() -> Result<String, GeminiChatError> {
+//         match env::var("GEMINI_API_KEY") {
+//             Ok(key) => Ok(key),
+//             Err(env::VarError::NotPresent) => {
+//                 println!("[ERROR] GEMINI_API_KEY not found in environment variables");
+//                 Err(GeminiChatError::ApiKeyNotFound)
+//             }
+//             Err(e) => {
+//                 println!("[ERROR] {:?}", e);
+//                 Err(GeminiChatError::EnvError(e))
+//             }
+//         }
+//     }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]

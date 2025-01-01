@@ -1,22 +1,10 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use crate::llmerror::XAIChatError;
 use std::env;
 
 pub static XAI_BASE_URL: &str = "https://api.x.ai/v1/chat/completions";
-
-#[allow(dead_code)]
-#[derive(Debug, thiserror::Error)]
-pub enum XAIChatError {
-    #[error("X-AI API key not found in environment variables")]
-    ApiKeyNotFound,
-    #[error("Request error: {0}")]
-    RequestError(#[from] reqwest::Error),
-    #[error("Environment error: {0}")]
-    EnvError(#[from] env::VarError),
-    #[error("Failed to get response content")]
-    ResponseContentError,
-}
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]
@@ -118,6 +106,14 @@ impl ChatXAI {
             role: Role::User,
             content: content.clone(),
         });  
+
+        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
+
         let response = self
             .client
             .post(XAI_BASE_URL)
@@ -129,6 +125,13 @@ impl ChatXAI {
             .await?
             .json::<serde_json::Value>()
             .await?;
+
+        // let _pretty_json = match serde_json::to_string_pretty(&response) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
        
         let response = response.to_string();
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
@@ -140,7 +143,7 @@ impl ChatXAI {
         };
 
         if let Some(error) = chat_response.error {
-            println!("[ERROR] {}", error.message);
+            println!("[ERROR] {}", error.error);
             return Err(XAIChatError::ResponseContentError);
         } else {
             let format_response = ChatResponse {
@@ -361,9 +364,9 @@ pub struct PromptTokensDetails {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorDetails {
-    pub code: String,
-    pub message: String,
+    pub code: Option<String>,
+    pub error: String,
     pub param: Option<String>,
     #[serde(rename = "type")]
-    pub error_type: String,
+    pub error_type: Option<String>,
 }

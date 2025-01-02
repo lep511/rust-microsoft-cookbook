@@ -18,6 +18,23 @@ pub(crate) async fn vector_index() {
     let my_coll: Collection<Document> = database.collection("embedded_movies");
 
     let index_name = "vector_index";
+
+    let filter = doc! { "title": "The Matrix" };
+    let movie = my_coll.find_one(filter).await?;
+    match movie {
+        Some(movie) => {
+            println!("Movie: {:?}", movie.get("fullplot").unwrap());
+        },
+        None => {
+            println!("Movie not found");
+        }
+    }
+    
+    // Count all documents
+    let filter = doc! {};
+    let total_count = my_coll.count_documents(filter).await?;
+    println!("Total documents: {}", total_count);
+
     let search_index_def = SearchIndexModel::builder()
         .definition(doc! {
             "fields": vec! {doc! {

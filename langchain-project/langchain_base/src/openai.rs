@@ -1,10 +1,11 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use crate::llmerror::OpenAIChatError;
+use crate::llmerror::OpenAIError;
 use std::env;
 
 pub static OPENAI_BASE_URL: &str = "https://api.openai.com/v1/chat/completions";
+pub static OPENAI_EMBED_URL: &str = "https://api.openai.com/v1/embeddings";
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]
@@ -41,6 +42,31 @@ pub struct ResponseFormat {
 }
 
 #[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbedRequest {
+    pub model: String,
+    pub input: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dimensions: Option<u32>,
+}
+
+pub trait GetApiKey {
+    fn get_api_key() -> Result<String, OpenAIError> {
+        match env::var("OPENAI_API_KEY") {
+            Ok(key) => Ok(key),
+            Err(env::VarError::NotPresent) => {
+                println!("[ERROR] OPENAI_API_KEY not found in environment variables");
+                Err(OpenAIError::ApiKeyNotFound)
+            }
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                Err(OpenAIError::EnvError(e))
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ChatOpenAI {
     pub api_key: String,
@@ -51,16 +77,8 @@ pub struct ChatOpenAI {
 
 #[allow(dead_code)]
 impl ChatOpenAI {
-    pub fn new(model: &str) -> Result<Self, OpenAIChatError> {
-        let api_key = match env::var("OPENAI_API_KEY") {
-            Ok(key) => key,
-            Err(env::VarError::NotPresent) => {
-                return Err(OpenAIChatError::ApiKeyNotFound);
-            }
-            Err(e) => {
-                return Err(OpenAIChatError::EnvError(e));
-            }
-        };
+    pub fn new(model: &str) -> Result<Self, OpenAIError> {
+        let api_key = Self::get_api_key()?;
 
         let dev_prompt = "You are a helpful assistant.".to_string();
 
@@ -110,7 +128,7 @@ impl ChatOpenAI {
     pub async fn invoke(
         mut self,
         prompt: &str,
-    ) -> Result<ChatResponse, OpenAIChatError> {
+    ) -> Result<ChatResponse, OpenAIError> {
         
         let content = vec![InputContent {
             content_type: "text".to_string(),
@@ -155,13 +173,13 @@ impl ChatOpenAI {
             Ok(response_form) => response_form,
             Err(e) => {
                 println!("[ERROR] {:?}", e);
-                return Err(OpenAIChatError::ResponseContentError);
+                return Err(OpenAIError::ResponseContentError);
             }
         };
 
         if let Some(error) = chat_response.error {
             println!("[ERROR] {}", error.message);
-            return Err(OpenAIChatError::ResponseContentError);
+            return Err(OpenAIError::ResponseContentError);
         } else {
             let format_response = ChatResponse {
                 choices: chat_response.choices,
@@ -292,6 +310,101 @@ impl ChatOpenAI {
 }
 
 #[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct EmbedOpenAI {
+    pub model: String,
+    pub request: EmbedRequest,
+    pub timeout: u64,
+    pub api_key: String,
+    pub client: Client,
+}
+
+#[allow(dead_code)]
+impl EmbedOpenAI {
+    pub fn new(model: &str) -> Result<Self, OpenAIError> {
+        let api_key = Self::get_api_key()?;
+        let request = EmbedRequest {
+            model: model.to_string(),
+            input: "Init message.".to_string(),
+            dimensions: None,
+        };
+
+        Ok(Self {
+            model: model.to_string(),
+            request: request,
+            timeout: 15 * 60, // default: 15 minutes
+            api_key: api_key,
+            client: Client::builder()
+                .use_rustls_tls()
+                .build()?,
+        })
+    }
+
+    pub async fn embed_content(mut self, input_str: &str) -> Result<EmbedResponse, OpenAIError> {
+        self.request.input = input_str.to_string();
+        
+        let response = self
+            .client
+            .post(OPENAI_EMBED_URL)
+            .timeout(Duration::from_secs(self.timeout))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&self.request)
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+
+        let response = response.to_string();
+        let embed_response: EmbedResponse = match serde_json::from_str(&response) {
+            Ok(response_form) => response_form,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(OpenAIError::ResponseContentError);
+            }
+        };
+        if let Some(error) = embed_response.error {
+            println!("[ERROR] {}", error.message);
+            return Err(OpenAIError::ResponseContentError);
+        } else {
+            Ok(embed_response)
+        }    
+    }
+
+    pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    pub fn with_dimensions(mut self, dimensions: u32) -> Self {
+        // Only supported in text-embedding-3 and later models
+        self.request.dimensions = Some(dimensions);
+        self
+    }
+}
+
+impl GetApiKey for ChatOpenAI {}
+impl GetApiKey for EmbedOpenAI {}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmbedResponse {
+    pub data: Vec<EmbeddingData>,
+    pub model: String,
+    pub object: String,
+    pub usage: Usage,
+    pub error: Option<ErrorDetails>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmbeddingData {
+    pub embedding: Vec<f32>,
+    pub index: i32,
+    pub object: String,
+}
+
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
@@ -366,17 +479,17 @@ pub struct ChatMessage {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Usage {
-    pub completion_tokens: u32,
-    pub completion_tokens_details: CompletionTokensDetails,
-    pub prompt_tokens: u32,
-    pub prompt_tokens_details: PromptTokensDetails,
-    pub total_tokens: u32,
+    pub completion_tokens: Option<u32>,
+    pub completion_tokens_details: Option<CompletionTokensDetails>,
+    pub prompt_tokens: Option<u32>,
+    pub prompt_tokens_details: Option<PromptTokensDetails>,
+    pub total_tokens: Option<u32>,
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CompletionTokensDetails {
     pub accepted_prediction_tokens: u32,
     pub audio_tokens: u32,
@@ -385,7 +498,7 @@ pub struct CompletionTokensDetails {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PromptTokensDetails {
     pub audio_tokens: u32,
     pub cached_tokens: u32,

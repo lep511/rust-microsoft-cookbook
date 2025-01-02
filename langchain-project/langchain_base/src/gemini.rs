@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use std::{env, fs};
 use serde_json::json;
-use crate::llmerror::GeminiChatError;
+use crate::llmerror::GeminiError;
 
 pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 pub static UPLOAD_BASE_URL: &str = "https://generativelanguage.googleapis.com/upload/v1beta";
@@ -87,16 +87,16 @@ pub struct  GenerationConfig {
 }
 
 pub trait GetApiKey {
-    fn get_api_key() -> Result<String, GeminiChatError> {
+    fn get_api_key() -> Result<String, GeminiError> {
         match env::var("GEMINI_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
                 println!("[ERROR] GEMINI_API_KEY not found in environment variables");
-                Err(GeminiChatError::ApiKeyNotFound)
+                Err(GeminiError::ApiKeyNotFound)
             }
             Err(e) => {
                 println!("[ERROR] {:?}", e);
-                Err(GeminiChatError::EnvError(e))
+                Err(GeminiError::EnvError(e))
             }
         }
     }
@@ -114,7 +114,7 @@ pub struct ChatGemini {
 
 #[allow(dead_code)]
 impl ChatGemini {
-    pub fn new(model: &str) -> Result<Self, GeminiChatError> {
+    pub fn new(model: &str) -> Result<Self, GeminiError> {
         let api_key = Self::get_api_key()?;
         
         let base_url = format!(
@@ -158,7 +158,7 @@ impl ChatGemini {
         })
     }
 
-    pub async fn invoke(mut self, prompt: &str) -> Result<ChatResponse, GeminiChatError> {
+    pub async fn invoke(mut self, prompt: &str) -> Result<ChatResponse, GeminiError> {
 
         if self.request.contents[0].parts[0].text == Some("Init message.".to_string()) {
             self.request.contents[0].parts[0].text = Some(prompt.to_string());
@@ -205,13 +205,13 @@ impl ChatGemini {
             Ok(response_form) => response_form,
             Err(e) => {
                 println!("[ERROR] {:?}", e);
-                return Err(GeminiChatError::ResponseContentError);
+                return Err(GeminiError::ResponseContentError);
             }
         };
 
         if let Some(error) = chat_response.error {
             println!("[ERROR] {:?}", error);
-            return Err(GeminiChatError::ResponseContentError);
+            return Err(GeminiError::ResponseContentError);
         } else {
             let format_response = ChatResponse {
                 candidates: chat_response.candidates,
@@ -250,7 +250,6 @@ impl ChatGemini {
                 "mov"   =>  "video/quicktime",
                 "mpg"   =>  "video/mpeg",
                 "mpeg"  =>  "video/mpeg",
-                "3gp"   =>  "video/3gpp",
                 "webm"  =>  "video/webm",
                 "wmv"   =>  "video/x-ms-wmv",
                 "pdf"   =>  "application/pdf",
@@ -267,10 +266,7 @@ impl ChatGemini {
                 "mp3"   =>  "audio/mpeg",
                 "aac"   =>  "audio/aac",
                 "mpa"   =>  "audio/mpeg",
-                "m4a"   =>  "audio/mp4",
                 "flac"  =>  "audio/flac",
-                "opus"  =>  "audio/opus",
-                "pcm"   =>  "audio/pcm",
                 "wav"   =>  "audio/wav",
                 _ => "text/plain",
             };
@@ -534,33 +530,175 @@ impl ChatGemini {
     }
 }
 
-impl GetApiKey for ChatGemini {}
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum TaskType {
+    #[serde(rename = "TASK_TYPE_UNSPECIFIED")] // If you do not set the value, it will default to retrieval_query.
+    Unspecified,
+    #[serde(rename = "RETRIEVAL_QUERY")] // The given text is a query in a search/retrieval setting.
+    RetrievalQuery,
+    #[serde(rename = "RETRIEVAL_DOCUMENT")] //  The given text is a document from the corpus being searched.
+    RetrievalDocument,
+    #[serde(rename = "SEMANTIC_SIMILARITY")] // The given text will be used for Semantic Textual Similarity (STS).
+    SemanticSimilarity,
+    #[serde(rename = "CLASSIFICATION")] // The given text will be classified.
+    Classification,
+    #[serde(rename = "CLUSTERING")] // The embeddings will be used for clustering.
+    Clustering,
+}
+
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbedRequest {
+    pub model: String,
+    pub content: Content,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_dimensionality: Option<i32>,
+    pub task_type: TaskType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct EmbedGemini {
     pub base_url: String,
     pub model: String,
-    pub request: ChatRequest,
+    pub request: EmbedRequest,
     pub timeout: u64,
     pub client: Client,
 }
 
-// #[allow(dead_code)]
-// impl EmbedGemini {
-//     fn get_api_key() -> Result<String, GeminiChatError> {
-//         match env::var("GEMINI_API_KEY") {
-//             Ok(key) => Ok(key),
-//             Err(env::VarError::NotPresent) => {
-//                 println!("[ERROR] GEMINI_API_KEY not found in environment variables");
-//                 Err(GeminiChatError::ApiKeyNotFound)
-//             }
-//             Err(e) => {
-//                 println!("[ERROR] {:?}", e);
-//                 Err(GeminiChatError::EnvError(e))
-//             }
-//         }
-//     }
+#[allow(dead_code)]
+impl EmbedGemini {
+    pub fn new(model: &str) -> Result<Self, GeminiError> {
+        let api_key = Self::get_api_key()?;
+        
+        let base_url = format!(
+            "{}/models/{}:embedContent?key={}",
+            GEMINI_BASE_URL,
+            model,
+            api_key,
+        );
+
+        let request = EmbedRequest {
+            model: model.to_string(),
+            content: Content {
+                role: "user".to_string(),
+                parts: vec![Part {
+                    text: Some("Init message.".to_string()),
+                    function_call: None,
+                    inline_data: None,
+                    file_data: None,
+                }],
+            },
+            output_dimensionality: None,
+            task_type: TaskType::Unspecified,
+            title: None,
+        };
+        
+        Ok(Self {
+            base_url: base_url,
+            model: model.to_string(),
+            request: request,
+            timeout: 15 * 60, // default: 15 minutes
+            client: Client::builder()
+                .use_rustls_tls()
+                .build()?,
+        })
+    }
+
+    pub async fn embed_content(mut self, input_str: &str) -> Result<EmbedResponse, GeminiError> {
+
+        if self.request.content.parts[0].text == Some("Init message.".to_string()) {
+            self.request.content.parts[0].text = Some(input_str.to_string());
+        } else {
+            let content = Content {
+                role: "user".to_string(),
+                parts: vec![Part {
+                    text: Some(input_str.to_string()),
+                    function_call: None,
+                    inline_data: None,
+                    file_data: None,
+                }],
+            };
+            self.request.content = content;
+        }
+
+        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
+
+        let response = self
+            .client
+            .post(self.base_url)
+            .timeout(Duration::from_secs(self.timeout))
+            .header("Content-Type", "application/json")
+            .json(&self.request)
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+
+        // let _pretty_json = match serde_json::to_string_pretty(&response) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
+
+        let response = response.to_string();
+        let embed_response: EmbedResponse = match serde_json::from_str(&response) {
+            Ok(response_form) => response_form,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(GeminiError::ResponseContentError);
+            }
+        };
+        if let Some(error) = embed_response.error {
+            println!("[ERROR] {:?}", error);
+            return Err(GeminiError::ResponseContentError);
+        } else {
+            Ok(embed_response)
+        }
+    }
+
+    pub fn with_output_dimensionality(mut self, output_dimensionality: i32) -> Self {
+        self.request.output_dimensionality = Some(output_dimensionality);
+        self
+    }
+
+    pub fn with_task_type(mut self, task_type: TaskType) -> Self {
+        self.request.task_type = task_type;
+        self
+    }
+
+    pub fn with_title(mut self, title: &str) -> Self {
+        self.request.title = Some(title.to_string());
+        self
+    }
+}
+
+impl GetApiKey for ChatGemini {}
+impl GetApiKey for EmbedGemini {}
+
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmbedResponse {
+    pub embedding: Option<Embedding>,
+    pub error: Option<ErrorDetails>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Embedding {
+    pub values: Vec<f32>,
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]

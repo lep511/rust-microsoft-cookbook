@@ -2,7 +2,7 @@ use std::env;
 
 #[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
-pub enum GeminiChatError {
+pub enum GeminiError {
     #[error("Gemini API key not found in environment variables")]
     ApiKeyNotFound,
     #[error("Request error: {0}")]

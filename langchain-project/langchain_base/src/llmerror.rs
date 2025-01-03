@@ -37,6 +37,10 @@ pub enum ReplicateError {
     EnvError(#[from] env::VarError),
     #[error("Failed to get response content")]
     ResponseContentError,
+    #[error("Failed to create file")]
+    FileCreateError,
+    #[error("Failed to copy content to file")]
+    FileCopyError,
 }
 
 #[allow(dead_code)]

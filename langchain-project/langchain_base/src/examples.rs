@@ -20,6 +20,7 @@ mod xai_base;
 mod xai_medical_prompt;
 mod xai_multiple_turns;
 mod xai_functions;
+mod replicate_base;
 
 #[allow(dead_code)]
 pub enum Models {
@@ -28,6 +29,7 @@ pub enum Models {
     Gemini,
     Groc,
     Xai,
+    Replicate,
 }
 
 pub(crate)async fn all_examples(model: Models) -> Result<(), Box<dyn std::error::Error>> {
@@ -63,6 +65,9 @@ pub(crate)async fn all_examples(model: Models) -> Result<(), Box<dyn std::error:
             // xai_multiple_turns::sample().await?;
             // xai_medical_prompt::sample().await?
             xai_functions::sample().await?
+        }
+        Models::Replicate => {
+            replicate_base::sample().await?;
         }
     }    
     Ok(())

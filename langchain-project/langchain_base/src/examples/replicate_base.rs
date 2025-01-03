@@ -30,14 +30,15 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     println!("[Task took {:.2} seconds]", elapsed);
 
     println!("\n#### Example Replicate Models ####");
-    match &response.output {
-        Some(output) => {
-            println!("Output: {}", output);
-            println!("{:?}", response);            
-        }
-        None => {
-            println!("{:?}", response);
-        }
-    }    
+    // match &response.output {
+    //     Some(output) => {
+    //         println!("Output: {}", output);
+    //         println!("{:?}", response);            
+    //     }
+    //     None => {
+    //         println!("{:?}", response);
+    //     }
+    // } 
+    println!("{:?}", response);   
     Ok(())
 }

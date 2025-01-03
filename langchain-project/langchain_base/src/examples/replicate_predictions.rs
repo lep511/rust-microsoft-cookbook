@@ -15,10 +15,18 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     // });
 
     let llm = ReplicateModels::new("predictions")?;
+
+    let texts = vec![
+        "In the water, fish are swimming.",
+        "Fish swim in the water.",
+        "A book lies open on the table.",
+    ];
+    let texts_string = serde_json::to_string(&texts)?;
+
     let input_data = json!({
         "version": "a06276a89f1a902d5fc225a9ca32b6e8e6292b7f3b136518878da97c458e2bad",
         "input": {
-            "texts": "[\"In the water, fish are swimming.\", \"Fish swim in the water.\", \"A book lies open on the table.\"]",
+            "texts": texts_string,
             "batch_size": 32,
             "normalize_embeddings": true
         }
@@ -29,16 +37,11 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
 
     let elapsed = start.elapsed().as_secs_f64();
     println!("[Task took {:.2} seconds]", elapsed);
-
     println!("\n#### Example Replicate Models ####");
-    match &response.output {
-        Some(output) => {
-            println!("Output: {}", output);
-            println!("{:?}", response);            
-        }
-        None => {
-            println!("{:?}", response);
-        }
-    }    
+
+    let output_string = response["output"].to_string();
+    let response_named: Vec<Vec<f64>> = serde_json::from_str(&output_string)?;
+    println!("First text: {:?}", texts[0]);
+    println!("First embedding: {:?}", response_named[0]);
     Ok(())
 }

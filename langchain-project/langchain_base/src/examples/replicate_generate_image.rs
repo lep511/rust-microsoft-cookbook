@@ -24,18 +24,19 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     println!("[Task took {:.2} seconds]", elapsed);
 
     println!("\n#### Example Replicate Image Generated ####");
-    match &response.output {
-        Some(output) => {
-            println!("Output: {}", output);
-            println!("{:?}", response);
-            if output.contains("https://replicate") {
-                let file_name = llm.get_file(&output).await?;
-                println!("File saved: {}", file_name);
-            }
-        }
-        None => {
-            println!("{:?}", response);
-        }
-    }    
+    // match &response.output {
+    //     Some(output) => {
+    //         println!("Output: {}", output);
+    //         println!("{:?}", response);
+    //         if output.contains("https://replicate") {
+    //             let file_name = llm.get_file(&output).await?;
+    //             println!("File saved: {}", file_name);
+    //         }
+    //     }
+    //     None => {
+    //         println!("{:?}", response);
+    //     }
+    // }
+    println!("{:?}", response);
     Ok(())
 }

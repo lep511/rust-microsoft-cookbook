@@ -1,5 +1,5 @@
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+// use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use crate::llmerror::ReplicateError;
 use std::io::copy;
@@ -55,7 +55,7 @@ impl ReplicateModels {
     pub async fn invoke(
         mut self,
         input_data: serde_json::Value,
-    ) -> Result<ReplicateResponse, ReplicateError> {
+    ) -> Result<serde_json::Value, ReplicateError> {
         
         self.request = input_data;
 
@@ -66,7 +66,7 @@ impl ReplicateModels {
         //     }
         // };
 
-        let mut response = self
+        let response = self
             .client
             .post(&self.base_url)
             .timeout(Duration::from_secs(self.timeout))
@@ -86,29 +86,7 @@ impl ReplicateModels {
         //     }
         // };
 
-        if response.get("output").is_some() {
-            // Check if output is string or list
-            if response["output"].is_array() {
-                let output = match response["output"].as_array() {
-                    Some(output) => output,
-                    None => {
-                        println!("[ERROR][E115] {:?}", response);
-                        return Err(ReplicateError::ResponseContentError);
-                    }
-                };
-                let mut output_string = String::new();
-                for item in output {
-                    // Remove quotes from string
-                    let formatted_item = item.to_string()
-                        .replace("\"", "")
-                        .replace("\\\\n", "\n")
-                        .replace("\\\n", "\n")
-                        .replace("\\n", "\n");
-                    output_string.push_str(&formatted_item);
-                }
-                response["output"] = serde_json::Value::String(output_string);
-            }
-        } else {
+        if response.get("output").is_none() {
             println!("[ERROR][E114] {:?}", response);
             match serde_json::to_string_pretty(&response) {
                 Ok(response_form) => {
@@ -121,16 +99,7 @@ impl ReplicateModels {
             return Err(ReplicateError::ResponseContentError);
         }
         
-        let response_string = response.to_string();
-        let chat_response: ReplicateResponse = match serde_json::from_str(&response_string) {
-            Ok(response_form) => response_form,
-            Err(error) => {
-                println!("[ERROR][E116] {:?}", error);
-                return Err(ReplicateError::ResponseContentError);
-            }
-        };
-
-        Ok(chat_response)
+        Ok(response)
     }
 
     pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
@@ -176,28 +145,3 @@ impl ReplicateModels {
 }
 
 impl GetApiKey for ReplicateModels {}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ReplicateResponse {
-    pub created: Option<String>,
-    pub data_removed: Option<bool>,
-    pub id: Option<String>,
-    pub input : Option<serde_json::Value>,
-    pub model: Option<String>,
-    pub output: Option<String>,
-    pub status: Option<String>,
-    pub urls: Option<serde_json::Value>,
-    pub version: Option<String>,
-    pub error: Option<String>,
-}
-
-// #[allow(dead_code)]
-// #[derive(Debug, Clone)]
-// pub struct ErrorDetails {
-//     pub detail: Option<String>,
-//     pub invalid_fields: Option<serde_json::Value>,
-//     pub status: Option<i32>,
-//     pub title: Option<String>,
-//     pub found_error: Option<bool>,
-// }

@@ -1,8 +1,8 @@
 #[allow(dead_code)]
-use crate::openai::{ChatOpenAI, ChatResponse};
+use langchain_base::openai::{ChatOpenAI, ChatResponse};
 
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatOpenAI::new("gpt-4o-mini")?;
     let llm = llm.with_temperature(0.9);
     let llm = llm.with_max_completion_tokens(2048);

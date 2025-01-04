@@ -1,10 +1,10 @@
 #[allow(dead_code)]
-// use crate::gemini::ChatGemini;
-use crate::gemini::EmbedGemini;
-use crate::gemini::TaskType;
+// use langchain_base::gemini::ChatGemini;
+use langchain_base::gemini::EmbedGemini;
+use langchain_base::gemini::TaskType;
 
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // The Embedding model is optimized for creating embeddings 
     // with 768 dimensions for text of up to 2,048 tokens.

@@ -1,8 +1,8 @@
 #[allow(dead_code)]
-use crate::anthropic::ChatAnthropic;
+use langchain_base::anthropic::ChatAnthropic;
 
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example simple shot
     let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
 

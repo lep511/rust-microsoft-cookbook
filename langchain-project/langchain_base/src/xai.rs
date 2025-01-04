@@ -31,6 +31,22 @@ pub struct ChatRequest {
     pub stop: Option<Vec<String>>,
 }
 
+pub trait GetApiKey {
+    fn get_api_key() -> Result<String, XAIChatError> {
+        match env::var("XAI_API_KEY") {
+            Ok(key) => Ok(key),
+            Err(env::VarError::NotPresent) => {
+                println!("[ERROR] XAI_API_KEY not found in environment variables");
+                Err(XAIChatError::ApiKeyNotFound)
+            }
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                Err(XAIChatError::EnvError(e))
+            }
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ChatXAI {
@@ -43,18 +59,9 @@ pub struct ChatXAI {
 #[allow(dead_code)]
 impl ChatXAI {
     pub fn new(model: &str) -> Result<Self, XAIChatError> {
-        let api_key = match env::var("XAI_API_KEY") {
-            Ok(key) => key,
-            Err(env::VarError::NotPresent) => {
-                return Err(XAIChatError::ApiKeyNotFound);
-            }
-            Err(e) => {
-                return Err(XAIChatError::EnvError(e));
-            }
-        };
-
+        let api_key = Self::get_api_key()?;
         let dev_prompt = "You are a helpful assistant.".to_string();
-        
+
         let content = vec![InputContent {
             content_type: "text".to_string(),
             text: Some(dev_prompt),
@@ -273,6 +280,8 @@ impl ChatXAI {
         self
     }
 }
+
+impl GetApiKey for ChatXAI {}
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]

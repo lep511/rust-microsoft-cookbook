@@ -19,7 +19,7 @@
 // a database to be incorporated with the rest of our clinical data marts.
 
 #[allow(dead_code)]
-use crate::groc::{ChatGroc, ChatResponse};
+use langchain_base::groc::{ChatGroc, ChatResponse};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
@@ -40,8 +40,8 @@ struct SocialDeterminants {
     language_barrier: Option<bool>,
 }
 
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let prompt = "You are a medical coding API specializing in social determinants of health that responds in JSON. \
             Your job is to extract structured SDOH data from an unstructured clinical note and output the structured data in JSON. \
@@ -66,8 +66,8 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
     
     for i in 1..=5 {
         let llm = ChatGroc::new("llama-3.3-70b-specdec")?;
-        let file_txt = format!("src/examples/files/note_medical{}.txt", i);
-        let file_json = format!("src/examples/files/note_medical{}.json", i);
+        let file_txt = format!("tests/files/note_medical{}.txt", i);
+        let file_json = format!("tests/files/note_medical{}.json", i);
         let contents = fs::read_to_string(file_txt)?;
         let format_prompt = format!("{}\n{}", prompt, contents);
         let response: ChatResponse = llm.invoke(&format_prompt).await?;

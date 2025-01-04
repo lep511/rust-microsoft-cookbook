@@ -1,19 +1,18 @@
 #[allow(dead_code)]
-use crate::anthropic::ChatAnthropic;
+use langchain_base::anthropic::ChatAnthropic;
 use std::fs::File;
 use std::io::Read;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
-
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Read first image into a byte vector
-    let mut file_01 = File::open("src/examples/files/image01.jpg")?;
+    let mut file_01 = File::open("tests/files/image01.jpg")?;
     let mut buffer_01 = Vec::new();
     file_01.read_to_end(&mut buffer_01)?;
     
     // Read second image into a byte vector
-    let mut file_02 = File::open("src/examples/files/image03.png")?;
+    let mut file_02 = File::open("tests/files/image03.png")?;
     let mut buffer_02 = Vec::new();
     file_02.read_to_end(&mut buffer_02)?;
     

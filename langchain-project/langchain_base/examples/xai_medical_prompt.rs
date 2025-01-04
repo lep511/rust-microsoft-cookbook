@@ -1,10 +1,10 @@
 #[allow(dead_code)]
-use crate::xai::{ChatXAI, ChatResponse};
+use langchain_base::xai::{ChatXAI, ChatResponse};
 use std::fs;
 use std::io::Write;
 
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let system_prompt = "You are a highly experienced medical professional with a specialty in translating \
                 complex patient histories into concise, actionable summaries. Your role is to analyze patient records, \
@@ -12,7 +12,7 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
                 treatment planning. Your summaries are invaluable for busy healthcare providers who need quick insights \
                 into a patient's medical history before appointments.";   
     
-    let base_prompt_file = "src/examples/files/medical_prompt.txt";
+    let base_prompt_file = "tests/files/medical_prompt.txt";
     let base_prompt = fs::read_to_string(base_prompt_file)?;
     println!("\n#### Example Groc Medical Prompt ####");
 
@@ -20,8 +20,8 @@ pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
         let llm = ChatXAI::new("grok-2-1212")?;
         let llm = llm.with_system_prompt(system_prompt);
         let llm = llm.with_max_tokens(8092);
-        let file_txt = format!("src/examples/files/patient_record{}.txt", i);
-        let file_json = format!("src/examples/files/patient_record_result{}.json", i);
+        let file_txt = format!("tests/files/patient_record{}.txt", i);
+        let file_json = format!("tests/files/patient_record_result{}.json", i);
         let contents = fs::read_to_string(file_txt.clone())?;
         let format_prompt = format!("{}\n{}", base_prompt, contents);
 

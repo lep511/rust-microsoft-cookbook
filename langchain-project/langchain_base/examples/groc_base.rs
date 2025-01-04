@@ -1,9 +1,9 @@
 #[allow(dead_code)]
-use crate::groc::{ChatGroc, ChatResponse};
+use langchain_base::groc::{ChatGroc, ChatResponse};
 use std::time::Instant;
 
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatGroc::new("llama-3.3-70b-specdec")?;
     let llm = llm.with_temperature(0.9);
     let llm = llm.with_max_tokens(2048);

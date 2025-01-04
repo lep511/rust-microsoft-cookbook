@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-use crate::anthropic::ChatAnthropic;
+use langchain_base::anthropic::ChatAnthropic;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -65,8 +65,8 @@ pub async fn get_weather(params: WeatherParams) -> Result<WeatherResponse, Box<d
     }
 }
 
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
     let tool_data = json!({
         "name":"get_weather",

@@ -1,8 +1,8 @@
 #[allow(dead_code)]
-use crate::gemini::ChatGemini;
+use langchain_base::gemini::ChatGemini;
 
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
 
     let system_prompt = "You are a customer service assistant for Acme Corp. \

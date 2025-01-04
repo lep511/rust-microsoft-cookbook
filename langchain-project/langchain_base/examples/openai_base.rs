@@ -1,8 +1,8 @@
 #[allow(dead_code)]
-use crate::openai::EmbedOpenAI;
+use langchain_base::openai::EmbedOpenAI;
 
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let llm = EmbedOpenAI::new("text-embedding-3-small")?;
     let llm = llm.with_dimensions(256);
     let input_str = "What is the meaning of life?";

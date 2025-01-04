@@ -2,10 +2,12 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::Duration;
-use crate::llmerror::AnthropicChatError;
+use crate::llmerror::AnthropicError;
 use std::env;
 
 pub static ANTHROPIC_BASE_URL: &str = "https://api.anthropic.com/v1/messages";
+pub static ANTHROPIC_EMBED_URL: &str = "https://api.voyageai.com/v1/embeddings";
+pub static ANTHROPIC_EMBEDMUL_URL: &str = "https://api.voyageai.com/v1/multimodalembeddings";
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]
@@ -23,6 +25,38 @@ pub struct ChatRequest {
     pub stream: bool,
 }
 
+pub trait GetApiKey {
+    fn get_api_key() -> Result<String, AnthropicError> {
+        match env::var("ANTHROPIC_API_KEY") {
+            Ok(key) => Ok(key),
+            Err(env::VarError::NotPresent) => {
+                println!("[ERROR] ANTHROPIC_API_KEY not found in environment variables");
+                Err(AnthropicError::ApiKeyNotFound)
+            }
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                Err(AnthropicError::EnvError(e))
+            }
+        }
+    }
+}
+
+pub trait GetApiKeyVoyage {
+    fn get_api_key() -> Result<String, AnthropicError> {
+        match env::var("VOYAGE_API_KEY") {
+            Ok(key) => Ok(key),
+            Err(env::VarError::NotPresent) => {
+                println!("[ERROR] VOYAGE_API_KEY not found in environment variables");
+                Err(AnthropicError::ApiKeyNotFound)
+            }
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                Err(AnthropicError::EnvError(e))
+            }
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ChatAnthropic {
@@ -34,16 +68,8 @@ pub struct ChatAnthropic {
 
 #[allow(dead_code)]
 impl ChatAnthropic {
-    pub fn new(model: &str) -> Result<Self, AnthropicChatError> {
-        let api_key = match env::var("ANTHROPIC_API_KEY") {
-            Ok(key) => key,
-            Err(env::VarError::NotPresent) => {
-                return Err(AnthropicChatError::ApiKeyNotFound);
-            }
-            Err(e) => {
-                return Err(AnthropicChatError::EnvError(e));
-            }
-        };
+    pub fn new(model: &str) -> Result<Self, AnthropicError> {
+        let api_key = Self::get_api_key()?;
 
         let content = vec![InputContent {
             content_type: "text".to_string(),
@@ -80,7 +106,7 @@ impl ChatAnthropic {
     pub async fn invoke(
         mut self,
         prompt: &str,
-    ) -> Result<ChatResponse, AnthropicChatError> {
+    ) -> Result<ChatResponse, AnthropicError> {
         if let Some(content) = &mut self.request.messages[0].content {
             if content[0].text == Some("Init message.".to_string()) {
                 content[0].text = Some(prompt.to_string());
@@ -97,6 +123,13 @@ impl ChatAnthropic {
             }
         };
 
+        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
+
         let response = self
             .client
             .post(ANTHROPIC_BASE_URL)
@@ -109,19 +142,26 @@ impl ChatAnthropic {
             .await?
             .json::<Value>()
             .await?;
+
+        // let _pretty_json = match serde_json::to_string_pretty(&response) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
         
         let response = response.to_string();
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
                 println!("[ERROR] {:?}", e);
-                return Err(AnthropicChatError::ResponseContentError);
+                return Err(AnthropicError::ResponseContentError);
             }
         };
 
         if let Some(error) = chat_response.error {
             println!("[ERROR] {}", error.message);
-            return Err(AnthropicChatError::ResponseContentError);
+            return Err(AnthropicError::ResponseContentError);
         } else {
             let format_response: ChatResponse = ChatResponse {
                 id: chat_response.id,
@@ -254,6 +294,132 @@ impl ChatAnthropic {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)] // Allows for multiple types of input
+pub enum MultiTypeInput {
+    Array(Vec<String>),
+    String(String),
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbedRequest {
+    pub model: String,
+    pub input: MultiTypeInput,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_dimension: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_dtype: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encoding_format: Option<String>,
+
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct EmbedVoyage {
+    pub model: String,
+    pub request: EmbedRequest,
+    pub api_key: String,
+    pub client: Client,
+}
+
+#[allow(dead_code)]
+impl EmbedVoyage {
+    pub fn new(model: &str) -> Result<Self, AnthropicError> {
+        let api_key = Self::get_api_key()?;
+        let init_msg = MultiTypeInput::String("".to_string());
+        let request = EmbedRequest {
+            model: model.to_string(),
+            input: init_msg,
+            output_dimension: None,
+            output_dtype: None,
+            encoding_format: None,
+        };
+
+        Ok(Self {
+            model: model.to_string(),
+            request: request,
+            api_key: api_key,
+            client: Client::builder()
+                .use_rustls_tls()
+                .build()?,
+        })
+    }
+
+    pub async fn embed_content(mut self, input: MultiTypeInput) -> Result<EmbedResponse, AnthropicError> {
+        self.request.input = input;
+        
+        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
+
+        let response = self
+            .client
+            .post(ANTHROPIC_EMBED_URL)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("content-type", "application/json")
+            .json(&self.request)
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+        
+        // let _pretty_json = match serde_json::to_string_pretty(&response) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
+
+        let response = response.to_string();
+        let embed_response: EmbedResponse = match serde_json::from_str(&response) {
+            Ok(response_form) => response_form,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(AnthropicError::ResponseContentError);
+            }
+        };
+        if let Some(detail) = embed_response.detail {
+            println!("[ERROR] {}", detail);
+            return Err(AnthropicError::ResponseContentError);
+        } else {
+            Ok(embed_response)
+        }
+    }
+
+    pub fn with_dimensions(mut self, dimensions: u32) -> Self {
+        // Only supported in text-embedding-3 and later models
+        self.request.output_dimension = Some(dimensions);
+        self
+    }
+}
+
+impl GetApiKey for ChatAnthropic {}
+impl GetApiKeyVoyage for EmbedVoyage {}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbedResponse {
+    pub data: Option<Vec<EmbeddingData>>,
+    pub model: Option<String>,
+    pub object: Option<String>,
+    pub usage: Option<Usage>,
+    pub detail: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbeddingData {
+    pub embedding: Vec<f64>,
+    pub index: usize,
+    pub object: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
     pub role: Option<String>,
     pub content: Option<Vec<InputContent>>,
@@ -307,15 +473,16 @@ pub struct Content {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Usage {
-    pub cache_creation_input_tokens: u32,
-    pub cache_read_input_tokens: u32,
-    pub input_tokens: u32,
-    pub output_tokens: u32,
+    pub cache_creation_input_tokens: Option<u32>,
+    pub cache_read_input_tokens: Option<u32>,
+    pub input_tokens: Option<u32>,
+    pub output_tokens: Option<u32>,
+    pub total_tokens: Option<u32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorDetails {
     pub message: String,
     #[serde(rename = "type")]

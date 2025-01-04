@@ -45,7 +45,7 @@ pub enum ReplicateError {
 
 #[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
-pub enum AnthropicChatError {
+pub enum AnthropicError {
     #[error("ANTHROPIC API key not found in environment variables")]
     ApiKeyNotFound,
     #[error("Request error: {0}")]

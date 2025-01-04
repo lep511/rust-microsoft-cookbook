@@ -1,8 +1,8 @@
 #[allow(dead_code)]
-use crate::gemini::ChatGemini;
+use langchain_base::gemini::ChatGemini;
 
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Gemini 2.0 Flash Thinking Mode is an experimental model that's 
     // trained to generate the "thinking process" the model goes through 
     // as part of its response. As a result, Thinking Mode is capable of 

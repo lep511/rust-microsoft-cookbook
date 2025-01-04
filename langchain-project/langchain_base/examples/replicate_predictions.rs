@@ -1,10 +1,10 @@
 #[allow(dead_code)]
-use crate::replicate::ReplicateModels;
+use langchain_base::replicate::ReplicateModels;
 use std::time::Instant;
 use serde_json::json;
 
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let llm = ReplicateModels::new("predictions")?;
     // let input_data = json!({
     //     "version": "b063023ee937f28e922982abdbf97b041ffe34ad3b35a53d33e1d74bb19b36c4",

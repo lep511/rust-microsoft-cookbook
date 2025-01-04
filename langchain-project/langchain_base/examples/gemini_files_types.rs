@@ -1,11 +1,11 @@
 #[allow(dead_code)]
-use crate::gemini::ChatGemini;
+use langchain_base::gemini::ChatGemini;
 use std::fs::File;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde_json::json;
 
-#[allow(dead_code)]
-pub async fn sample() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut llm = ChatGemini::new("gemini-2.0-flash-exp")?;
 
     let type_file = "video";

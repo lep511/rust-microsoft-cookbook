@@ -8,6 +8,7 @@ use std::env;
 pub static ANTHROPIC_BASE_URL: &str = "https://api.anthropic.com/v1/messages";
 pub static ANTHROPIC_EMBED_URL: &str = "https://api.voyageai.com/v1/embeddings";
 pub static ANTHROPIC_EMBEDMUL_URL: &str = "https://api.voyageai.com/v1/multimodalembeddings";
+pub static ANTHROPIC_EMBEDRANK_URL: &str = "https://api.voyageai.com/v1/rerank";
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]
@@ -567,9 +568,107 @@ impl EmbedMultiVoyage {
     }
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbedRankRequest {
+    pub model: String,
+    pub query: String,
+    pub documents: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub truncation: Option<bool>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct EmbedRankVoyage {
+    pub model: String,
+    pub request: EmbedRankRequest,
+    pub api_key: String,
+    pub client: Client,
+}
+
+#[allow(dead_code)]
+impl EmbedRankVoyage {
+    pub fn new(model: &str) -> Result<Self, AnthropicError> {
+        let api_key = Self::get_api_key()?;
+        
+        let request = EmbedRankRequest {
+            model: model.to_string(),
+            query: "".to_string(),
+            documents: vec![],
+            top_k: None,
+            truncation: None,
+        };
+
+        Ok(Self {
+            model: model.to_string(),
+            request: request,
+            api_key: api_key,
+            client: Client::builder()
+                .use_rustls_tls()
+                .build()?,
+        })
+    }
+
+    pub async fn embed_content(
+        mut self, 
+        input_str: &str
+    ) -> Result<EmbedResponse, AnthropicError> {
+        self.request.query = input_str.to_string();
+        
+        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
+
+        let response = self
+            .client
+            .post(ANTHROPIC_EMBEDRANK_URL)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("content-type", "application/json")
+            .json(&self.request)
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+        
+        // let _pretty_json = match serde_json::to_string_pretty(&response) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
+
+        let response = response.to_string();
+        let embed_response: EmbedResponse = match serde_json::from_str(&response) {
+            Ok(response_form) => response_form,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(AnthropicError::ResponseContentError);
+            }
+        };
+        if let Some(detail) = embed_response.detail {
+            println!("[ERROR] {}", detail);
+            return Err(AnthropicError::ResponseContentError);
+        } else {
+            Ok(embed_response)
+        }
+    }
+
+    pub fn with_documents(mut self, documents: Vec<String>) -> Self {
+        self.request.documents = documents;
+        self
+    }
+}
+
 impl GetApiKey for ChatAnthropic {}
 impl GetApiKeyVoyage for EmbedVoyage {}
 impl GetApiKeyVoyage for EmbedMultiVoyage {}
+impl GetApiKeyVoyage for EmbedRankVoyage {}
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -584,9 +683,11 @@ pub struct EmbedResponse {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EmbeddingData {
-    pub embedding: Vec<f64>,
-    pub index: usize,
-    pub object: String,
+    pub embedding: Option<Vec<f64>>,
+    pub index: Option<usize>,
+    pub object: Option<String>,
+    pub relevance_score: Option<f64>,
+    pub document: Option<String>,
 }
 
 #[allow(dead_code)]

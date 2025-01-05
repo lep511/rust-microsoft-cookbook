@@ -75,6 +75,8 @@ impl ChatAnthropic {
             content_type: "text".to_string(),
             text: Some("Init message.".to_string()),
             source: None,
+            image_url: None,
+            image_base64: None,
         }];
 
         let messages = vec![Message {
@@ -115,6 +117,8 @@ impl ChatAnthropic {
                     content_type: "text".to_string(),
                     text: Some(prompt.to_string()),
                     source: None,
+                    image_url: None,
+                    image_base64: None,
                 }];
                 self.request.messages.push(Message {
                     role: Some("user".to_string()),
@@ -217,6 +221,8 @@ impl ChatAnthropic {
             content_type: "text".to_string(),
             text: Some(assistant_response.to_string()),
             source: None,
+            image_url: None,
+            image_base64: None,
         }];
 
         self.request.messages.push(
@@ -242,6 +248,8 @@ impl ChatAnthropic {
                 media_type: "image/gif".to_string(),
                 data: image.to_string(),
             }),
+            image_url: None,
+            image_base64: None,
         }];
 
         self.request.messages.push(
@@ -262,6 +270,8 @@ impl ChatAnthropic {
                 media_type: "image/png".to_string(),
                 data: image.to_string(),
             }),
+            image_url: None,
+            image_base64: None,
         }];
         self.request.messages.push(
             Message {
@@ -281,6 +291,8 @@ impl ChatAnthropic {
                 media_type: "image/jpeg".to_string(),
                 data: image.to_string(),
             }),
+            image_url: None,
+            image_base64: None,
         }];
         self.request.messages.push(
             Message {
@@ -295,7 +307,7 @@ impl ChatAnthropic {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)] // Allows for multiple types of input
-pub enum MultiTypeInput {
+pub enum InputEmbed {
     Array(Vec<String>),
     String(String),
 }
@@ -304,7 +316,7 @@ pub enum MultiTypeInput {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EmbedRequest {
     pub model: String,
-    pub input: MultiTypeInput,
+    pub input: InputEmbed,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_dimension: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -327,7 +339,7 @@ pub struct EmbedVoyage {
 impl EmbedVoyage {
     pub fn new(model: &str) -> Result<Self, AnthropicError> {
         let api_key = Self::get_api_key()?;
-        let init_msg = MultiTypeInput::String("".to_string());
+        let init_msg = InputEmbed::String("".to_string());
         let request = EmbedRequest {
             model: model.to_string(),
             input: init_msg,
@@ -346,7 +358,7 @@ impl EmbedVoyage {
         })
     }
 
-    pub async fn embed_content(mut self, input: MultiTypeInput) -> Result<EmbedResponse, AnthropicError> {
+    pub async fn embed_content(mut self, input: InputEmbed) -> Result<EmbedResponse, AnthropicError> {
         self.request.input = input;
         
         // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
@@ -397,8 +409,167 @@ impl EmbedVoyage {
     }
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbedMultiRequest {
+    pub model: String,
+    pub inputs: Vec<EmbedContent>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_encoding: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub truncation: Option<bool>,
+
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbedContent {
+    pub content: Vec<InputContent>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct EmbedMultiVoyage {
+    pub model: String,
+    pub request: EmbedMultiRequest,
+    pub api_key: String,
+    pub client: Client,
+}
+
+#[allow(dead_code)]
+impl EmbedMultiVoyage {
+    pub fn new(model: &str) -> Result<Self, AnthropicError> {
+        let api_key = Self::get_api_key()?;
+        let init_msg = InputContent {
+            content_type: "text".to_string(),
+            text: Some("".to_string()),
+            source: None,
+            image_url: None,
+            image_base64: None,
+        };
+
+        let request = EmbedMultiRequest {
+            model: model.to_string(),
+            inputs: vec![EmbedContent {
+                content: vec![init_msg],
+            }],
+            output_encoding: None,
+            input_type: None,
+            truncation: None,
+        };
+
+        Ok(Self {
+            model: model.to_string(),
+            request: request,
+            api_key: api_key,
+            client: Client::builder()
+                .use_rustls_tls()
+                .build()?,
+        })
+    }
+
+    pub async fn embed_content(
+        mut self, 
+        input_str: &str
+    ) -> Result<EmbedResponse, AnthropicError> {
+        self.request.inputs[0].content[0].text = Some(input_str.to_string());
+        
+        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
+
+        let response = self
+            .client
+            .post(ANTHROPIC_EMBEDMUL_URL)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("content-type", "application/json")
+            .json(&self.request)
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+        
+        // let _pretty_json = match serde_json::to_string_pretty(&response) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
+
+        let response = response.to_string();
+        let embed_response: EmbedResponse = match serde_json::from_str(&response) {
+            Ok(response_form) => response_form,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(AnthropicError::ResponseContentError);
+            }
+        };
+        if let Some(detail) = embed_response.detail {
+            println!("[ERROR] {}", detail);
+            return Err(AnthropicError::ResponseContentError);
+        } else {
+            Ok(embed_response)
+        }
+    }
+
+    pub fn with_image_url(mut self, image_url: &str) -> Self {
+        let content = InputContent {
+            content_type: "image_url".to_string(),
+            text: None,
+            source: None,
+            image_url: Some(image_url.to_string()),
+            image_base64: None,
+        };
+        self.request.inputs[0].content.push(content);
+        
+        self
+    }
+
+    pub fn with_image_base64(
+        mut self, 
+        image_base64: &str, 
+        media_type: &str
+    ) -> Self {
+        let media_types_supported = [
+            "image/png", 
+            "image/jpeg",
+            "image/jpg",
+            "image/gif", 
+            "image/webp", 
+            "image/gif"
+        ];
+
+        if !media_types_supported.contains(&media_type) {
+            println!(
+                "[ERROR] Unsupported media type: {}. Supported: image/png, \
+                image/jpeg, image/webp, and image/gif", 
+                media_type
+            );
+            return self;
+        }
+
+        let format_base64 = format!("data:{};base64,{}", media_type, image_base64);
+        let content = InputContent {
+            content_type: "image_base64".to_string(),
+            text: None,
+            source: None,
+            image_url: None,
+            image_base64: Some(format_base64.to_string()),
+        };
+        self.request.inputs[0].content.push(content);
+
+        self
+    }
+}
+
 impl GetApiKey for ChatAnthropic {}
 impl GetApiKeyVoyage for EmbedVoyage {}
+impl GetApiKeyVoyage for EmbedMultiVoyage {}
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -434,6 +605,10 @@ pub struct InputContent {
     text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     source: Option<Source>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    image_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    image_base64: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -480,6 +655,8 @@ pub struct Usage {
     pub input_tokens: Option<u32>,
     pub output_tokens: Option<u32>,
     pub total_tokens: Option<u32>,
+    pub image_pixels: Option<u32>,
+    pub text_tokens: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -54,6 +54,8 @@ pub enum AnthropicError {
     EnvError(#[from] env::VarError),
     #[error("Failed to get response content")]
     ResponseContentError,
+    #[error("Unsupported media type")]
+    MediaTypeError,
 }
 
 #[allow(dead_code)]

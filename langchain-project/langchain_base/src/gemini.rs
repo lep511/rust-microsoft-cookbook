@@ -84,6 +84,19 @@ pub struct  GenerationConfig {
     pub response_mime_type: Option<String>,
     #[serde(rename = "responseSchema")]
     pub response_schema: Option<serde_json::Value>,
+    #[serde(rename = "stopSequences")]
+    pub stop_sequences: Option<Vec<String>>,
+    #[serde(rename = "candidateCount")]
+    pub candidate_count: Option<u32>,
+    #[serde(rename = "presencePenalty")]
+    pub presence_penalty: Option<f32>,
+    #[serde(rename = "frequencyPenalty")]
+    pub frequency_penalty: Option<f32>,
+    #[serde(rename = "responseLogprobs")]
+    pub response_logprobs: Option<bool>,
+    #[serde(rename = "logProbs")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_probs: Option<u32>,
 }
 
 pub trait GetApiKey {
@@ -144,6 +157,12 @@ impl ChatGemini {
                 max_output_tokens: Some(2048),
                 response_mime_type: Some("text/plain".to_string()),
                 response_schema: None,
+                stop_sequences: None,
+                candidate_count: Some(1),
+                presence_penalty: None,
+                frequency_penalty: None,
+                response_logprobs: None,
+                log_probs: None,
             }),
         };
         
@@ -355,7 +374,11 @@ impl ChatGemini {
         )
     }
 
-    pub async fn cache_upload(self, data: String, mime_type: &str, instruction: &str) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn cache_upload(
+        self, data: String, 
+        mime_type: &str, 
+        instruction: &str
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let api_key = Self::get_api_key()?;
         let url_cache = format!(
             "{}/cachedContents?key={}", 
@@ -430,6 +453,36 @@ impl ChatGemini {
         match &mut self.request.generation_config {
             Some(config) => {
                 config.top_k = Some(top_k);
+            }
+            None => ()
+        };
+        self
+    }
+
+    pub fn with_top_p(mut self, top_p: f32) -> Self {
+        match &mut self.request.generation_config {
+            Some(config) => {
+                config.top_p = Some(top_p);
+            }
+            None => ()
+        };
+        self
+    }
+
+    pub fn with_candidate_count(mut self, candidate_count: u32) -> Self {
+        match &mut self.request.generation_config {
+            Some(config) => {
+                config.candidate_count = Some(candidate_count);
+            }
+            None => ()
+        };
+        self
+    }
+
+    pub fn with_stop_sequences(mut self, stop_sequences: Vec<String>) -> Self {
+        match &mut self.request.generation_config {
+            Some(config) => {
+                config.stop_sequences = Some(stop_sequences);
             }
             None => ()
         };
@@ -609,7 +662,10 @@ impl EmbedGemini {
         })
     }
 
-    pub async fn embed_content(mut self, input_str: &str) -> Result<EmbedResponse, GeminiError> {
+    pub async fn embed_content(
+        mut self, 
+        input_str: &str
+    ) -> Result<EmbedResponse, GeminiError> {
 
         if self.request.content.parts[0].text == Some("Init message.".to_string()) {
             self.request.content.parts[0].text = Some(input_str.to_string());
@@ -719,11 +775,18 @@ pub struct ChatResponse {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Candidate {
-    #[serde(rename = "avgLogprobs")]
-    pub avg_logprobs: Option<f64>,
     pub content: Option<Content>,
     #[serde(rename = "finishReason")]
     pub finish_reason: Option<String>,
+    #[serde(rename = "safetyRatings")]
+    safety_ratings: Vec<SafetyRating>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+struct SafetyRating {
+    category: String,
+    probability: String,
 }
 
 #[allow(dead_code)]

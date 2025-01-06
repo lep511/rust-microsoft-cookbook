@@ -1,0 +1,116 @@
+use std::env;
+use crate::llmerror::GeminiError;
+use serde::{Deserialize, Serialize};
+
+// Choose an embeddings task type:
+// https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/task-types
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum TaskType {
+    #[serde(rename = "TASK_TYPE_UNSPECIFIED")] // If you do not set the value, it will default to retrieval_query.
+    Unspecified,
+    #[serde(rename = "RETRIEVAL_QUERY")] // The given text is a query in a search/retrieval setting.
+    RetrievalQuery,
+    #[serde(rename = "RETRIEVAL_DOCUMENT")] //  The given text is a document from the corpus being searched.
+    RetrievalDocument,
+    #[serde(rename = "SEMANTIC_SIMILARITY")] // The given text will be used for Semantic Textual Similarity (STS).
+    SemanticSimilarity,
+    #[serde(rename = "CLASSIFICATION")] // The given text will be classified.
+    Classification,
+    #[serde(rename = "CLUSTERING")] // The embeddings will be used for clustering.
+    Clustering,
+    #[serde(rename = "QUESTION_ANSWERING")] // The given text will be used for question answering.
+    QuestionAnswering,
+    #[serde(rename = "FACT_VERIFICATION")] // The given text will be used for fact verification
+    FactVerification,
+    #[serde(rename = "CODE_RETRIEVAL_QUERY")] // The given text is a query in a code retrieval setting.
+    CodeRetrievalQuery,
+}
+
+/// Gets the API key from the environment variables
+///
+/// # Returns
+/// * A string slice containing the API key
+///
+/// # Panics
+/// * If the GEMINI_API_KEY environment variable is not set
+///
+/// # Examples
+/// ```
+/// let api_key = get_api_key();
+/// println!("API key: {}", api_key);
+/// ```
+pub trait GetApiKey {
+    fn get_api_key() -> Result<String, GeminiError> {
+        match env::var("GEMINI_API_KEY") {
+            Ok(key) => Ok(key),
+            Err(env::VarError::NotPresent) => {
+                println!("[ERROR] GEMINI_API_KEY not found in environment variables");
+                Err(GeminiError::ApiKeyNotFound)
+            }
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                Err(GeminiError::EnvError(e))
+            }
+        }
+    }
+}
+
+/// Prints the given request as a pretty-printed JSON string
+///
+/// # Arguments
+/// * `request` - The request to be printed
+///
+pub fn print_pre(request: &impl serde::Serialize) {
+    match serde_json::to_string_pretty(request) {
+        Ok(json) => println!("Pretty-printed JSON:\n{}", json),
+        Err(e) => println!("[ERROR] {:?}", e)
+    }
+}
+
+/// Gets the MIME type for a given file extension
+/// 
+/// # Arguments
+/// * `extension` - The file extension (without the dot)
+/// 
+/// # Returns
+/// * A string slice containing the MIME type. Returns "application/octet-stream" for unknown extensions
+/// 
+/// # Examples
+/// ```
+/// let mime = get_mime_type("jpg");
+/// assert_eq!(mime, "image/jpeg");
+/// ```
+pub fn get_mime_type(extension: &str) -> &'static str {
+    let mime = match extension {
+        "jpg" | "jpeg" => "image/jpeg",
+        "png"   =>  "image/png",
+        "webp"  =>  "image/webp",
+        "gif"   =>  "image/gif",
+        "mp4"   =>  "video/mp4",
+        "flv"   =>  "video/x-flv",
+        "mov"   =>  "video/quicktime",
+        "mpg"   =>  "video/mpeg",
+        "mpeg"  =>  "video/mpeg",
+        "webm"  =>  "video/webm",
+        "wmv"   =>  "video/x-ms-wmv",
+        "pdf"   =>  "application/pdf",
+        "doc"   =>  "application/msword",
+        "docx"  =>  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "rtf"   =>  "application/rtf",
+        "dot"   =>  "application/msword",
+        "dotx"  =>  "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+        "txt"   =>  "text/plain",
+        "csv"   =>  "text/csv",
+        "tsv"   =>  "text/tab-separated-values",
+        "xls"   =>  "application/vnd.ms-excel",
+        "xlsx"  =>  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "mp3"   =>  "audio/mpeg",
+        "aac"   =>  "audio/aac",
+        "mpa"   =>  "audio/mpeg",
+        "flac"  =>  "audio/flac",
+        "wav"   =>  "audio/wav",
+        _ => "text/plain",
+    };
+    mime
+}

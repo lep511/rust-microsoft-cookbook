@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 // use langchain_base::gemini::ChatGemini;
 use langchain_base::gemini::EmbedGemini;
-use langchain_base::gemini::TaskType;
+use langchain_base::gemini::gemini_utils::TaskType;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

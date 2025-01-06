@@ -2,63 +2,21 @@ use reqwest::Client;
 use reqwest::{self, header::{HeaderMap, HeaderValue}};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use std::{env, fs};
+use std::fs;
 use serde_json::json;
 use crate::llmerror::GeminiError;
+use generation_config::GenerationConfig;
+use chat_request::{ChatRequest, Content, Part, FileData, InlineData};
+use gemini_utils::{GetApiKey, TaskType, get_mime_type, print_pre};
+use error_detail::ErrorDetail;
+
+pub mod generation_config;
+pub mod chat_request;
+pub mod gemini_utils;
+pub mod error_detail;
 
 pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 pub static UPLOAD_BASE_URL: &str = "https://generativelanguage.googleapis.com/upload/v1beta";
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Clone)]
-pub struct ChatRequest {
-    pub contents: Vec<Content>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<Vec<serde_json::Value>>,
-    #[serde(rename = "systemInstruction")]
-    pub system_instruction: Option<Content>,
-    #[serde(rename = "generationConfig")]
-    pub generation_config: Option<GenerationConfig>,
-    #[serde(rename = "cachedContent")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cached_content: Option<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Content {
-    pub role: String,
-    pub parts: Vec<Part>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Part {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub text: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "functionCall", default)]
-    pub function_call: Option<FunctionCall>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub inline_data: Option<InlineData>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_data: Option<FileData>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct InlineData {
-    pub mime_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct FileData {
-    pub mime_type: String,
-    pub file_uri: String,
-}
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -68,51 +26,6 @@ pub struct CacheRequest {
     #[serde(rename = "systemInstruction")]
     pub system_instruction: Content,
     pub ttl: String,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct  GenerationConfig {
-    pub temperature: Option<f32>,
-    #[serde(rename = "topK")]
-    pub top_k: Option<u32>,
-    #[serde(rename = "topP")]
-    pub top_p: Option<f32>,
-    #[serde(rename = "maxOutputTokens")]
-    pub max_output_tokens: Option<u32>,
-    #[serde(rename = "responseMimeType")]
-    pub response_mime_type: Option<String>,
-    #[serde(rename = "responseSchema")]
-    pub response_schema: Option<serde_json::Value>,
-    #[serde(rename = "stopSequences")]
-    pub stop_sequences: Option<Vec<String>>,
-    #[serde(rename = "candidateCount")]
-    pub candidate_count: Option<u32>,
-    #[serde(rename = "presencePenalty")]
-    pub presence_penalty: Option<f32>,
-    #[serde(rename = "frequencyPenalty")]
-    pub frequency_penalty: Option<f32>,
-    #[serde(rename = "responseLogprobs")]
-    pub response_logprobs: Option<bool>,
-    #[serde(rename = "logProbs")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub log_probs: Option<u32>,
-}
-
-pub trait GetApiKey {
-    fn get_api_key() -> Result<String, GeminiError> {
-        match env::var("GEMINI_API_KEY") {
-            Ok(key) => Ok(key),
-            Err(env::VarError::NotPresent) => {
-                println!("[ERROR] GEMINI_API_KEY not found in environment variables");
-                Err(GeminiError::ApiKeyNotFound)
-            }
-            Err(e) => {
-                println!("[ERROR] {:?}", e);
-                Err(GeminiError::EnvError(e))
-            }
-        }
-    }
 }
 
 #[allow(dead_code)]
@@ -194,12 +107,7 @@ impl ChatGemini {
             self.request.contents.push(content);
         }
 
-        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
-        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //     }
-        // };
+        print_pre(&self.request);
 
         let response = self
             .client
@@ -212,12 +120,7 @@ impl ChatGemini {
             .json::<serde_json::Value>()
             .await?;
 
-        // let _pretty_json = match serde_json::to_string_pretty(&response) {
-        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //     }
-        // };
+        // print_pre(&response);
 
         let response = response.to_string();
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
@@ -259,36 +162,7 @@ impl ChatGemini {
 
         if mime_type == "auto" {
             let ext = img_path.split('.').last().unwrap();
-            let mime = match ext {
-                "jpg" | "jpeg" => "image/jpeg",
-                "png"   =>  "image/png",
-                "webp"  =>  "image/webp",
-                "gif"   =>  "image/gif",
-                "mp4"   =>  "video/mp4",
-                "flv"   =>  "video/x-flv",
-                "mov"   =>  "video/quicktime",
-                "mpg"   =>  "video/mpeg",
-                "mpeg"  =>  "video/mpeg",
-                "webm"  =>  "video/webm",
-                "wmv"   =>  "video/x-ms-wmv",
-                "pdf"   =>  "application/pdf",
-                "doc"   =>  "application/msword",
-                "docx"  =>  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "rtf"   =>  "application/rtf",
-                "dot"   =>  "application/msword",
-                "dotx"  =>  "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
-                "txt"   =>  "text/plain",
-                "csv"   =>  "text/csv",
-                "tsv"   =>  "text/tab-separated-values",
-                "xls"   =>  "application/vnd.ms-excel",
-                "xlsx"  =>  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "mp3"   =>  "audio/mpeg",
-                "aac"   =>  "audio/aac",
-                "mpa"   =>  "audio/mpeg",
-                "flac"  =>  "audio/flac",
-                "wav"   =>  "audio/wav",
-                _ => "text/plain",
-            };
+            let mime = get_mime_type(ext);
             mime_type = mime;
         }
 
@@ -585,24 +459,6 @@ impl ChatGemini {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum TaskType {
-    #[serde(rename = "TASK_TYPE_UNSPECIFIED")] // If you do not set the value, it will default to retrieval_query.
-    Unspecified,
-    #[serde(rename = "RETRIEVAL_QUERY")] // The given text is a query in a search/retrieval setting.
-    RetrievalQuery,
-    #[serde(rename = "RETRIEVAL_DOCUMENT")] //  The given text is a document from the corpus being searched.
-    RetrievalDocument,
-    #[serde(rename = "SEMANTIC_SIMILARITY")] // The given text will be used for Semantic Textual Similarity (STS).
-    SemanticSimilarity,
-    #[serde(rename = "CLASSIFICATION")] // The given text will be classified.
-    Classification,
-    #[serde(rename = "CLUSTERING")] // The embeddings will be used for clustering.
-    Clustering,
-}
-
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EmbedRequest {
     pub model: String,
     pub content: Content,
@@ -682,12 +538,7 @@ impl EmbedGemini {
             self.request.content = content;
         }
 
-        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
-        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //     }
-        // };
+        // print_pre(&self.request);      
 
         let response = self
             .client
@@ -700,12 +551,7 @@ impl EmbedGemini {
             .json::<serde_json::Value>()
             .await?;
 
-        // let _pretty_json = match serde_json::to_string_pretty(&response) {
-        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //     }
-        // };
+        // print_pre(&response);
 
         let response = response.to_string();
         let embed_response: EmbedResponse = match serde_json::from_str(&response) {
@@ -790,13 +636,6 @@ struct SafetyRating {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct FunctionCall {
-    pub args: String,
-    pub name: String,
-}
-
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UsageMetadata {
     #[serde(rename = "candidatesTokenCount")]
@@ -814,27 +653,4 @@ pub struct ErrorDetails {
     pub message: Option<String>,
     pub status: Option<String>,
     pub details: Option<Vec<ErrorDetail>>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ErrorDetail {
-    #[serde(rename = "@type")]
-    pub type_url: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub domain: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<Metadata>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub locale: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    message: Option<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Metadata {
-    pub service: String,
 }

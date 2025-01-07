@@ -7,6 +7,8 @@ pub struct ChatRequest {
     pub contents: Vec<Content>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_config: Option<serde_json::Value>,
     #[serde(rename = "systemInstruction")]
     pub system_instruction: Option<Content>,
     #[serde(rename = "generationConfig")]
@@ -55,6 +57,6 @@ pub struct FileData {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FunctionCall {
-    pub args: String,
+    pub args: serde_json::Value,
     pub name: String,
 }

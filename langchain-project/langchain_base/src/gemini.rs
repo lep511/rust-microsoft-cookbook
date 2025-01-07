@@ -7,7 +7,7 @@ use serde_json::json;
 use crate::llmerror::GeminiError;
 use generation_config::GenerationConfig;
 use chat_request::{ChatRequest, Content, Part, FileData, InlineData};
-use gemini_utils::{GetApiKey, TaskType, get_mime_type, print_pre};
+use gemini_utils::{GetApiKey, FinishReason, TaskType, get_mime_type, print_pre};
 use error_detail::ErrorDetail;
 
 pub mod generation_config;
@@ -61,6 +61,7 @@ impl ChatGemini {
                 }],
             }],
             tools: None,
+            tool_config: None,
             system_instruction: None,
             cached_content: None,
             generation_config: Some(GenerationConfig {
@@ -106,9 +107,9 @@ impl ChatGemini {
             };
             self.request.contents.push(content);
         }
-
-        print_pre(&self.request);
-
+        
+        print_pre(&self.request, false);
+              
         let response = self
             .client
             .post(self.base_url)
@@ -120,7 +121,7 @@ impl ChatGemini {
             .json::<serde_json::Value>()
             .await?;
 
-        // print_pre(&response);
+        print_pre(&response, false);
 
         let response = response.to_string();
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
@@ -439,6 +440,16 @@ impl ChatGemini {
         self
     }
 
+    pub fn with_tools(mut self, tools: Vec<serde_json::Value>) -> Self {
+        self.request.tools = Some(tools);
+        self
+    }
+
+    pub fn with_tool_config(mut self, tool_choice: serde_json::Value) -> Self {
+        self.request.tool_config = Some(tool_choice);
+        self
+    }
+
     pub fn with_image(mut self, image: &str, mime_type: &str) -> Self {
         let content = Content {
             role: "user".to_string(),
@@ -623,14 +634,14 @@ pub struct ChatResponse {
 pub struct Candidate {
     pub content: Option<Content>,
     #[serde(rename = "finishReason")]
-    pub finish_reason: Option<String>,
+    pub finish_reason: Option<FinishReason>,
     #[serde(rename = "safetyRatings")]
     safety_ratings: Vec<SafetyRating>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
-struct SafetyRating {
+pub struct SafetyRating {
     category: String,
     probability: String,
 }

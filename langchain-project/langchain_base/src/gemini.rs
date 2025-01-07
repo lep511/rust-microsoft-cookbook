@@ -2,17 +2,17 @@ use reqwest::Client;
 use reqwest::{self, header::{HeaderMap, HeaderValue}};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use std::fs;
-use serde_json::json;
 use crate::llmerror::GeminiError;
 use generation_config::GenerationConfig;
 use chat_request::{ChatRequest, Content, Part, FileData, InlineData};
-use gemini_utils::{GetApiKey, FinishReason, TaskType, get_mime_type, print_pre};
+use gemini_utils::{GetApiKey, FinishReason, TaskType};
+use gemini_requests::{request_chat, request_media};
 use error_detail::ErrorDetail;
 
 pub mod generation_config;
 pub mod chat_request;
 pub mod gemini_utils;
+pub mod gemini_requests;
 pub mod error_detail;
 
 pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
@@ -108,22 +108,18 @@ impl ChatGemini {
             self.request.contents.push(content);
         }
         
-        print_pre(&self.request, false);
-              
-        let response = self
-            .client
-            .post(self.base_url)
-            .timeout(Duration::from_secs(self.timeout))
-            .header("Content-Type", "application/json")
-            .json(&self.request)
-            .send()
-            .await?
-            .json::<serde_json::Value>()
-            .await?;
-
-        print_pre(&response, false);
-
-        let response = response.to_string();
+        let response = match request_chat(
+            &self.base_url,
+            &self.request,
+            self.timeout
+        ).await {
+            Ok(response) => response,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(GeminiError::RequestChatError);
+            }
+        };
+ 
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
@@ -147,82 +143,26 @@ impl ChatGemini {
         }
     }
 
-    pub async fn media_upload(mut self, img_path: &str, mut mime_type: &str) 
-    -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn media_upload(mut self, img_path: &str, mime_type: &str) 
+    -> Result<Self, GeminiError> {
         let api_key = Self::get_api_key()?;
         let upload_url = format!(
             "{}/files?key={}",
             UPLOAD_BASE_URL,
             api_key
         );      
-        
-        let display_name = match img_path.split('/').last() {
-            Some(name) => name,
-            None => "TEXT",
+      
+        let file_uri = match request_media(
+            &upload_url, 
+            img_path, 
+            mime_type
+        ).await {
+            Ok(response) => response,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(GeminiError::RequestUploadError);
+            }
         };
-
-        if mime_type == "auto" {
-            let ext = img_path.split('.').last().unwrap();
-            let mime = get_mime_type(ext);
-            mime_type = mime;
-        }
-
-        let num_bytes = fs::metadata(&img_path)?.len();
-        let num_bytes = num_bytes.to_string();
-
-        let mut headers = HeaderMap::new();
-        headers.insert("X-Goog-Upload-Protocol", HeaderValue::from_static("resumable"));
-        headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("start"));
-        headers.insert("X-Goog-Upload-Header-Content-Length", HeaderValue::from_str(&num_bytes)?);
-        headers.insert("X-Goog-Upload-Header-Content-Type", HeaderValue::from_str(&mime_type)?);
-        headers.insert("Content-Type", HeaderValue::from_static("application/json"));
-
-        let initial_resp = self
-            .client
-            .post(upload_url)
-            .headers(headers)
-            .json(&json!({
-                "file": {
-                    "display_name": display_name
-                }
-            }))
-            .send()
-            .await?;
-
-        // Get upload URL from response headers
-        let upload_url = initial_resp
-            .headers()
-            .get("x-goog-upload-url")
-            .ok_or("Missing upload URL")?
-            .to_str()?;
-
-        // Upload file content
-        let file_content = fs::read(&img_path)?;
-        let mut upload_headers = HeaderMap::new();
-        upload_headers.insert("Content-Length", HeaderValue::from_str(&num_bytes)?);
-        upload_headers.insert("X-Goog-Upload-Offset", HeaderValue::from_static("0"));
-        upload_headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("upload, finalize")); 
-
-        let upload_resp: serde_json::Value = self
-            .client
-            .post(upload_url)
-            .headers(upload_headers)
-            .body(file_content)
-            .send()
-            .await?
-            .json()
-            .await?;
-        
-        // Wait for video processing
-        if mime_type.starts_with("video") {
-            tokio::time::sleep(Duration::from_secs(5)).await;
-        }
-
-        let file_uri = upload_resp["file"]["uri"]
-            .as_str()
-            .ok_or("Missing file URI")?
-            .trim_matches('"')
-            .to_string();
         
         let content = Content {
             role: "user".to_string(),

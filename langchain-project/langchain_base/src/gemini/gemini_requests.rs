@@ -1,0 +1,166 @@
+use reqwest::Client;
+use reqwest::{self, header::{HeaderMap, HeaderValue}};
+use crate::gemini::chat_request::ChatRequest;
+use crate::gemini::gemini_utils::{print_pre, get_mime_type};
+use serde_json::json;
+use std::time::Duration;
+use std::fs;
+
+/// Makes an async HTTP POST request to chat endpoint with the provided chat request
+///
+/// # Arguments
+///
+/// * `url` - The endpoint URL to send the chat request to
+/// * `request` - The chat request object containing the message payload
+/// * `timeout` - Request timeout duration in seconds
+///
+/// # Returns
+///
+/// * `Result<String, Box<dyn std::error::Error>>` - Returns the response body as a String on success,
+///   or a boxed error on failure
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The HTTP client cannot be built
+/// * The request fails to send
+/// * The response cannot be parsed as JSON
+/// * The request times out
+pub async fn request_chat(
+    url: &str, 
+    request: &ChatRequest, 
+    timeout: u64
+) -> Result<String, Box<dyn std::error::Error>> {
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
+    
+    print_pre(&request, false);
+
+    let response = client
+        .post(url)
+        .timeout(Duration::from_secs(timeout))
+        .header("Content-Type", "application/json")
+        .json(request)
+        .send()
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
+
+    print_pre(&response, false);
+    
+    let response = response.to_string();
+    Ok(response)
+}
+
+/// Uploads a media file to a remote server using a resumable upload protocol
+///
+/// # Arguments
+///
+/// * `url` - The endpoint URL for initiating the upload
+/// * `img_path` - Path to the media file on the local filesystem
+/// * `mime_type` - MIME type of the file, or "auto" to detect from file extension
+///
+/// # Returns
+///
+/// * `Result<String, Box<dyn std::error::Error>>` - Returns the uploaded file's URI on success,
+///   or a boxed error on failure
+///
+/// # Details
+///
+/// This function performs a two-step upload process:
+/// 1. Initiates the upload and obtains an upload URL
+/// 2. Uploads the actual file content to the provided upload URL
+///
+/// For video files, the function waits 5 seconds after upload to allow for processing.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The file path is invalid or file cannot be read
+/// * The HTTP client cannot be built
+/// * The initial upload request fails
+/// * The upload URL is missing from response headers
+/// * The file content upload fails
+/// * The response JSON is malformed or missing the file URI
+pub async fn request_media(
+    url: &str,
+    img_path: &str,
+    mut mime_type: &str
+) -> Result<String, Box<dyn std::error::Error>> {
+    let display_name = match img_path.split('/').last() {
+        Some(name) => name,
+        None => "_",
+    };
+
+    if mime_type == "auto" {
+        let ext = img_path.split('.').last().unwrap();
+        let mime = get_mime_type(ext);
+        mime_type = mime;
+    }
+
+    let num_bytes = fs::metadata(&img_path)?.len();
+    let num_bytes = num_bytes.to_string();
+
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Goog-Upload-Protocol", HeaderValue::from_static("resumable"));
+    headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("start"));
+    headers.insert("X-Goog-Upload-Header-Content-Length", HeaderValue::from_str(&num_bytes)?);
+    headers.insert("X-Goog-Upload-Header-Content-Type", HeaderValue::from_str(&mime_type)?);
+    headers.insert("Content-Type", HeaderValue::from_static("application/json"));
+
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
+
+    let initial_resp = client
+        .post(url)
+        .headers(headers)
+        .json(&json!({
+            "file": {
+                "display_name": display_name
+            }
+        }))
+        .send()
+        .await?;
+
+    // Get upload URL from response headers
+    let upload_url = initial_resp
+        .headers()
+        .get("x-goog-upload-url")
+        .ok_or("Missing upload URL")?
+        .to_str()?;
+
+    // Upload file content
+    let file_content = fs::read(&img_path)?;
+    let mut upload_headers = HeaderMap::new();
+    upload_headers.insert("Content-Length", HeaderValue::from_str(&num_bytes)?);
+    upload_headers.insert("X-Goog-Upload-Offset", HeaderValue::from_static("0"));
+    upload_headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("upload, finalize")); 
+
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
+
+    let upload_resp: serde_json::Value = client
+        .post(upload_url)
+        .headers(upload_headers)
+        .body(file_content)
+        .send()
+        .await?
+        .json()
+        .await?;
+    
+    // Wait for video processing
+    if mime_type.starts_with("video") {
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
+
+    let file_uri = upload_resp["file"]["uri"]
+        .as_str()
+        .ok_or("Missing file URI")?
+        .trim_matches('"')
+        .to_string();
+
+    Ok(file_uri)
+}

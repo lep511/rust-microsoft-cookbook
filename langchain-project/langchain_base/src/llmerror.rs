@@ -11,6 +11,10 @@ pub enum GeminiError {
     EnvError(#[from] env::VarError),
     #[error("Failed to get response content")]
     ResponseContentError,
+    #[error("Failed to post chat request")]
+    RequestChatError,
+    #[error("Failed to post upload request")]
+    RequestUploadError,
 }
 
 #[allow(dead_code)]

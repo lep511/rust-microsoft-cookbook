@@ -15,6 +15,7 @@ use std::fs;
 /// * `url` - The endpoint URL to send the chat request to
 /// * `request` - The chat request object containing the message payload
 /// * `timeout` - Request timeout duration in seconds
+/// * `retry` - Maximum number of retry attempts if the request fails
 ///
 /// # Returns
 ///
@@ -31,7 +32,8 @@ use std::fs;
 pub async fn request_chat(
     url: &str, 
     request: &ChatRequest, 
-    timeout: u64
+    timeout: u64,
+    retry: u32,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let client = Client::builder()
         .use_rustls_tls()
@@ -63,6 +65,7 @@ pub async fn request_chat(
 /// * `url` - The endpoint URL for initiating the upload
 /// * `img_path` - Path to the media file on the local filesystem
 /// * `mime_type` - MIME type of the file, or "auto" to detect from file extension
+/// * `retry` - Maximum number of retry attempts if the request fails
 ///
 /// # Returns
 ///
@@ -89,7 +92,8 @@ pub async fn request_chat(
 pub async fn request_media(
     url: &str,
     img_path: &str,
-    mut mime_type: &str
+    mut mime_type: &str,
+    retry: u32,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let display_name = match img_path.split('/').last() {
         Some(name) => name,
@@ -179,6 +183,7 @@ pub async fn request_media(
 /// * `instruction` - System instruction for processing the data
 /// * `model` - The AI model identifier to be used
 /// * `ttl` - Time-to-live duration in seconds for the cached data
+/// * `retry` - Maximum number of retry attempts if the request fails
 ///
 /// # Returns
 ///
@@ -207,6 +212,7 @@ pub async fn request_cache(
     instruction: String,
     model: &str,
     ttl: u32,
+    retry: u32,
 ) -> Result<String, Box<dyn std::error::Error>> {
 
     let mut headers = HeaderMap::new();
@@ -274,6 +280,7 @@ pub async fn request_cache(
 ///
 /// * `url` - The endpoint URL for the embedding service
 /// * `request` - The embedding request containing the input text and model parameters
+/// * `retry` - Maximum number of retry attempts if the request fails
 ///
 /// # Returns
 ///
@@ -298,6 +305,7 @@ pub async fn request_cache(
 pub async fn request_embed(
     url: &str,
     request: EmbedRequest,
+    retry: u32,
 ) -> Result<String, Box<dyn std::error::Error>> {
 
     let mut headers = HeaderMap::new();
@@ -308,7 +316,7 @@ pub async fn request_embed(
         .build()?;
  
     print_pre(&request, false);
-    
+        
     let response = client
         .post(url.to_string())
         .header("Content-Type", "application/json")

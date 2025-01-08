@@ -26,6 +26,7 @@ pub struct ChatGemini {
     pub model: String,
     pub request: ChatRequest,
     pub timeout: u64,
+    pub retry: u32,
 }
 
 #[allow(dead_code)]
@@ -75,6 +76,7 @@ impl ChatGemini {
             model: model.to_string(),
             request: request,
             timeout: 15 * 60, // default: 15 minutes
+            retry: 0,
         })
     }
 
@@ -98,7 +100,8 @@ impl ChatGemini {
         let response = match request_chat(
             &self.base_url,
             &self.request,
-            self.timeout
+            self.timeout,
+            self.retry,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -136,13 +139,14 @@ impl ChatGemini {
         let upload_url = format!(
             "{}/files?key={}",
             UPLOAD_BASE_URL,
-            api_key
+            api_key,
         );      
       
         let file_uri = match request_media(
             &upload_url, 
             img_path, 
-            mime_type
+            mime_type,
+            self.retry,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -171,6 +175,7 @@ impl ChatGemini {
                 model: self.model, 
                 request: self.request, 
                 timeout: self.timeout,
+                retry: self.retry,
             }
         )
     }
@@ -196,6 +201,7 @@ impl ChatGemini {
             instruction.to_string(),
             &self.model,
             ttl,
+            self.retry,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -296,6 +302,11 @@ impl ChatGemini {
         self
     }
 
+    pub fn with_retry(mut self, retry: u32) -> Self {
+        self.retry = retry;
+        self
+    }
+
     pub fn with_assistant_response(mut self,  assistant_response: &str) -> Self {
         let content = Content {
             role: "model".to_string(),
@@ -367,6 +378,7 @@ pub struct EmbedGemini {
     pub base_url: String,
     pub model: String,
     pub request: EmbedRequest,
+    pub retry: u32,
 }
 
 #[allow(dead_code)]
@@ -401,6 +413,7 @@ impl EmbedGemini {
             base_url: base_url,
             model: model.to_string(),
             request: request,
+            retry: 0,
         })
     }
 
@@ -427,6 +440,7 @@ impl EmbedGemini {
         let response: String = match request_embed(
             &self.base_url,
             self.request.clone(),
+            self.retry,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -462,6 +476,11 @@ impl EmbedGemini {
 
     pub fn with_title(mut self, title: &str) -> Self {
         self.request.title = Some(title.to_string());
+        self
+    }
+
+    pub fn with_retry(mut self, retry: u32) -> Self {
+        self.retry = retry;
         self
     }
 }

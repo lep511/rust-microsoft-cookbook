@@ -1,6 +1,7 @@
 use reqwest::Client;
 use reqwest::{self, header::{HeaderMap, HeaderValue}};
-use crate::gemini::chat_request::ChatRequest;
+use crate::gemini::chat_request::{ChatRequest, Part, Content};
+use crate::gemini::chat_request::{CacheRequest, InlineData};
 use crate::gemini::gemini_utils::{print_pre, get_mime_type};
 use serde_json::json;
 use std::time::Duration;
@@ -163,4 +164,71 @@ pub async fn request_media(
         .to_string();
 
     Ok(file_uri)
+}
+
+pub async fn request_cache(
+    url: String,
+    data: String,
+    mime_type: String,
+    instruction: String,
+    model: &str,
+    ttl: u32,
+) -> Result<String, Box<dyn std::error::Error>> {
+
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Type", HeaderValue::from_static("application/json"));
+    let model_name = format!("models/{}", model);
+
+    let part_system_instruction = vec![Part {
+        text: Some(instruction),
+        function_call: None,
+        inline_data: None,
+        file_data: None,
+    }];
+
+    let system_instruction = Content {
+        role: "user".to_string(),
+        parts: part_system_instruction,
+    };
+
+    let ttl = format!("{}s", ttl);
+
+    let cache_request = CacheRequest {
+        model: model_name,
+        contents: vec![Content {
+            role: "user".to_string(),
+            parts: vec![Part {
+                text: None,
+                function_call: None,
+                inline_data: Some(InlineData {
+                    mime_type: mime_type.to_string(),
+                    data: Some(data),
+                }),
+                file_data: None,
+            }],
+        }],
+        system_instruction: system_instruction,
+        ttl: ttl,
+    };
+
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
+    
+    let cache_resp: serde_json::Value = client
+        .post(url)
+        .headers(headers)
+        .json(&cache_request)
+        .send()
+        .await?
+        .json()
+        .await?;
+
+    let cache_name = cache_resp["name"]
+        .as_str()
+        .ok_or("Missing cache name")?
+        .trim_matches('"')
+        .to_string();
+
+    Ok(cache_name)
 }

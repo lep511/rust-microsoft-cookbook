@@ -6,7 +6,7 @@ use crate::llmerror::GeminiError;
 use generation_config::GenerationConfig;
 use chat_request::{ChatRequest, Content, Part, FileData, InlineData};
 use gemini_utils::{GetApiKey, FinishReason, TaskType};
-use gemini_requests::{request_chat, request_media};
+use gemini_requests::{request_chat, request_media, request_cache};
 use error_detail::ErrorDetail;
 
 pub mod generation_config;
@@ -17,16 +17,6 @@ pub mod error_detail;
 
 pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 pub static UPLOAD_BASE_URL: &str = "https://generativelanguage.googleapis.com/upload/v1beta";
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct CacheRequest {
-    pub model: String,
-    pub contents: Vec<Content>,
-    #[serde(rename = "systemInstruction")]
-    pub system_instruction: Content,
-    pub ttl: String,
-}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -190,10 +180,12 @@ impl ChatGemini {
     }
 
     pub async fn cache_upload(
-        self, data: String, 
+        self, 
+        data: String, 
         mime_type: &str, 
-        instruction: &str
-    ) -> Result<String, Box<dyn std::error::Error>> {
+        instruction: &str,
+        ttl: u32,
+    ) -> Result<String, GeminiError> {
         let api_key = Self::get_api_key()?;
         let url_cache = format!(
             "{}/cachedContents?key={}", 
@@ -201,55 +193,20 @@ impl ChatGemini {
             api_key
         );
 
-        let mut headers = HeaderMap::new();
-        headers.insert("Content-Type", HeaderValue::from_static("application/json"));
-        let model_name = format!("models/{}", self.model);
-
-        let part_system_instruction = vec![Part {
-            text: Some(instruction.to_string()),
-            function_call: None,
-            inline_data: None,
-            file_data: None,
-        }];
-
-        let system_instruction = Content {
-            role: "user".to_string(),
-            parts: part_system_instruction,
-        };
-
-        let cache_request = CacheRequest {
-            model: model_name,
-            contents: vec![Content {
-                role: "user".to_string(),
-                parts: vec![Part {
-                    text: None,
-                    function_call: None,
-                    inline_data: Some(InlineData {
-                        mime_type: mime_type.to_string(),
-                        data: Some(data),
-                    }),
-                    file_data: None,
-                }],
-            }],
-            system_instruction: system_instruction,
-            ttl: "300s".to_string(),
-        };
-
-        let cache_resp: serde_json::Value = self
-            .client
-            .post(url_cache)
-            .headers(headers)
-            .json(&cache_request)
-            .send()
-            .await?
-            .json()
-            .await?;
-    
-        let cache_name = cache_resp["name"]
-            .as_str()
-            .ok_or("Missing cache name")?
-            .trim_matches('"')
-            .to_string();
+        let cache_name = match request_cache(
+            url_cache,
+            data,
+            mime_type.to_string(),
+            instruction.to_string(),
+            &self.model,
+            ttl,
+        ).await {
+            Ok(response) => response,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(GeminiError::RequestCacheError);
+            }
+        }; 
 
         Ok(cache_name)
     }

@@ -15,6 +15,8 @@ pub enum GeminiError {
     RequestChatError,
     #[error("Failed to post upload request")]
     RequestUploadError,
+    #[error("Failed to upload cache request")]
+    RequestCacheError,
 }
 
 #[allow(dead_code)]

@@ -60,3 +60,13 @@ pub struct FunctionCall {
     pub args: serde_json::Value,
     pub name: String,
 }
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CacheRequest {
+    pub model: String,
+    pub contents: Vec<Content>,
+    #[serde(rename = "systemInstruction")]
+    pub system_instruction: Content,
+    pub ttl: String,
+}

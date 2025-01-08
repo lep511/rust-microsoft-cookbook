@@ -1,12 +1,13 @@
 use reqwest::Client;
 use reqwest::{self, header::{HeaderMap, HeaderValue}};
-use crate::gemini::chat_request::{ChatRequest, Part, Content};
-use crate::gemini::chat_request::{CacheRequest, InlineData};
+use crate::gemini::gemini_libs::{ChatRequest, Part, Content};
+use crate::gemini::gemini_libs::{CacheRequest, InlineData, EmbedRequest};
 use crate::gemini::gemini_utils::{print_pre, get_mime_type};
 use serde_json::json;
 use std::time::Duration;
 use std::fs;
 
+// ======== REQUEST CHAT ===========
 /// Makes an async HTTP POST request to chat endpoint with the provided chat request
 ///
 /// # Arguments
@@ -54,6 +55,7 @@ pub async fn request_chat(
     Ok(response)
 }
 
+// ======== REQUEST MEDIA ===========
 /// Uploads a media file to a remote server using a resumable upload protocol
 ///
 /// # Arguments
@@ -166,6 +168,38 @@ pub async fn request_media(
     Ok(file_uri)
 }
 
+// ======== REQUEST CACHE ===========
+/// Submits data to a caching service with model-specific instructions and TTL
+///
+/// # Arguments
+///
+/// * `url` - The endpoint URL for the caching service
+/// * `data` - The data to be cached
+/// * `mime_type` - MIME type of the data being cached
+/// * `instruction` - System instruction for processing the data
+/// * `model` - The AI model identifier to be used
+/// * `ttl` - Time-to-live duration in seconds for the cached data
+///
+/// # Returns
+///
+/// * `Result<String, Box<dyn std::error::Error>>` - Returns the cache entry name/identifier on success,
+///   or a boxed error on failure
+///
+/// # Details
+///
+/// This function creates a cache request with:
+/// * Inline data with specified MIME type
+/// * System instruction as user content
+/// * Model specification with formatted name
+/// * TTL duration in seconds
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The HTTP client cannot be built
+/// * The cache request fails to send
+/// * The response cannot be parsed as JSON
+/// * The cache name is missing from the response
 pub async fn request_cache(
     url: String,
     data: String,
@@ -231,4 +265,61 @@ pub async fn request_cache(
         .to_string();
 
     Ok(cache_name)
+}
+
+// ======== REQUEST EMBED ===========
+/// Sends an embedding request to generate vector embeddings for input text
+///
+/// # Arguments
+///
+/// * `url` - The endpoint URL for the embedding service
+/// * `request` - The embedding request containing the input text and model parameters
+///
+/// # Returns
+///
+/// * `Result<String, Box<dyn std::error::Error>>` - Returns the embedding response as a JSON string on success,
+///   or a boxed error on failure
+/// 
+/// # Details
+///
+/// This function:
+/// * Creates an HTTPS client with TLS support
+/// * Prints the request details before sending
+/// * Makes a POST request with JSON payload
+/// * Prints the response details
+/// * Returns the response as a string
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The HTTP client cannot be built
+/// * The request fails to send
+/// * The response cannot be parsed as JSON
+pub async fn request_embed(
+    url: &str,
+    request: EmbedRequest,
+) -> Result<String, Box<dyn std::error::Error>> {
+
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Type", HeaderValue::from_static("application/json"));
+
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
+ 
+    print_pre(&request, false);
+    
+    let response = client
+        .post(url.to_string())
+        .header("Content-Type", "application/json")
+        .json(&request)
+        .send()
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
+
+    print_pre(&response, false);
+    let response = response.to_string();
+    
+    Ok(response)
 }

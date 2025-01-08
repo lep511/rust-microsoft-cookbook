@@ -17,6 +17,8 @@ pub enum GeminiError {
     RequestUploadError,
     #[error("Failed to upload cache request")]
     RequestCacheError,
+    #[error("Failed to upload embed request")]
+    RequestEmbedError,
 }
 
 #[allow(dead_code)]

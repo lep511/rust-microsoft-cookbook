@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use crate::gemini::generation_config::GenerationConfig;
+use crate::gemini::gemini_utils::{FinishReason, TaskType};
+use crate::gemini::error_detail::ErrorDetail;
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]
@@ -69,4 +71,77 @@ pub struct CacheRequest {
     #[serde(rename = "systemInstruction")]
     pub system_instruction: Content,
     pub ttl: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmbedResponse {
+    pub embedding: Option<Embedding>,
+    pub error: Option<ErrorDetails>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Embedding {
+    pub values: Vec<f32>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatResponse {
+    pub candidates: Option<Vec<Candidate>>,
+    pub model_version: Option<String>,
+    #[serde(rename = "usageMetadata")]
+    pub usage_metadata: Option<UsageMetadata>,
+    pub chat_history: Option<Vec<Content>>,
+    pub error: Option<ErrorDetails>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Candidate {
+    pub content: Option<Content>,
+    #[serde(rename = "finishReason")]
+    pub finish_reason: Option<FinishReason>,
+    #[serde(rename = "safetyRatings")]
+    safety_ratings: Option<Vec<SafetyRating>>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SafetyRating {
+    category: String,
+    probability: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UsageMetadata {
+    #[serde(rename = "candidatesTokenCount")]
+    pub candidates_token_count: i32,
+    #[serde(rename = "promptTokenCount")]
+    pub rompt_token_count: i32,
+    #[serde(rename = "totalTokenCount")]
+    pub total_token_count: i32,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorDetails {
+    pub code: Option<i32>,
+    pub message: Option<String>,
+    pub status: Option<String>,
+    pub details: Option<Vec<ErrorDetail>>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbedRequest {
+    pub model: String,
+    pub content: Content,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_dimensionality: Option<i32>,
+    pub task_type: TaskType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
 }

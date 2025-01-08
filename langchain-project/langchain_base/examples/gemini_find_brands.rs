@@ -1,5 +1,6 @@
 #[allow(dead_code)]
-use langchain_base::gemini::{ChatGemini, Part};
+use langchain_base::gemini::ChatGemini;
+use langchain_base::gemini::gemini_libs::Part;
 
 #[derive(Debug)]
 struct TestCase<'a> {
@@ -8,7 +9,7 @@ struct TestCase<'a> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-1.5-pro-latest")?;
     let llm = llm.with_temperature(0.9);
     let llm = llm.with_max_tokens(2048);
 
@@ -56,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let llm = llm.with_multiple_parts(parts);
-    let prompt = "Peep the latest dog trends in vogue mag";
+    let prompt = "Peep the latest dog trends in vogue mag and NY times";
     let response = llm.clone().invoke(prompt).await?;
 
     let mut response_model = String::new();

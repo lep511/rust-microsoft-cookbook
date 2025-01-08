@@ -1,16 +1,17 @@
-use reqwest::Client;
-use reqwest::{self, header::{HeaderMap, HeaderValue}};
-use serde::{Deserialize, Serialize};
-use std::time::Duration;
 use crate::llmerror::GeminiError;
 use generation_config::GenerationConfig;
-use chat_request::{ChatRequest, Content, Part, FileData, InlineData};
-use gemini_utils::{GetApiKey, FinishReason, TaskType};
-use gemini_requests::{request_chat, request_media, request_cache};
-use error_detail::ErrorDetail;
+use gemini_utils::{GetApiKey, TaskType};
+use gemini_libs::{
+    ChatRequest, Content, Part, FileData, EmbedResponse,
+    InlineData, ChatResponse, EmbedRequest,
+};
+use gemini_requests::{
+    request_chat, request_media, request_cache,
+    request_embed,
+};
 
 pub mod generation_config;
-pub mod chat_request;
+pub mod gemini_libs;
 pub mod gemini_utils;
 pub mod gemini_requests;
 pub mod error_detail;
@@ -25,7 +26,6 @@ pub struct ChatGemini {
     pub model: String,
     pub request: ChatRequest,
     pub timeout: u64,
-    pub client: Client,
 }
 
 #[allow(dead_code)]
@@ -75,9 +75,6 @@ impl ChatGemini {
             model: model.to_string(),
             request: request,
             timeout: 15 * 60, // default: 15 minutes
-            client: Client::builder()
-                .use_rustls_tls()
-                .build()?,
         })
     }
 
@@ -174,7 +171,6 @@ impl ChatGemini {
                 model: self.model, 
                 request: self.request, 
                 timeout: self.timeout,
-                client: self.client,
             }
         )
     }
@@ -366,25 +362,11 @@ impl ChatGemini {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct EmbedRequest {
-    pub model: String,
-    pub content: Content,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub output_dimensionality: Option<i32>,
-    pub task_type: TaskType,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
-}
-
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct EmbedGemini {
     pub base_url: String,
     pub model: String,
     pub request: EmbedRequest,
-    pub timeout: u64,
-    pub client: Client,
 }
 
 #[allow(dead_code)]
@@ -398,7 +380,7 @@ impl EmbedGemini {
             model,
             api_key,
         );
-
+        
         let request = EmbedRequest {
             model: model.to_string(),
             content: Content {
@@ -419,10 +401,6 @@ impl EmbedGemini {
             base_url: base_url,
             model: model.to_string(),
             request: request,
-            timeout: 15 * 60, // default: 15 minutes
-            client: Client::builder()
-                .use_rustls_tls()
-                .build()?,
         })
     }
 
@@ -446,22 +424,17 @@ impl EmbedGemini {
             self.request.content = content;
         }
 
-        // print_pre(&self.request);      
+        let response: String = match request_embed(
+            &self.base_url,
+            self.request.clone(),
+        ).await {
+            Ok(response) => response,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(GeminiError::RequestEmbedError);
+            }
+        };
 
-        let response = self
-            .client
-            .post(self.base_url)
-            .timeout(Duration::from_secs(self.timeout))
-            .header("Content-Type", "application/json")
-            .json(&self.request)
-            .send()
-            .await?
-            .json::<serde_json::Value>()
-            .await?;
-
-        // print_pre(&response);
-
-        let response = response.to_string();
         let embed_response: EmbedResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
@@ -491,74 +464,7 @@ impl EmbedGemini {
         self.request.title = Some(title.to_string());
         self
     }
-
-    pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
-        self.timeout = timeout;
-        self
-    }
 }
 
 impl GetApiKey for ChatGemini {}
 impl GetApiKey for EmbedGemini {}
-
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct EmbedResponse {
-    pub embedding: Option<Embedding>,
-    pub error: Option<ErrorDetails>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Embedding {
-    pub values: Vec<f32>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ChatResponse {
-    pub candidates: Option<Vec<Candidate>>,
-    pub model_version: Option<String>,
-    #[serde(rename = "usageMetadata")]
-    pub usage_metadata: Option<UsageMetadata>,
-    pub chat_history: Option<Vec<Content>>,
-    pub error: Option<ErrorDetails>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Candidate {
-    pub content: Option<Content>,
-    #[serde(rename = "finishReason")]
-    pub finish_reason: Option<FinishReason>,
-    #[serde(rename = "safetyRatings")]
-    safety_ratings: Vec<SafetyRating>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SafetyRating {
-    category: String,
-    probability: String,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UsageMetadata {
-    #[serde(rename = "candidatesTokenCount")]
-    pub candidates_token_count: i32,
-    #[serde(rename = "promptTokenCount")]
-    pub rompt_token_count: i32,
-    #[serde(rename = "totalTokenCount")]
-    pub total_token_count: i32,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ErrorDetails {
-    pub code: Option<i32>,
-    pub message: Option<String>,
-    pub status: Option<String>,
-    pub details: Option<Vec<ErrorDetail>>,
-}

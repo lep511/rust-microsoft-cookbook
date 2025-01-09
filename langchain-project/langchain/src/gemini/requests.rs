@@ -3,6 +3,7 @@ use reqwest::{self, header::{HeaderMap, HeaderValue}};
 use crate::gemini::libs::{ChatRequest, Part, Content};
 use crate::gemini::libs::{CacheRequest, InlineData, EmbedRequest};
 use crate::gemini::utils::{print_pre, get_mime_type};
+use crate::gemini::{STATUS_PRE, STATUS_POST};
 use serde_json::json;
 use std::time::Duration;
 use std::fs;
@@ -38,10 +39,9 @@ pub async fn request_chat(
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
-    
-    print_pre(&request, false);
-
     let mut response: serde_json::Value;
+    
+    print_pre(&request, STATUS_PRE);
 
     response = client
         .post(url)
@@ -53,7 +53,7 @@ pub async fn request_chat(
         .json::<serde_json::Value>()
         .await?;
 
-    print_pre(&response, false);
+    print_pre(&response, STATUS_POST);
 
     if response.get("error") != None && retry > 0 {
         let mut n_count: u32 = 0;
@@ -185,6 +185,8 @@ pub async fn request_media(
         .await?
         .json()
         .await?;
+
+    print_pre(&upload_resp, STATUS_POST);
     
     // Wait for video processing
     if mime_type.starts_with("video") {
@@ -292,6 +294,8 @@ pub async fn request_cache(
         .json()
         .await?;
 
+    print_pre(&cache_resp, STATUS_POST);
+
     let cache_name = cache_resp["name"]
         .as_str()
         .ok_or("Missing cache name")?
@@ -335,18 +339,15 @@ pub async fn request_embed(
     request: EmbedRequest,
     retry: u32,
 ) -> Result<String, Box<dyn std::error::Error>> {
-
-    let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", HeaderValue::from_static("application/json"));
-
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
- 
-    print_pre(&request, false);
-
     let mut response: serde_json::Value;
-        
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Type", HeaderValue::from_static("application/json"));
+ 
+    print_pre(&request, STATUS_PRE);
+  
     response = client
         .post(url.to_string())
         .header("Content-Type", "application/json")
@@ -356,7 +357,7 @@ pub async fn request_embed(
         .json::<serde_json::Value>()
         .await?;
 
-    print_pre(&response, false);
+    print_pre(&response, STATUS_POST);
     
     if response.get("error") != None && retry > 0 {
         let mut n_count: u32 = 0;

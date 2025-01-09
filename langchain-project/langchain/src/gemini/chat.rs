@@ -1,6 +1,6 @@
 use crate::llmerror::GeminiError;
 use crate::gemini::gen_config::GenerationConfig;
-use crate::gemini::utils::GetApiKey;
+use crate::gemini::utils::{GetApiKey, get_mime_type};
 use crate::gemini::libs::{
     ChatRequest, Content, Part, FileData,
     InlineData, ChatResponse,
@@ -8,9 +8,7 @@ use crate::gemini::libs::{
 use crate::gemini::requests::{
     request_chat, request_media, request_cache,
 };
-
-pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
-pub static UPLOAD_BASE_URL: &str = "https://generativelanguage.googleapis.com/upload/v1beta";
+use crate::gemini::{GEMINI_BASE_URL, UPLOAD_BASE_URL};
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -126,14 +124,22 @@ impl ChatGemini {
         }
     }
 
-    pub async fn media_upload(mut self, img_path: &str, mime_type: &str) 
+    pub async fn media_upload(mut self, img_path: &str, mut mime_type: &str) 
     -> Result<Self, GeminiError> {
         let api_key = Self::get_api_key()?;
         let upload_url = format!(
             "{}/files?key={}",
             UPLOAD_BASE_URL,
             api_key,
-        );      
+        );
+
+        if mime_type == "auto" {
+            let extension = match img_path.split('.').last() {
+                Some(extension) => extension,
+                None => return Err(GeminiError::InvalidMimeType),
+            };
+            mime_type = get_mime_type(extension);
+        }
       
         let file_uri = match request_media(
             &upload_url, 

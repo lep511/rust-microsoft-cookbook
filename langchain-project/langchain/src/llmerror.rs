@@ -19,6 +19,8 @@ pub enum GeminiError {
     RequestCacheError,
     #[error("Failed to upload embed request")]
     RequestEmbedError,
+    #[error("Failed to extract the mime type")]
+    InvalidMimeType,
 }
 
 #[allow(dead_code)]

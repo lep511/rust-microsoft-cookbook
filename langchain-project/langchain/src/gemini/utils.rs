@@ -123,6 +123,8 @@ pub fn get_mime_type(extension: &str) -> &'static str {
         "mov"   =>  "video/quicktime",
         "mpg"   =>  "video/mpeg",
         "mpeg"  =>  "video/mpeg",
+        "mpegs" =>  "video/mpeg",
+        "3gpp"  =>  "video/3gpp",
         "webm"  =>  "video/webm",
         "wmv"   =>  "video/x-ms-wmv",
         "pdf"   =>  "application/pdf",
@@ -141,6 +143,8 @@ pub fn get_mime_type(extension: &str) -> &'static str {
         "mpa"   =>  "audio/mpeg",
         "flac"  =>  "audio/flac",
         "wav"   =>  "audio/wav",
+        "opus"  =>  "audio/opus",
+        "pcm"   =>  "audio/pcm",
         _ => "text/plain",
     };
     mime

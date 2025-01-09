@@ -12,6 +12,7 @@ pub struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_config: Option<serde_json::Value>,
     #[serde(rename = "systemInstruction")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub system_instruction: Option<Content>,
     #[serde(rename = "generationConfig")]
     pub generation_config: Option<GenerationConfig>,

@@ -7,6 +7,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let file_path = "tests/files/breakfast.webp";
     llm = llm.media_upload(file_path, "auto").await?;
+    println!("Media uploaded successfully...");
 
     let prompt = "Write a short and engaging blog post based on this picture.";
 

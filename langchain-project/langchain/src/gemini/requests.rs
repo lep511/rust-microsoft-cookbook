@@ -1,8 +1,8 @@
 use reqwest::Client;
 use reqwest::{self, header::{HeaderMap, HeaderValue}};
-use crate::gemini::gemini_libs::{ChatRequest, Part, Content};
-use crate::gemini::gemini_libs::{CacheRequest, InlineData, EmbedRequest};
-use crate::gemini::gemini_utils::{print_pre, get_mime_type};
+use crate::gemini::libs::{ChatRequest, Part, Content};
+use crate::gemini::libs::{CacheRequest, InlineData, EmbedRequest};
+use crate::gemini::utils::{print_pre, get_mime_type};
 use serde_json::json;
 use std::time::Duration;
 use std::fs;
@@ -41,7 +41,9 @@ pub async fn request_chat(
     
     print_pre(&request, false);
 
-    let response = client
+    let mut response: serde_json::Value;
+
+    response = client
         .post(url)
         .timeout(Duration::from_secs(timeout))
         .header("Content-Type", "application/json")
@@ -52,9 +54,35 @@ pub async fn request_chat(
         .await?;
 
     print_pre(&response, false);
+
+    if response.get("error") != None && retry > 0 {
+        let mut n_count: u32 = 0;
+        while n_count < retry {
+            n_count += 1;
+            println!(
+                "Retry {}. Error: {:?}", 
+                n_count, 
+                response.get("error")
+            );
+            // Wait for 2 sec
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            response = client
+                .post(url.to_string())
+                .header("Content-Type", "application/json")
+                .json(&request)
+                .send()
+                .await?
+                .json::<serde_json::Value>()
+                .await?;
+            
+            if response.get("error") == None {
+                break;
+            }
+        }
+    }
     
-    let response = response.to_string();
-    Ok(response)
+    let response_string = response.to_string();
+    Ok(response_string)
 }
 
 // ======== REQUEST MEDIA ===========
@@ -316,8 +344,10 @@ pub async fn request_embed(
         .build()?;
  
     print_pre(&request, false);
+
+    let mut response: serde_json::Value;
         
-    let response = client
+    response = client
         .post(url.to_string())
         .header("Content-Type", "application/json")
         .json(&request)
@@ -327,7 +357,33 @@ pub async fn request_embed(
         .await?;
 
     print_pre(&response, false);
-    let response = response.to_string();
     
-    Ok(response)
+    if response.get("error") != None && retry > 0 {
+        let mut n_count: u32 = 0;
+        while n_count < retry {
+            n_count += 1;
+            println!(
+                "Retry {}. Error: {:?}", 
+                n_count, 
+                response.get("error")
+            );
+            // Wait for 2 sec
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            response = client
+                .post(url.to_string())
+                .header("Content-Type", "application/json")
+                .json(&request)
+                .send()
+                .await?
+                .json::<serde_json::Value>()
+                .await?;
+            
+            if response.get("error") == None {
+                break;
+            }
+        }
+    }
+    
+    let response_string = response.to_string();
+    Ok(response_string)
 }

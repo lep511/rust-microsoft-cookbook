@@ -1,11 +1,11 @@
 use crate::llmerror::GeminiError;
-use crate::gemini::generation_config::GenerationConfig;
-use crate::gemini::gemini_utils::GetApiKey;
-use crate::gemini::gemini_libs::{
+use crate::gemini::gen_config::GenerationConfig;
+use crate::gemini::utils::GetApiKey;
+use crate::gemini::libs::{
     ChatRequest, Content, Part, FileData,
     InlineData, ChatResponse,
 };
-use crate::gemini::gemini_requests::{
+use crate::gemini::requests::{
     request_chat, request_media, request_cache,
 };
 

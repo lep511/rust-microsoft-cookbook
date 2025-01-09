@@ -1,9 +1,9 @@
 use crate::llmerror::GeminiError;
-use crate::gemini::gemini_utils::{GetApiKey, TaskType};
-use crate::gemini::gemini_libs::{
+use crate::gemini::utils::{GetApiKey, TaskType};
+use crate::gemini::libs::{
     Content, Part, EmbedResponse,EmbedRequest,
 };
-use crate::gemini::gemini_requests::request_embed;
+use crate::gemini::requests::request_embed;
 
 pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 

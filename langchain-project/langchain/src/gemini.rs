@@ -1,7 +1,7 @@
-pub mod chatgemini;
-pub mod embedgemini;
-pub mod generation_config;
-pub mod gemini_libs;
-pub mod gemini_utils;
-pub mod gemini_requests;
-pub mod error_detail;
+pub mod chat;
+pub mod embed;
+pub mod gen_config;
+pub mod libs;
+pub mod utils;
+pub mod requests;
+pub mod errors;

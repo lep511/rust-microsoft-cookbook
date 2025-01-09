@@ -1,6 +1,6 @@
 #[allow(dead_code)]
-use langchain::gemini::chatgemini::ChatGemini;
-use langchain::gemini::gemini_libs::Part;
+use langchain::gemini::chat::ChatGemini;
+use langchain::gemini::libs::Part;
 
 #[derive(Debug)]
 struct TestCase<'a> {

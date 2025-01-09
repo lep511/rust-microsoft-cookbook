@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-use langchain::gemini::chatgemini::ChatGemini;
+use langchain::gemini::chat::ChatGemini;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -7,10 +7,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let response = llm
         .with_temperature(0.2)
-        .with_max_tokens(100)
+        .with_max_tokens(1024)
         .with_top_k(20)
         .with_top_p(0.95)
-        .with_candidate_count(1)
+        .with_candidate_count(2)
+        .with_retry(3)
         .with_stop_sequences(vec!["STOP!".to_string()])
         .with_system_prompt("You are a helpful assistant.")
         .invoke("Tell me how the internet works, but pretend I'm a puppy who only understands squeaky toys.")
@@ -21,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut n = 1;
     if let Some(candidates) = response.candidates {
         for candidate in candidates {
-            println!("\n\nCandidate: {}", n);
+            println!("\n\nCandidate: {}\n=============\n", n);
             n += 1;
             if let Some(content) = candidate.content {
                 for part in content.parts {

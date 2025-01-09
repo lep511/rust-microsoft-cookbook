@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-use langchain::gemini::chatgemini::ChatGemini;
+use langchain::gemini::chat::ChatGemini;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

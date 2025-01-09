@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
-use crate::gemini::generation_config::GenerationConfig;
-use crate::gemini::gemini_utils::{FinishReason, TaskType};
-use crate::gemini::error_detail::ErrorDetail;
+use crate::gemini::gen_config::GenerationConfig;
+use crate::gemini::utils::{FinishReason, TaskType};
+use crate::gemini::errors::ErrorDetail;
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]

@@ -1,4 +1,4 @@
-use langchain::gemini::chatgemini::ChatGemini;
+use langchain::gemini::chat::ChatGemini;
 use serde_json::json;
 use std::fs;
 

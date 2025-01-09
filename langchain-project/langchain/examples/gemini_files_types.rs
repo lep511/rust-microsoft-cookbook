@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-use langchain::gemini::chatgemini::ChatGemini;
+use langchain::gemini::chat::ChatGemini;
 use std::fs::File;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde_json::json;

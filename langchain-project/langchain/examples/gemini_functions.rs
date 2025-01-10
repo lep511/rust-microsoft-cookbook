@@ -1,4 +1,5 @@
 use langchain::gemini::chat::ChatGemini;
+use langchain::gemini::libs::{Part, FunctionCall, FunctionResponse, FunctionContent};
 use serde_json::json;
 use std::fs;
 
@@ -142,13 +143,17 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let question = "What movies are showing in North Seattle tonight?";
+    let question = "Which theaters in Mountain View show Barbie movie?";
     
-    let response = llm
-        .with_tools(function_dec)
+    let response = llm.clone()
+        .with_tools(function_dec.clone())
         .with_tool_config(tool_config)
         .invoke(question)
         .await?;
+
+    let mut function_name = String::new();
+    let mut movie = String::new();
+    let mut location = String::new();
 
     println!("Question: {}", question);
     if let Some(candidates) = &response.candidates {
@@ -156,8 +161,71 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(content) = &candidate.content {
                 for part in &content.parts {
                     if let Some(function_call) = &part.function_call {
-                        println!("Function name: {}", function_call.name);
-                        println!("Location: {}", function_call.args.get("location").unwrap_or(&json!("{}")));
+                        function_name = function_call.name.clone();
+                        movie = function_call.args.get("movie").unwrap().to_string();
+                        location = function_call.args.get("location").unwrap().to_string();
+                        println!("Function name: {}", function_name);
+                        println!("Movie: {}", movie);
+                        println!("Location: {}", location);
+                    }
+                }
+            }
+        }
+    };
+
+    let function_call_assistant = FunctionCall {
+        name: function_name.clone(),
+        args: json!({
+            "location": location,
+            "movie": movie
+        }),
+    };
+
+    let assistant_response = Part {
+        text: None,
+        function_call: Some(function_call_assistant),
+        function_response: None,
+        inline_data: None,
+        file_data: None,
+    };
+
+    let content_response = json!({
+        "movie":"Barbie",
+        "theaters":[
+            {
+                "name":"AMC Mountain View 16",
+                "address":"2000 W El Camino Real, Mountain View, CA 94040"
+            },
+            {
+                "name":"Regal Edwards 14",
+                "address":"245 Castro St, Mountain View, CA 94040"
+            }
+        ]
+    });
+
+    let function_content = FunctionContent {
+        name: function_name.clone(),
+        content: content_response,
+    };
+
+    let function_response = FunctionResponse {
+        name: function_name,
+        response: function_content,
+    };
+
+    let response = llm
+        .with_assistant_response(vec![assistant_response])
+        .with_function_response(function_response)
+        .with_tools(function_dec)
+        .invoke(question)
+        .await?;
+
+    if let Some(candidates) = response.candidates {
+        for candidate in candidates {
+            if let Some(content) = candidate.content {
+                for part in content.parts {
+                    if let Some(text) = part.text {
+                        println!("{}", text);
                     }
                 }
             }

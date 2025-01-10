@@ -9,5 +9,5 @@ pub mod errors;
 pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 pub static UPLOAD_BASE_URL: &str = "https://generativelanguage.googleapis.com/upload/v1beta";
 
-pub const STATUS_PRE: bool = false;
-pub const STATUS_POST: bool = false;
+pub const DEBUG_PRE: bool = false;
+pub const DEBUG_POST: bool = false;

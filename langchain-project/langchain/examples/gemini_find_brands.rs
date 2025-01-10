@@ -50,6 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let part = Part {
             text: Some(test_case.text.to_string()),
             function_call: None,
+            function_response: None,
             inline_data: None,
             file_data: None,
         };
@@ -86,7 +87,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
     let llm = llm.with_chat_history(chat_history);
-    let llm = llm.with_assistant_response(&response_model);
+
+    let response_part = Part {
+        text: Some(response_model),
+        function_call: None,
+        inline_data: None,
+        file_data: None,
+    };
+
+    let llm = llm.with_assistant_response(vec![response_part]);
 
     let prompt = "NY:GOOG, GOOGL, Google stocks to watch";
     let response = llm.invoke(prompt).await?;

@@ -2,8 +2,8 @@ use crate::llmerror::GeminiError;
 use crate::gemini::gen_config::GenerationConfig;
 use crate::gemini::utils::{GetApiKey, get_mime_type};
 use crate::gemini::libs::{
-    ChatRequest, Content, Part, FileData, InlineData,
-    ChatResponse, FunctionResponse,
+    ChatRequest, Content, Part, FileData,
+    InlineData, ChatResponse,
 };
 use crate::gemini::requests::{
     request_chat, request_media, request_cache,
@@ -26,7 +26,7 @@ impl ChatGemini {
         let api_key = Self::get_api_key()?;
         
         let base_url = format!(
-            "{}/models/{}:generateContent?key={}",
+            "{}/models/{}:streamGenerateContent?key={}",
             GEMINI_BASE_URL,
             model,
             api_key,
@@ -38,7 +38,6 @@ impl ChatGemini {
                 parts: vec![Part {
                     text: Some("Init message.".to_string()),
                     function_call: None,
-                    function_response: None,
                     inline_data: None,
                     file_data: None,
                 }],
@@ -82,7 +81,6 @@ impl ChatGemini {
                 parts: vec![Part {
                     text: Some(prompt.to_string()),
                     function_call: None,
-                    function_response: None,
                     inline_data: None,
                     file_data: None,
                 }],
@@ -161,7 +159,6 @@ impl ChatGemini {
             parts: vec![Part {
                 text: None,
                 function_call: None,
-                function_response: None,
                 inline_data: None,
                 file_data: Some(FileData {
                     mime_type: mime_type.to_string(),
@@ -271,7 +268,6 @@ impl ChatGemini {
             parts: vec![Part {
                 text: Some(system_prompt.to_string()),
                 function_call: None,
-                function_response: None,
                 inline_data: None,
                 file_data: None,
             }],
@@ -310,25 +306,15 @@ impl ChatGemini {
         self
     }
 
-    pub fn with_function_response(mut self, function_call: FunctionResponse) -> Self {
+    pub fn with_assistant_response(mut self,  assistant_response: &str) -> Self {
         let content = Content {
-            role: "function".to_string(),
+            role: "model".to_string(),
             parts: vec![Part {
-                text: None,
+                text: Some(assistant_response.to_string()),
                 function_call: None,
-                function_response: Some(function_call),
                 inline_data: None,
                 file_data: None,
             }],
-        };
-        self.request.contents.push(content);
-        self
-    }
-
-    pub fn with_assistant_response(mut self,  assistant_response: Vec<Part>) -> Self {
-        let content = Content {
-            role: "model".to_string(),
-            parts: assistant_response,
         };
         self.request.contents.push(content);
         self
@@ -345,11 +331,15 @@ impl ChatGemini {
     }
 
     pub fn with_multiple_parts(mut self, parts: Vec<Part>) -> Self {
-        let content = Content {
-            role: "user".to_string(),
-            parts: parts,
-        };
-        self.request.contents.push(content);
+        if self.request.contents[0].parts[0].text == Some("Init message.".to_string()) {
+            self.request.contents[0].parts = parts;
+        } else {
+            let content = Content {
+                role: "user".to_string(),
+                parts: parts,
+            };
+            self.request.contents.push(content);
+        }
         self
     }
 
@@ -369,7 +359,6 @@ impl ChatGemini {
             parts: vec![Part {
                 text: None,
                 function_call: None,
-                function_response: None,
                 inline_data: Some(InlineData {
                     mime_type: mime_type.to_string(),
                     data: Some(image.to_string()),

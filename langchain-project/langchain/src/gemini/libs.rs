@@ -37,6 +37,9 @@ pub struct Part {
     #[serde(rename = "functionCall", default)]
     pub function_call: Option<FunctionCall>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "functionResponse", default)]
+    pub function_response: Option<FunctionResponse>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_data: Option<InlineData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_data: Option<FileData>,
@@ -59,9 +62,23 @@ pub struct FileData {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct FunctionCall {
-    pub args: serde_json::Value,
+pub struct FunctionResponse {
     pub name: String,
+    pub response: FunctionContent,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FunctionContent {
+    pub name: String,
+    pub content: serde_json::Value,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FunctionCall {
+    pub name: String,
+    pub args: serde_json::Value,
 }
 
 #[allow(dead_code)]

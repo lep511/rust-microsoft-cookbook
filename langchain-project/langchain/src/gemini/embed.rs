@@ -35,6 +35,7 @@ impl EmbedGemini {
                 parts: vec![Part {
                     text: Some("Init message.".to_string()),
                     function_call: None,
+                    function_response: None,
                     inline_data: None,
                     file_data: None,
                 }],
@@ -65,6 +66,7 @@ impl EmbedGemini {
                 parts: vec![Part {
                     text: Some(input_str.to_string()),
                     function_call: None,
+                    function_response: None,
                     inline_data: None,
                     file_data: None,
                 }],

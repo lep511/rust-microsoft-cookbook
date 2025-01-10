@@ -1,7 +1,7 @@
 use crate::llmerror::GeminiError;
-use crate::gemini::utils::{GetApiKey, TaskType};
+use crate::gemini::utils::GetApiKey;
 use crate::gemini::libs::{
-    Content, Part, EmbedResponse,EmbedRequest,
+    Content, Part, EmbedResponse,EmbedRequest, TaskType
 };
 use crate::gemini::requests::request_embed;
 

@@ -3,7 +3,7 @@ use crate::gemini::gen_config::GenerationConfig;
 use crate::gemini::utils::{GetApiKey, get_mime_type};
 use crate::gemini::libs::{
     ChatRequest, Content, Part, FileData, InlineData,
-    ChatResponse, FunctionResponse,
+    ChatResponse, FunctionResponse, SafetySetting,
 };
 use crate::gemini::requests::{
     request_chat, request_media, request_cache,
@@ -47,6 +47,7 @@ impl ChatGemini {
             tool_config: None,
             system_instruction: None,
             cached_content: None,
+            safety_settings: None,
             generation_config: Some(GenerationConfig {
                 temperature: Some(0.9),
                 top_k: Some(40),
@@ -362,6 +363,22 @@ impl ChatGemini {
         self.request.tool_config = Some(tool_choice);
         self
     }
+
+    pub fn with_safety_settings(mut self, safety_settings: Vec<SafetySetting>) -> Self {
+        self.request.safety_settings = Some(safety_settings);
+        self
+    }
+
+    pub fn with_json_schema(mut self, response_schema: serde_json::Value) -> Self {
+        match &mut self.request.generation_config {
+            Some(config) => {
+                config.response_schema = Some(response_schema);
+                config.response_mime_type = Some("application/json".to_string());
+            }
+            None => ()
+        };
+        self
+    } 
 
     pub fn with_image(mut self, image: &str, mime_type: &str) -> Self {
         let content = Content {

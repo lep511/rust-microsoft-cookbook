@@ -396,7 +396,7 @@ pub async fn request_embed(
 pub fn strem_chat(
     url: String,
     request: ChatRequest,
-) -> impl futures::Stream<Item = String> {
+) -> impl futures::Stream<Item = ChatResponse> {
     stream! {
         let client = Client::new();
 
@@ -427,19 +427,7 @@ pub fn strem_chat(
                             
                                 match serde_json::from_str::<ChatResponse>(json_part) {
                                     Ok(stream_response) => {
-                                        // println!("Chat response {:?}", stream_response.candidates);
-                                        if let Some(candidates) = stream_response.candidates {
-                                            for candidate in candidates {
-                                                if let Some(content) = candidate.content {
-                                                    for part in content.parts {
-                                                        if let Some(text) = part.text {
-                                                            println!("{}", text);
-                                                            yield text;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        yield stream_response;
                                     },
                                     Err(e) => {
                                         println!("Error parsing chunk: {}", e);

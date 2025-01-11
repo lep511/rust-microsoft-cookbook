@@ -1,5 +1,6 @@
 use futures::pin_mut;
 use futures::StreamExt;
+use async_stream::stream;
 use crate::llmerror::GeminiError;
 use crate::gemini::gen_config::GenerationConfig;
 use crate::gemini::utils::{GetApiKey, get_mime_type};
@@ -133,44 +134,82 @@ impl ChatGemini {
         }
     }
 
-    pub async fn stream_invoke(
-        mut self, 
-        prompt: &str
-    ) -> Result<String, GeminiError> {
-        self.base_url = self.base_url
-            .replace("generateContent", "streamGenerateContent?alt=sse")
-            .replace("?key", "&key");
+    pub fn stream_response(
+        mut self,
+        prompt: String
+    ) -> impl futures::Stream<Item = ChatResponse> {
+        stream! {
+            self.base_url = self.base_url
+                .replace("generateContent", "streamGenerateContent?alt=sse")
+                .replace("?key", "&key");
 
-        if self.request.contents[0].parts[0].text == Some("Init message.".to_string()) {
-            self.request.contents[0].parts[0].text = Some(prompt.to_string());
-        } else {
-            let content = Content {
-                role: "user".to_string(),
-                parts: vec![Part {
-                    text: Some(prompt.to_string()),
-                    function_call: None,
-                    function_response: None,
-                    inline_data: None,
-                    file_data: None,
-                }],
-            };
-            self.request.contents.push(content);
+            if self.request.contents[0].parts[0].text == Some("Init message.".to_string()) {
+                self.request.contents[0].parts[0].text = Some(prompt.to_string());
+            } else {
+                let content = Content {
+                    role: "user".to_string(),
+                    parts: vec![Part {
+                        text: Some(prompt.to_string()),
+                        function_call: None,
+                        function_response: None,
+                        inline_data: None,
+                        file_data: None,
+                    }],
+                };
+                self.request.contents.push(content);
+            }
+
+            let stream = strem_chat(
+                self.base_url.clone(),
+                self.request.clone(),
+            );
+
+            pin_mut!(stream);
+
+            while let Some(chat_response) = stream.next().await {
+                yield chat_response;
+            }
         }
-
-        let stream = strem_chat(
-            self.base_url.clone(),
-            self.request.clone(),
-        );
-
-        pin_mut!(stream);
-
-        while let Some(mensaje) = stream.next().await {
-            println!("Recibido: {}", mensaje);
-        }
-
-        let response = String::from("OK");
-        Ok(response)       
     }
+
+    // pub async fn stream_invoke(
+    //     mut self, 
+    //     prompt: &str
+    // ) -> Result<String, GeminiError> {
+    //     self.base_url = self.base_url
+    //         .replace("generateContent", "streamGenerateContent?alt=sse")
+    //         .replace("?key", "&key");
+
+    //     if self.request.contents[0].parts[0].text == Some("Init message.".to_string()) {
+    //         self.request.contents[0].parts[0].text = Some(prompt.to_string());
+    //     } else {
+    //         let content = Content {
+    //             role: "user".to_string(),
+    //             parts: vec![Part {
+    //                 text: Some(prompt.to_string()),
+    //                 function_call: None,
+    //                 function_response: None,
+    //                 inline_data: None,
+    //                 file_data: None,
+    //             }],
+    //         };
+    //         self.request.contents.push(content);
+    //     }
+
+    //     let stream = strem_chat(
+    //         self.base_url.clone(),
+    //         self.request.clone(),
+    //     );
+
+    //     pin_mut!(stream);
+
+    //     while let Some(mensaje) = stream.next().await {
+    //         println!("Recibido: {:?}", mensaje);
+    //     }
+
+    //     let response = String::from("OK");
+    //     Ok(response)       
+    // }
 
     pub async fn media_upload(mut self, img_path: &str, mut mime_type: &str) 
     -> Result<Self, GeminiError> {

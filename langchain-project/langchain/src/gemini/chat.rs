@@ -6,7 +6,8 @@ use crate::gemini::libs::{
     ChatResponse, FunctionResponse, SafetySetting,
 };
 use crate::gemini::requests::{
-    request_chat, request_media, request_cache,
+    request_chat, request_media, request_cache, 
+    strem_chat,
 };
 use crate::gemini::{GEMINI_BASE_URL, UPLOAD_BASE_URL};
 
@@ -73,7 +74,10 @@ impl ChatGemini {
         })
     }
 
-    pub async fn invoke(mut self, prompt: &str) -> Result<ChatResponse, GeminiError> {
+    pub async fn invoke(
+        mut self, 
+        prompt: &str
+    ) -> Result<ChatResponse, GeminiError> {
 
         if self.request.contents[0].parts[0].text == Some("Init message.".to_string()) {
             self.request.contents[0].parts[0].text = Some(prompt.to_string());
@@ -125,6 +129,45 @@ impl ChatGemini {
             };
             Ok(format_response)
         }
+    }
+
+    pub async fn stream_invoke(
+        mut self, 
+        prompt: &str
+    ) -> Result<String, GeminiError> {
+        self.base_url = self.base_url
+            .replace("generateContent", "streamGenerateContent?alt=sse")
+            .replace("?key", "&key");
+
+        if self.request.contents[0].parts[0].text == Some("Init message.".to_string()) {
+            self.request.contents[0].parts[0].text = Some(prompt.to_string());
+        } else {
+            let content = Content {
+                role: "user".to_string(),
+                parts: vec![Part {
+                    text: Some(prompt.to_string()),
+                    function_call: None,
+                    function_response: None,
+                    inline_data: None,
+                    file_data: None,
+                }],
+            };
+            self.request.contents.push(content);
+        }
+
+        let response = match strem_chat(
+            &self.base_url,
+            &self.request,
+        ).await {
+            Ok(response) => response,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(GeminiError::RequestChatError);
+            }
+        };
+        
+        Ok(response)       
+
     }
 
     pub async fn media_upload(mut self, img_path: &str, mut mime_type: &str) 
@@ -378,7 +421,7 @@ impl ChatGemini {
             None => ()
         };
         self
-    } 
+    }
 
     pub fn with_image(mut self, image: &str, mime_type: &str) -> Self {
         let content = Content {

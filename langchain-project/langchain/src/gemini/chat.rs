@@ -1,3 +1,5 @@
+use futures::pin_mut;
+use futures::StreamExt;
 use crate::llmerror::GeminiError;
 use crate::gemini::gen_config::GenerationConfig;
 use crate::gemini::utils::{GetApiKey, get_mime_type};
@@ -155,19 +157,19 @@ impl ChatGemini {
             self.request.contents.push(content);
         }
 
-        let response = match strem_chat(
-            &self.base_url,
-            &self.request,
-        ).await {
-            Ok(response) => response,
-            Err(e) => {
-                println!("[ERROR] {:?}", e);
-                return Err(GeminiError::RequestChatError);
-            }
-        };
-        
-        Ok(response)       
+        let stream = strem_chat(
+            self.base_url.clone(),
+            self.request.clone(),
+        );
 
+        pin_mut!(stream);
+
+        while let Some(mensaje) = stream.next().await {
+            println!("Recibido: {}", mensaje);
+        }
+
+        let response = String::from("OK");
+        Ok(response)       
     }
 
     pub async fn media_upload(mut self, img_path: &str, mut mime_type: &str) 

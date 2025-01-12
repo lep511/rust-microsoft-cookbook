@@ -448,6 +448,19 @@ impl ChatGemini {
         self
     }
 
+    pub fn with_google_search(mut self) -> Self {
+        if let Some(ref mut tools) = self.request.tools {
+            tools.push(serde_json::json!({
+                "google_search": {}
+            }));
+        } else {
+            self.request.tools = Some(vec![serde_json::json!({
+                "google_search": {}
+            })]);
+        }
+        self
+    }
+
     pub fn with_safety_settings(mut self, safety_settings: Vec<SafetySetting>) -> Self {
         self.request.safety_settings = Some(safety_settings);
         self

@@ -5,16 +5,11 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
 
     let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
 
-    let function = json!({
-        "google_search": {}
-    });
-    
-    let search_google = vec![function];
-    let question = "Who won the Super Bowl this year?";
+    let question = "Who won the Super Bowl this actual year?";
     
     let response = llm
         .with_temperature(1.0)
-        .with_tools(search_google)
+        .with_google_search()
         .invoke(question)
         .await?;
 

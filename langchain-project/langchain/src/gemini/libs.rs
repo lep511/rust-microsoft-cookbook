@@ -94,20 +94,20 @@ pub struct CacheRequest {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EmbedResponse {
     pub embedding: Option<Embedding>,
     pub error: Option<ErrorDetails>,
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Embedding {
     pub values: Vec<f32>,
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatResponse {
     pub candidates: Option<Vec<Candidate>>,
     pub model_version: Option<String>,
@@ -118,7 +118,7 @@ pub struct ChatResponse {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Candidate {
     pub content: Option<Content>,
     #[serde(rename = "finishReason")]
@@ -192,7 +192,7 @@ pub enum HarmBlock {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum FinishReason {
     #[serde(rename = "FINISH_REASON_UNSPECIFIED")] // Default value. This value is unused
     Unspecified,
@@ -219,7 +219,7 @@ pub enum FinishReason {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UsageMetadata {
     #[serde(rename = "candidatesTokenCount")]
     pub candidates_token_count: Option<i32>,
@@ -230,7 +230,7 @@ pub struct UsageMetadata {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorDetails {
     pub code: Option<i32>,
     pub message: Option<String>,

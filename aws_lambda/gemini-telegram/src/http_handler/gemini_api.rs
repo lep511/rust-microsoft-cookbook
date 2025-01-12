@@ -1,0 +1,342 @@
+#[allow(dead_code)]
+use aws_sdk_s3::Client as S3Client;
+use aws_sdk_s3::types::SdkError;
+use aws_sdk_s3::error::GetObjectError;
+use aws_sdk_s3::model::ObjectCannedAcl;
+use reqwest::{Client, Response};
+use super::chat::ChatGemini;
+use super::libs::{Part, Content};
+use base64::{engine::general_purpose::STANDARD, Engine};
+use serde_json::json;
+use std::fs::{self, File};
+use std::io::{self, Write};
+use futures::StreamExt;
+use futures::pin_mut;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+pub async fn get_gemini_response(
+    prompt: String, 
+    telegram_bot_token: String, 
+    telegram_chat_id: String,
+    is_image: bool,
+    bucket_name: String,
+) -> Result<String, Box<dyn std::error::Error>> {
+
+    let client = Client::new();
+    println!("Is image: {}", is_image);
+
+    let llm = ChatGemini::new("learnlm-1.5-pro-experimental")?;
+
+    let system_prompt = "You are a tutor helping a student prepare for a test. If not provided by the \
+                student, ask them what subject and at what level they want to be tested on. \
+                Then, \
+                \
+                *   Generate practice questions. Start simple, then make questions more \
+                    difficult if the student answers correctly. \
+                *   Prompt the student to explain the reason for their answer choice. Do not \
+                    debate the student. \
+                *   **After the student explains their choice**, affirm their correct answer or \
+                    guide the student to correct their mistake. \
+                *   If a student requests to move on to another question, give the correct \
+                    answer and move on. \
+                *   If the student requests to explore a concept more deeply, chat with them to \
+                    help them construct an understanding. \
+                *   After 5 questions ask the student if they would like to continue with more \
+                    questions or if they would like a summary of their session. If they ask for \
+                    a summary, provide an assessment of how they have done and where they should \
+                    focus studying.";
+
+    let file_name = format!("chat-history-{}.json", telegram_chat_id);
+    let file_path = format!("/tmp/{}", file_name);
+    
+    let content = Content {
+        role: "user".to_string(),
+        parts: vec![Part {
+            text: Some("I want to learn about the history of the United States.".to_string()),
+            function_call: None,
+            function_response: None,
+            inline_data: None,
+            file_data: None,
+        }],
+    };
+    let mut chat_history = vec![content];
+
+    match download_chat_history(
+        &bucket_name,
+        &file_name,
+        &file_path
+    ).await {
+        Ok(_) => {
+            println!("File downloaded successfully");
+            chat_history = read_chat_history().await?;
+        },
+        Err(e) => {
+            println!("Chat file not exist. {}", e);
+        }
+    }
+
+    let stream = llm
+        .with_system_prompt(system_prompt)
+        .with_chat_history(chat_history)
+        .with_top_k(64)
+        .stream_response(prompt);
+
+    pin_mut!(stream);
+
+    let mut complete_text = String::from("");
+    let current_telegram_message_id = Arc::new(Mutex::new(None));
+
+    while let Some(stream_response) = stream.next().await { 
+        if let Some(candidates) = stream_response.candidates {
+            for candidate in candidates {
+                if let Some(content) = candidate.content {
+                    for part in content.parts {
+                        if let Some(text) = part.text {
+                            complete_text = complete_text + &text;
+                            send_telegram_message(
+                                telegram_bot_token.clone(),
+                                telegram_chat_id.clone(),
+                                complete_text.clone(),
+                                current_telegram_message_id.clone()
+                            ).await;
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    let content_model = Content {
+        role: "model".to_string(),
+        parts: vec![Part {
+            text: Some(complete_text),
+            function_call: None,
+            function_response: None,
+            inline_data: None,
+            file_data: None,
+        }],
+    };
+
+    chat_history.push(content_model);
+    let file_path_save = format!("/tmp/created-{}", file_name);
+    match save_chat_history(chat_history, file_path_save) {
+        Ok(_) => {
+            println!("Chat history saved to temp successfully");
+            match upload_chat_history(
+                &bucket_name,
+                &file_name,
+                &file_path_save
+            ).await {
+                Ok(_) => {
+                    println!("Chat history uploaded to bucket successfully");
+                },
+                Err(e) => {
+                    println!("Error saving chat history to bucket: {}", e);
+                }
+            }
+        },
+        Err(e) => {
+            println!("Error saving chat history to temp: {}", e);
+        }
+    }
+    
+    let message_response = String::from("Message sent successfully");
+    Ok(message_response)   
+}
+
+/// Sends or edits a message on Telegram using the Bot API
+///
+/// # Arguments
+///
+/// * `bot_token` - The authentication token for the Telegram bot
+/// * `chat_id` - The unique identifier for the target chat
+/// * `text` - The text message to be sent/edited (supports Markdown formatting)
+/// * `current_telegram_message_id` - Thread-safe reference to the current message ID. If Some(id), 
+///    the function will attempt to edit that message. If None, sends a new message.
+///
+/// # Examples
+///
+/// ```
+/// let message_id = Arc::new(Mutex::new(None));
+/// send_telegram_message(
+///     "BOT_TOKEN".to_string(),
+///     "CHAT_ID".to_string(), 
+///     "Hello World!".to_string(),
+///     message_id
+/// ).await;
+/// ```
+///
+/// # Notes
+///
+/// - Uses markdown parsing mode for message formatting
+/// - Stores the message ID of newly sent messages in the provided Arc<Mutex>
+/// - Prints errors to stderr but does not propagate them
+pub async fn send_telegram_message(
+    bot_token: String, 
+    chat_id: String, 
+    text: String, 
+    current_telegram_message_id: Arc<Mutex<Option<i64>>>
+) {
+    let telegram_client = Arc::new(Client::new());
+    let telegram_api_url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
+    let mut message_body = json!({
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "markdown"
+    });
+
+    let current_message_id = *current_telegram_message_id.lock().await;
+    
+    if let Some(message_id) = current_message_id {
+        let edit_message_url = format!("https://api.telegram.org/bot{}/editMessageText", bot_token);
+        message_body = json!({
+            "chat_id": chat_id,
+            "text": text,
+            "message_id": message_id,
+            "parse_mode": "markdown"
+        });
+            
+        let _response = telegram_client
+            .post(edit_message_url)
+            .header("Content-Type", "application/json")
+            .json(&message_body)
+            .send()
+            .await;
+    
+        // match response {
+        //     Ok(res) => {
+        //         if !res.status().is_success(){
+        //             let err_body = res.text().await.unwrap_or_else(|_| String::from("Error Body couldn't be read"));
+        //             eprintln!("Failed to edit message to telegram: {}", err_body);
+        //         }
+        //     },
+        //     Err(e) => eprintln!("Error editing message on Telegram: {}", e),
+        // }
+    }else {
+        let response = telegram_client
+            .post(telegram_api_url)
+            .header("Content-Type", "application/json")
+            .json(&message_body)
+            .send()
+            .await;
+        match response {
+            Ok(res) => {
+                if res.status().is_success(){
+                    let response_body: serde_json::Value = res.json().await.unwrap();
+                    let message_id = response_body["result"]["message_id"].as_i64().unwrap();
+                    *current_telegram_message_id.lock().await = Some(message_id);
+                }
+            },
+            Err(e) => eprintln!("Error sending message to Telegram: {}", e),
+        }
+    }
+}
+
+async fn download_chat_history(bucket: &str, key: &str, file_path: &str) -> Result<(), SdkError<GetObjectError>> {
+    let client = S3Client::new(&shared_config);
+    let resp = client.get_object()
+        .bucket(bucket)
+        .key(key)
+        .send()
+        .await?;
+
+    let body = resp.body.collect().await?;
+    fs::write(file_path, &body.into_bytes())?;
+
+    Ok(())
+}
+
+async fn upload_chat_history(bucket: &str, key: &str, file_path: &str) -> Result<(), SdkError<GetObjectError>> {
+    let client = S3Client::new(&shared_config);
+    let body = fs::read(file_path)?;
+    client.put_object()
+        .bucket(bucket)
+        .key(key)
+        .body(body.into())
+        .acl(ObjectCannedAcl::Private)
+        .send()
+        .await?;
+
+    Ok(())
+}
+
+async fn read_chat_history(file_path: String) -> Result<Vec<Content>, Box<dyn std::error::Error>> {
+    let mut file = match File::open(file_path) {
+        Ok(file) => file,
+        Err(e) => {
+            println!("Error opening file: {}", e);
+            return Err(Box::new(e));
+        }
+    };
+
+    let mut json = String::new();
+    match file.read_to_string(&mut json) {
+        Ok(_) => {
+            let chat_history: Vec<Content> = serde_json::from_str(&json)?;
+            Ok(chat_history)
+        }
+        Err(e) => {
+            println!("Error reading from file: {}", e);
+            Err(Box::new(e))
+        }
+    }
+}
+
+async fn save_chat_history(chat_history: Vec<Content>, file_path: String) -> Result<(), Box<dyn std::error::Error>> {
+    let json = serde_json::to_string(&chat_history)?;
+    let mut file = match File::create(file_path) {
+        Ok(file) => file,
+        Err(e) => {
+            println!("Error creating file: {}", e);
+            return Err(Box::new(e));
+        }
+    };
+
+    match file.write_all(json.as_bytes()) {
+        Ok(_) => {
+            Ok(())
+        }
+        Err(e) => {
+            println!("Error writing to file: {}", e);
+            Err(Box::new(e))
+        }
+    }
+}
+
+// pub async fn telegram_get_file_data(
+//     file_id: String, 
+//     telegram_bot_token: String,
+//     ) -> Result<String, Box<dyn std::error::Error>> {
+    
+//     let telegram_client = Arc::new(Client::new());
+//     let telegram_api_url = format!(
+//         "https://api.telegram.org/bot{}/getFile?file_id={}", 
+//         telegram_bot_token,
+//         file_id,
+//     );
+    
+//     let file_info: TelegramGetFile = telegram_client
+//         .get(telegram_api_url)
+//         .send()
+//         .await?
+//         .json()
+//         .await?;
+
+//     if file_info.ok {
+//         let file_path = file_info.result.unwrap().file_path.unwrap();
+//         let file_url = format!(
+//             "https://api.telegram.org/file/bot{}/{}", 
+//             telegram_bot_token, 
+//             file_path,
+//         );
+//         let image_response = telegram_client.get(&file_url).send().await?;
+//         let image_bytes = image_response.bytes().await?;
+//         // std::fs::write("image.jpg", &bytes)?;
+//         // println!("Image saved as image.jpg");
+//         println!("File url get successfully");
+//         Ok(STANDARD.encode(image_bytes))
+//     } else {
+//         Err(format!("Error getting file info: {:?}", file_info.description).into())
+//     }
+// }

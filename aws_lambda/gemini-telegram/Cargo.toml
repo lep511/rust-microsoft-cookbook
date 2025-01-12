@@ -1,0 +1,21 @@
+[package]
+name = "gemini-telegram"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lambda_runtime = "0.13.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.12.9", default-features = false, features = [
+  "rustls-tls",
+  "json",
+  "stream",
+] }
+thiserror = "2.0.11"
+futures = "0.3"
+async-stream = "0.3.6"
+base64 = "0.22.1"
+aws-sdk-s3 = "1.68.0"
+
+tokio = { version = "1", features = ["macros"] }

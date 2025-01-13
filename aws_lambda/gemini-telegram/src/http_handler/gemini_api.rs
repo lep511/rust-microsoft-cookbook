@@ -95,6 +95,7 @@ pub async fn get_gemini_response(
     let stream = llm
         .with_system_prompt(system_prompt)
         .with_chat_history(chat_history.clone())
+        .with_max_tokens(8192)
         .with_top_k(64)
         .stream_response(prompt);
 
@@ -110,12 +111,17 @@ pub async fn get_gemini_response(
                     for part in content.parts {
                         if let Some(text) = part.text {
                             complete_text = complete_text + &text;
-                            send_telegram_message(
+                            match send_telegram_message(
                                 telegram_bot_token.clone(),
                                 telegram_chat_id.clone(),
                                 complete_text.clone(),
                                 current_telegram_message_id.clone()
-                            ).await;
+                            ).await {
+                                Ok(_) => (),
+                                Err(e) => {
+                                    println!("Error sending message: {}", e);
+                                }
+                            }
                         }
                     }
                 }
@@ -126,7 +132,7 @@ pub async fn get_gemini_response(
     let content_model = Content {
         role: "model".to_string(),
         parts: vec![Part {
-            text: Some(complete_text),
+            text: Some(complete_text.clone()),
             function_call: None,
             function_response: None,
             inline_data: None,
@@ -160,7 +166,20 @@ pub async fn get_gemini_response(
         }
     }
     
+    match send_telegram_message(
+        telegram_bot_token.clone(),
+        telegram_chat_id.clone(),
+        complete_text,
+        current_telegram_message_id.clone()
+    ).await {
+        Ok(_) => (),
+        Err(e) => {
+            println!("Error sending message: {}", e);
+        }
+    }
+
     let message_response = String::from("Message sent successfully");
+
     Ok(message_response)   
 }
 
@@ -196,9 +215,11 @@ pub async fn send_telegram_message(
     chat_id: String, 
     text: String, 
     current_telegram_message_id: Arc<Mutex<Option<i64>>>
-) {
+) -> Result<(), Box<dyn std::error::Error>> {
     let telegram_client = Arc::new(Client::new());
     let telegram_api_url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
+    let text = replace_raw_escapes(&text);
+    
     let mut message_body = json!({
         "chat_id": chat_id,
         "text": text,
@@ -216,23 +237,25 @@ pub async fn send_telegram_message(
             "parse_mode": "markdown"
         });
             
-        let _response = telegram_client
+        let response = telegram_client
             .post(edit_message_url)
             .header("Content-Type", "application/json")
             .json(&message_body)
             .send()
             .await;
     
-        // match response {
-        //     Ok(res) => {
-        //         if !res.status().is_success(){
-        //             let err_body = res.text().await.unwrap_or_else(|_| String::from("Error Body couldn't be read"));
-        //             eprintln!("Failed to edit message to telegram: {}", err_body);
-        //         }
-        //     },
-        //     Err(e) => eprintln!("Error editing message on Telegram: {}", e),
-        // }
-    }else {
+        match response {
+            Ok(res) => {
+                if !res.status().is_success(){
+                    let err_body = res.text().await.unwrap_or_else(|_| String::from("Error Body couldn't be read"));
+                    println!("Failed to edit message to telegram: {}", err_body);
+                }
+            },
+            Err(e) => {
+                println!("Error editing message on Telegram: {}", e);
+            }
+        }
+    } else {
         let response = telegram_client
             .post(telegram_api_url)
             .header("Content-Type", "application/json")
@@ -245,11 +268,31 @@ pub async fn send_telegram_message(
                     let response_body: serde_json::Value = res.json().await.unwrap();
                     let message_id = response_body["result"]["message_id"].as_i64().unwrap();
                     *current_telegram_message_id.lock().await = Some(message_id);
+                    return Ok(());
+                } else {
+                    println!("Error sending message to Telegram: {:?}", res);
+                    return Err("Failed to sending message to Telegram".into());
                 }
             },
-            Err(e) => eprintln!("Error sending message to Telegram: {}", e),
+            Err(e) => {
+                println!("Error sending message to Telegram: {}", e);
+                return Err(Box::new(e));
+            }
         }
     }
+    
+    Ok(())
+}
+
+fn replace_raw_escapes(input: &str) -> String {  
+    let result = input
+        .replace("\n\n\n\n* ", "\n\n")    
+        .replace("\n\n\n* ", "\n\n")
+        .replace("\n\n* ", "\n\n")
+        .replace("\n* ", "\n")
+        .replace("**", "*");
+    
+    result
 }
 
 pub async fn get_chat_history(
@@ -331,7 +374,9 @@ pub async fn delete_chat_history(
     Ok(())
 }
 
-pub async fn read_chat_history(file_path: String) -> Result<Vec<Content>, Box<dyn std::error::Error>> {
+pub async fn read_chat_history(
+    file_path: String,
+) -> Result<Vec<Content>, Box<dyn std::error::Error>> {
     let mut file = match File::open(file_path) {
         Ok(file) => file,
         Err(e) => {

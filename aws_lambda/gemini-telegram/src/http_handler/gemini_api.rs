@@ -1,19 +1,18 @@
 #[allow(dead_code)]
-use aws_sdk_s3::Client as S3Client;
-use aws_sdk_s3::types::SdkError;
-use aws_sdk_s3::error::GetObjectError;
-use aws_sdk_s3::model::ObjectCannedAcl;
+use aws_sdk_s3::primitives::ByteStream;
 use reqwest::{Client, Response};
 use super::chat::ChatGemini;
 use super::libs::{Part, Content};
+use super::errors::{S3Error};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde_json::json;
 use std::fs::{self, File};
-use std::io::{self, Write};
+use std::io::{self, Write, Read};
 use futures::StreamExt;
 use futures::pin_mut;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use std::path::Path;
 
 pub async fn get_gemini_response(
     prompt: String, 
@@ -22,6 +21,25 @@ pub async fn get_gemini_response(
     is_image: bool,
     bucket_name: String,
 ) -> Result<String, Box<dyn std::error::Error>> {
+
+    let file_name = format!("chat-history-{}.json", telegram_chat_id);
+    let file_path = format!("/tmp/{}", file_name);
+
+    if prompt == "" {
+        return Ok("The prompt is empty.".to_string());
+    } else if prompt == "/new" {
+        match delete_chat_history (
+            bucket_name.clone(),
+            file_name.clone(),
+        ).await {
+            Ok(_) => {
+                return Ok("Chat history deleted.".to_string());
+            },
+            Err(e) => {
+                return Ok(format!("Error deleting chat history: {}", e));
+            }
+        }
+    }
 
     let client = Client::new();
     println!("Is image: {}", is_image);
@@ -46,39 +64,37 @@ pub async fn get_gemini_response(
                     questions or if they would like a summary of their session. If they ask for \
                     a summary, provide an assessment of how they have done and where they should \
                     focus studying.";
-
-    let file_name = format!("chat-history-{}.json", telegram_chat_id);
-    let file_path = format!("/tmp/{}", file_name);
     
     let content = Content {
         role: "user".to_string(),
         parts: vec![Part {
-            text: Some("I want to learn about the history of the United States.".to_string()),
+            text: Some(prompt.clone()),
             function_call: None,
             function_response: None,
             inline_data: None,
             file_data: None,
         }],
     };
-    let mut chat_history = vec![content];
+    let mut chat_history = vec![content.clone()];
 
-    match download_chat_history(
-        &bucket_name,
-        &file_name,
-        &file_path
+    match get_chat_history(
+        bucket_name.clone(),
+        file_name.clone(),
+        file_path.clone(),
     ).await {
-        Ok(_) => {
-            println!("File downloaded successfully");
-            chat_history = read_chat_history().await?;
+        Ok(bytes) => {
+            println!("File temp saved. Wrote {} bytes.", bytes);
+            chat_history = read_chat_history(file_path).await?;
+            chat_history.push(content.clone());
         },
         Err(e) => {
-            println!("Chat file not exist. {}", e);
+            println!("Proceed without file chat history. {}", e);
         }
     }
 
     let stream = llm
         .with_system_prompt(system_prompt)
-        .with_chat_history(chat_history)
+        .with_chat_history(chat_history.clone())
         .with_top_k(64)
         .stream_response(prompt);
 
@@ -120,13 +136,16 @@ pub async fn get_gemini_response(
 
     chat_history.push(content_model);
     let file_path_save = format!("/tmp/created-{}", file_name);
-    match save_chat_history(chat_history, file_path_save) {
+    match save_chat_history(
+        chat_history.clone(), 
+        file_path_save.clone(),
+    ).await {
         Ok(_) => {
             println!("Chat history saved to temp successfully");
-            match upload_chat_history(
-                &bucket_name,
-                &file_name,
-                &file_path_save
+            match put_chat_history(
+                bucket_name.clone(),
+                file_name.clone(),
+                file_path_save.clone(),
             ).await {
                 Ok(_) => {
                     println!("Chat history uploaded to bucket successfully");
@@ -233,35 +252,86 @@ pub async fn send_telegram_message(
     }
 }
 
-async fn download_chat_history(bucket: &str, key: &str, file_path: &str) -> Result<(), SdkError<GetObjectError>> {
-    let client = S3Client::new(&shared_config);
-    let resp = client.get_object()
-        .bucket(bucket)
+pub async fn get_chat_history(
+    bucket_name: String,
+    key: String,
+    file_path: String,
+) -> Result<usize, S3Error> {
+    let config = aws_config::load_from_env().await;
+    let client = aws_sdk_s3::Client::new(&config);
+
+    let mut file = File::create(file_path).map_err(|err| {
+        S3Error::new(format!(
+            "Failed to initialize file for saving S3 download: {err:?}"
+        ))
+    })?;
+
+    let mut object = client
+        .get_object()
+        .bucket(bucket_name)
         .key(key)
         .send()
         .await?;
+        
+        let mut byte_count = 0_usize;
+        while let Some(bytes) = object.body.try_next().await.map_err(|err| {
+            S3Error::new(format!("Failed to read from S3 download stream: {err:?}"))
+        })? {
+            let bytes_len = bytes.len();
+            file.write_all(&bytes).map_err(|err| {
+                S3Error::new(format!(
+                    "Failed to write from S3 download stream to local file: {err:?}"
+                ))
+            })?;
+            byte_count += bytes_len;
+        }
+    
+        Ok(byte_count)
+}
 
-    let body = resp.body.collect().await?;
-    fs::write(file_path, &body.into_bytes())?;
+pub async fn put_chat_history(
+    bucket_name: String,
+    key: String,
+    file_path: String,
+) -> Result<(), S3Error> {
+    let config = aws_config::load_from_env().await;
+    let client = aws_sdk_s3::Client::new(&config);
+
+    // Create a ByteStream from the file in the temp directory
+    let body = ByteStream::from_path(Path::new(&file_path))
+        .await
+        .map_err(|err| S3Error::new(format!("Failed to start file read stream: {err:?}")))?;
+
+    let request = client
+        .put_object()
+        .bucket(bucket_name)
+        .key(key)
+        .body(body)
+        .send()
+        .await?;
 
     Ok(())
 }
 
-async fn upload_chat_history(bucket: &str, key: &str, file_path: &str) -> Result<(), SdkError<GetObjectError>> {
-    let client = S3Client::new(&shared_config);
-    let body = fs::read(file_path)?;
-    client.put_object()
-        .bucket(bucket)
-        .key(key)
-        .body(body.into())
-        .acl(ObjectCannedAcl::Private)
+pub async fn delete_chat_history(
+    bucket_name: String,
+    key: String,
+) -> Result<(), S3Error> {
+    let config = aws_config::load_from_env().await;
+    let client = aws_sdk_s3::Client::new(&config);
+
+    client
+        .delete_object()
+        .bucket(&bucket_name)
+        .key(&key)
         .send()
         .await?;
 
+    println!("Object deleted: {}/{}", &bucket_name, &key);
     Ok(())
 }
 
-async fn read_chat_history(file_path: String) -> Result<Vec<Content>, Box<dyn std::error::Error>> {
+pub async fn read_chat_history(file_path: String) -> Result<Vec<Content>, Box<dyn std::error::Error>> {
     let mut file = match File::open(file_path) {
         Ok(file) => file,
         Err(e) => {
@@ -283,7 +353,7 @@ async fn read_chat_history(file_path: String) -> Result<Vec<Content>, Box<dyn st
     }
 }
 
-async fn save_chat_history(chat_history: Vec<Content>, file_path: String) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn save_chat_history(chat_history: Vec<Content>, file_path: String) -> Result<(), Box<dyn std::error::Error>> {
     let json = serde_json::to_string(&chat_history)?;
     let mut file = match File::create(file_path) {
         Ok(file) => file,

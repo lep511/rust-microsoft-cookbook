@@ -26,7 +26,7 @@ pub const DEBUG_POST: bool = false;
 pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Error> {
     let payload = event.payload;
     let payload_body = payload["body"].as_str().unwrap_or("no content");
-    println!("Payload: {:?}", payload_body);
+    // println!("Payload: {:?}", payload_body);
 
     let body_data: MessageBody = match serde_json::from_str(payload_body) {
         Ok(update) => update,
@@ -60,10 +60,18 @@ pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Err
         }
     };
 
-    let telegram_chat_id = match message.message_id {
-        Some(chat_id) => chat_id,
+    let telegram_chat_id = match message.chat {
+        Some(chat_id) => {
+            match chat_id.id {
+                Some(chat_id) => chat_id,
+                None => {
+                    println!("[ERROR] No id found in message.chat");
+                    return Ok(());
+                }
+            }
+        }
         None => {
-            println!("[ERROR] No chat_id found in the body");
+            println!("[ERROR] No message.chat found in the body");
             return Ok(());
         }
     };

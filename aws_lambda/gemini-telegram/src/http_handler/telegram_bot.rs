@@ -1,8 +1,9 @@
 use reqwest::{Client, Response};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::sync::Arc;
+use futures::StreamExt;
 use tokio::sync::Mutex;
 
 #[derive(Debug)]
@@ -71,7 +72,9 @@ pub struct PhotoData {
 pub struct TelegramGetFile {
     pub ok: bool,
     pub result: Option<FileInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
 
@@ -80,7 +83,7 @@ pub struct TelegramGetFile {
 pub struct FileInfo {
     pub file_id: String,
     pub file_unique_id: String,
-    pub ile_size: u32,
+    pub file_size: u32,
     pub file_path: Option<String>,
 }
 
@@ -191,35 +194,50 @@ pub async fn telegram_get_file_data(
     telegram_bot_token: String,
     ) -> Result<String, Box<dyn std::error::Error>> {
     
-    let telegram_client = Arc::new(Client::new());
+    let telegram_client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
     let telegram_api_url = format!(
-        "https://api.telegram.org/bot{}/getFile?file_id={}", 
+        "https://api.telegram.org/bot{}/getFile", 
         telegram_bot_token,
-        file_id,
     );
+
+    let message_body = json!({
+        "file_id": file_id
+    });
     
-    let file_info: TelegramGetFile = telegram_client
-        .get(telegram_api_url)
+    let response = telegram_client
+        .post(telegram_api_url)
+        .header("Content-Type", "application/json")
+        .json(&message_body)
         .send()
         .await?
-        .json()
+        .json::<serde_json::Value>()
         .await?;
+    
+    // println!("response: {:?}", res);
+    let file_info: TelegramGetFile = serde_json::from_value(response)
+        .map_err(|e| format!("Error parsing JSON: {}", e))?;
+    
+    let file_path = file_info.result
+        .ok_or("Missing result in response")?
+        .file_path
+        .ok_or("Missing file path")?;
+        
+    let file_url = format!(
+        "https://api.telegram.org/file/bot{}/{}", 
+        telegram_bot_token, 
+        file_path
+    );
+    
+    Ok(telegram_client
+        .get(&file_url)
+        .send()
+        .await?
+        .bytes()
+        .await
+        .map(|bytes| STANDARD.encode(bytes))?)
 
-    if file_info.ok {
-        let file_path = file_info.result.unwrap().file_path.unwrap();
-        let file_url = format!(
-            "https://api.telegram.org/file/bot{}/{}", 
-            telegram_bot_token, 
-            file_path,
-        );
-        let image_response = telegram_client.get(&file_url).send().await?;
-        let image_bytes = image_response.bytes().await?;
-        // std::fs::write("image.jpg", &bytes)?;
-        // println!("Image saved as image.jpg");
-        Ok(STANDARD.encode(image_bytes))
-    } else {
-        Err(format!("Error getting file info: {:?}", file_info.description).into())
-    }
 }
 
 pub fn replace_raw_escapes(input: &str) -> String {  

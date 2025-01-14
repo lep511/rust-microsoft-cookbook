@@ -105,7 +105,10 @@ pub async fn get_gemini_response(
             telegram_bot_token.clone(),
         ).await {
             Ok(image) => image,
-            Err(e) => return Err(e.into()),
+            Err(e) => {
+                println!("Error getting image: {}", e);
+                return Err(e.into());
+            }
         };
         
         let mime_type = "image/jpeg";
@@ -170,15 +173,12 @@ pub async fn get_gemini_response(
         file_path_save.clone(),
     ).await {
         Ok(_) => {
-            println!("Chat history saved to temp successfully");
             match put_chat_history(
                 bucket_name.clone(),
                 file_name.clone(),
                 file_path_save.clone(),
             ).await {
-                Ok(_) => {
-                    println!("Chat history uploaded to bucket successfully");
-                },
+                Ok(_) => (),
                 Err(e) => {
                     println!("Error saving chat history to bucket: {}", e);
                 }

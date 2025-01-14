@@ -78,7 +78,7 @@ pub async fn get_grok_response(
     
     let request_body = match is_image {
         true => {
-            let file_id = prompt;
+            let file_id = prompt.clone();
             let image_base64 = match telegram_get_file_data(
                 file_id,
                 telegram_bot_token.clone(),

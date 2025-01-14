@@ -94,6 +94,7 @@ pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Err
     // Verify type of message
     if message.photo.is_some() {
         println!("Photo received");
+        println!("Photo: {:?}", message.photo);
         let prompt = message.photo.unwrap().last().unwrap().file_id.clone();
         let is_image = true;
 

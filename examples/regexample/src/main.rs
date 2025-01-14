@@ -1,4 +1,4 @@
-//use regex::Regex;
+use regex::Regex;
 use reqwest::{Client, Response};
 use serde_json::json;
 
@@ -8,6 +8,7 @@ fn replace_raw_escapes(input: &str) -> String {
         .replace("\n\n\n* ", "\n\n")
         .replace("\n\n* ", "\n\n")
         .replace("\n* ", "\n")
+        .replace("* ", "")
         .replace("**", "*");
     
     result
@@ -53,7 +54,7 @@ pub async fn send_telegram_message(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let text = "De acuerdo. La respuesta a la pregunta anterior es:\n\nLos **Lifetimes** en Rust son una forma de que el compilador garantice que las referencias sean válidas durante el tiempo que se necesitan.  En esencia, un lifetime es el lapso de tiempo durante el cual una referencia es válida.  Son necesarios para prevenir *dangling pointers*, que son referencias a memoria que ya ha sido liberada.\n\n**Ejemplo:**\n\nImagina una función que devuelve una referencia a una cadena de caracteres creada dentro de la función:\n\n```\nfn devuelve_referencia() -> &str {\n    let s = String::from(\"Hola\");\n    &s // Problema: 's' deja de existir al final de la función\n}\n```\n\nEn este caso, `s` deja de existir al final de la función. Si se devolviera una referencia a `s`, estaríamos intentando usar una referencia a memoria que ya no es válida.  Aquí es donde entran los lifetimes.  El compilador usaría lifetimes para detectar este problema y generar un error de compilación.\n\nUn lifetime se denota con una apóstrofe (`'`) seguido de un nombre (e.g., `'a`). Se utilizan en la firma de la función para indicar la relación entre la duración de las referencias de entrada y la duración de la referencia de salida.\n\n\nAquí va la siguiente pregunta (y última por ahora):\n\nExplica el concepto de *ownership* en Rust y cómo se relaciona con la gestión de memoria.  Describe las reglas básicas de ownership.\n\n\n";
+    let text = "**¡Exactamente!** La respuesta correcta es A.\n\nAnalicemos el código paso a paso:\n\n1. `let x = 5;` declara una variable `x` y le asigna el valor 5.\n2. `let y = &x;` crea una referencia `y` a `x`.  `y` now holds the memory address of `x`.\n3. `let z = Box::new(y);` crea un `Box` que contiene la referencia `y`.  A `Box` allows you to allocate data on the heap and have a pointer to it on the stack.  In this case, the `Box` contains a reference to a value on the stack (`x`).\n4. `println!(\"{}\", **z);` imprime el valor al que apunta `z`.  Since `z` is a `Box` containing a reference, we need to dereference it twice:\n    * The first `*` dereferences the `Box`, giving us the reference `y`.\n    * The second `*` dereferences the reference `y`, giving us the value of `x`, which is 5.\n\n**Pregunta 4 (Avanzado):**\n\nDada la siguiente enumeración:\n\n```rust\nenum MyEnum {\n    Value(i32),\n    Reference(&'static str),\n}\n```\n\n¿Cómo se accedería al valor entero contenido en una instancia de `MyEnum::Value` utilizando pattern matching?\n\n\nA) `if let MyEnum::Value(value) = my_enum { println!(\"{}\", value); }`\nB) `match my_enum { MyEnum::Value => println!(\"{}\", my_enum), _ => {} }`\nC) `let MyEnum::Value(value) = my_enum; println!(\"{}\", value);`\nD) `println!(\"{}\", my_enum.Value);`\n\n\nElige la respuesta correcta (A, B, C o D).\n\n\n";
     send_telegram_message(text).await;
 
     Ok(())

@@ -5,6 +5,7 @@ use super::chat::ChatGemini;
 use super::libs::{Part, Content};
 use super::errors::{S3Error};
 use base64::{engine::general_purpose::STANDARD, Engine};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs::{self, File};
 use std::io::{self, Write, Read};
@@ -13,6 +14,24 @@ use futures::pin_mut;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use std::path::Path;
+
+#[allow(dead_code)]
+#[derive(Deserialize, Debug)]
+struct TelegramGetFile {
+    ok: bool,
+    result: Option<FileInfo>,
+    error_code: Option<i32>,
+    description: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Deserialize, Debug)]
+struct FileInfo {
+    file_id: String,
+    file_unique_id: String,
+    file_size: i64,
+    file_path: Option<String>,
+}
 
 pub async fn get_gemini_response(
     mut prompt: String, 
@@ -43,9 +62,7 @@ pub async fn get_gemini_response(
     }
 
     let client = Client::new();
-    println!("Is image: {}", is_image);
-
-    let llm = ChatGemini::new("learnlm-1.5-pro-experimental")?;
+    let mut llm = ChatGemini::new("learnlm-1.5-pro-experimental")?;
 
     let system_prompt = "You are a tutor helping a student prepare for a test. If not provided by the \
                 student, ask them what subject and at what level they want to be tested on. \
@@ -83,15 +100,36 @@ pub async fn get_gemini_response(
             println!("File temp saved. Wrote {} bytes.", bytes);
             chat_history = read_chat_history(file_path).await?;
             chat_history.push(content.clone());
+            llm = llm.with_chat_history(chat_history.clone());
         },
         Err(e) => {
             println!("Proceed without file chat history. {}", e);
         }
     }
 
+    if is_image {
+        println!("Is image: {}", is_image);
+        let file_id = prompt.clone();
+        prompt = "Explain this image.".to_string();
+        
+        let image_base64 = match telegram_get_file_data(
+            file_id,
+            telegram_bot_token.clone(),
+        ).await {
+            Ok(image) => image,
+            Err(e) => return Err(e.into()),
+        };
+        
+        let mime_type = "image/jpeg";
+        
+        llm = llm.with_image(
+            &image_base64,
+            mime_type,
+        );
+    }
+
     let stream = llm
         .with_system_prompt(system_prompt)
-        .with_chat_history(chat_history.clone())
         .with_max_tokens(8192)
         .with_top_k(64)
         .stream_response(prompt);
@@ -289,9 +327,46 @@ fn replace_raw_escapes(input: &str) -> String {
         .replace("\n\n\n* ", "\n\n")
         .replace("\n\n* ", "\n\n")
         .replace("\n* ", "\n")
+        .replace("* ", "")
         .replace("**", "*");
     
     result
+}
+
+pub async fn telegram_get_file_data(
+    file_id: String, 
+    telegram_bot_token: String,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+    
+    let telegram_client = Arc::new(Client::new());
+    let telegram_api_url = format!(
+        "https://api.telegram.org/bot{}/getFile?file_id={}", 
+        telegram_bot_token,
+        file_id,
+    );
+    
+    let file_info: TelegramGetFile = telegram_client
+        .get(telegram_api_url)
+        .send()
+        .await?
+        .json()
+        .await?;
+
+    if file_info.ok {
+        let file_path = file_info.result.unwrap().file_path.unwrap();
+        let file_url = format!(
+            "https://api.telegram.org/file/bot{}/{}", 
+            telegram_bot_token, 
+            file_path,
+        );
+        let image_response = telegram_client.get(&file_url).send().await?;
+        let image_bytes = image_response.bytes().await?;
+        // std::fs::write("image.jpg", &bytes)?;
+        // println!("Image saved as image.jpg");
+        Ok(STANDARD.encode(image_bytes))
+    } else {
+        Err(format!("Error getting file info: {:?}", file_info.description).into())
+    }
 }
 
 pub async fn get_chat_history(

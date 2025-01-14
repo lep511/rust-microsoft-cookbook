@@ -1,12 +1,13 @@
 #[allow(dead_code)]
 use aws_sdk_s3::primitives::ByteStream;
-use reqwest::{Client, Response};
+use super::telegram_bot::{
+    TelegramMessage,
+    send_telegram_message, 
+    telegram_get_file_data
+};
 use super::chat::ChatGemini;
 use super::libs::{Part, Content};
 use super::errors::{S3Error};
-use base64::{engine::general_purpose::STANDARD, Engine};
-use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::fs::{self, File};
 use std::io::{self, Write, Read};
 use futures::StreamExt;
@@ -15,53 +16,44 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use std::path::Path;
 
-#[allow(dead_code)]
-#[derive(Deserialize, Debug)]
-struct TelegramGetFile {
-    ok: bool,
-    result: Option<FileInfo>,
-    error_code: Option<i32>,
-    description: Option<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Deserialize, Debug)]
-struct FileInfo {
-    file_id: String,
-    file_unique_id: String,
-    file_size: i64,
-    file_path: Option<String>,
-}
-
 pub async fn get_gemini_response(
-    mut prompt: String, 
+    message: TelegramMessage,
     telegram_bot_token: String, 
     telegram_chat_id: String,
-    is_image: bool,
     bucket_name: String,
 ) -> Result<String, Box<dyn std::error::Error>> {
 
     let file_name = format!("chat-history-{}.json", telegram_chat_id);
     let file_path = format!("/tmp/{}", file_name);
+    let mut prompt = String::new();
+    let mut image_file_id = String::from("");
+    let mut is_image = false;
 
-    if prompt == "" {
-        return Ok("The prompt is empty.".to_string());
-    } else if prompt == "/new" || prompt == "/start" {
-        match delete_chat_history (
-            bucket_name.clone(),
-            file_name.clone(),
-        ).await {
-            Ok(_) => {
-                println!("Chat history deleted.");
-                prompt = "Hi tehere!".to_string();
-            },
-            Err(e) => {
-                println!("Error deleting chat history: {}", e);
+    match message {
+        TelegramMessage::Text { content } => {
+            prompt = content.clone();
+            if content == "/new" || content == "/start" {
+                match delete_chat_history (
+                    bucket_name.clone(),
+                    file_name.clone(),
+                ).await {
+                    Ok(_) => {
+                        println!("Chat history deleted.");
+                        prompt = "Hi tehere!".to_string();
+                    },
+                    Err(e) => {
+                        println!("Error deleting chat history: {}", e);
+                    }
+                }
             }
+        },
+        TelegramMessage::Image { file_id, caption } => {    
+            prompt = caption.clone();
+            image_file_id = file_id.clone();
+            is_image = true;
         }
     }
 
-    let client = Client::new();
     let mut llm = ChatGemini::new("learnlm-1.5-pro-experimental")?;
 
     let system_prompt = "You are a tutor helping a student prepare for a test. If not provided by the \
@@ -107,13 +99,9 @@ pub async fn get_gemini_response(
         }
     }
 
-    if is_image {
-        println!("Is image: {}", is_image);
-        let file_id = prompt.clone();
-        prompt = "Explain this image.".to_string();
-        
+    if is_image {       
         let image_base64 = match telegram_get_file_data(
-            file_id,
+            image_file_id,
             telegram_bot_token.clone(),
         ).await {
             Ok(image) => image,
@@ -217,156 +205,6 @@ pub async fn get_gemini_response(
     let message_response = String::from("Message sent successfully");
 
     Ok(message_response)   
-}
-
-/// Sends or edits a message on Telegram using the Bot API
-///
-/// # Arguments
-///
-/// * `bot_token` - The authentication token for the Telegram bot
-/// * `chat_id` - The unique identifier for the target chat
-/// * `text` - The text message to be sent/edited (supports Markdown formatting)
-/// * `current_telegram_message_id` - Thread-safe reference to the current message ID. If Some(id), 
-///    the function will attempt to edit that message. If None, sends a new message.
-///
-/// # Examples
-///
-/// ```
-/// let message_id = Arc::new(Mutex::new(None));
-/// send_telegram_message(
-///     "BOT_TOKEN".to_string(),
-///     "CHAT_ID".to_string(), 
-///     "Hello World!".to_string(),
-///     message_id
-/// ).await;
-/// ```
-///
-/// # Notes
-///
-/// - Uses markdown parsing mode for message formatting
-/// - Stores the message ID of newly sent messages in the provided Arc<Mutex>
-/// - Prints errors to stderr but does not propagate them
-pub async fn send_telegram_message(
-    bot_token: String, 
-    chat_id: String, 
-    text: String,
-    current_telegram_message_id: Arc<Mutex<Option<i64>>>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let telegram_client = Arc::new(Client::new());
-    let telegram_api_url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
-    let text = replace_raw_escapes(&text);
-    
-    let mut message_body = json!({
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "markdown"
-    });
-
-    let current_message_id = *current_telegram_message_id.lock().await;
-    
-    if let Some(message_id) = current_message_id {
-        let edit_message_url = format!("https://api.telegram.org/bot{}/editMessageText", bot_token);
-        message_body = json!({
-            "chat_id": chat_id,
-            "text": text,
-            "message_id": message_id,
-            "parse_mode": "markdown"
-        });
-            
-        let response = telegram_client
-            .post(edit_message_url)
-            .header("Content-Type", "application/json")
-            .json(&message_body)
-            .send()
-            .await;
-    
-        match response {
-            Ok(res) => {
-                if !res.status().is_success(){
-                    let err_body = res.text().await.unwrap_or_else(|_| String::from("Error Body couldn't be read"));
-                    println!("Failed to edit message to telegram: {}", err_body);
-                }
-            },
-            Err(e) => {
-                println!("Error editing message on Telegram: {}", e);
-                
-            }
-        }
-    } else {
-        let response = telegram_client
-            .post(telegram_api_url)
-            .header("Content-Type", "application/json")
-            .json(&message_body)
-            .send()
-            .await;
-        match response {
-            Ok(res) => {
-                if res.status().is_success(){
-                    let response_body: serde_json::Value = res.json().await.unwrap();
-                    let message_id = response_body["result"]["message_id"].as_i64().unwrap();
-                    *current_telegram_message_id.lock().await = Some(message_id);
-                    return Ok(());
-                } else {
-                    println!("Error sending message to Telegram: {:?}", res);
-                    return Err("Failed to sending message to Telegram".into());
-                }
-            },
-            Err(e) => {
-                println!("Error sending message to Telegram: {}", e);
-                return Err(Box::new(e));
-            }
-        }
-    }
-    
-    Ok(())
-}
-
-fn replace_raw_escapes(input: &str) -> String {  
-    let result = input
-        .replace("\n\n\n\n* ", "\n\n")    
-        .replace("\n\n\n* ", "\n\n")
-        .replace("\n\n* ", "\n\n")
-        .replace("\n* ", "\n")
-        .replace("* ", "")
-        .replace("**", "*");
-    
-    result
-}
-
-pub async fn telegram_get_file_data(
-    file_id: String, 
-    telegram_bot_token: String,
-    ) -> Result<String, Box<dyn std::error::Error>> {
-    
-    let telegram_client = Arc::new(Client::new());
-    let telegram_api_url = format!(
-        "https://api.telegram.org/bot{}/getFile?file_id={}", 
-        telegram_bot_token,
-        file_id,
-    );
-    
-    let file_info: TelegramGetFile = telegram_client
-        .get(telegram_api_url)
-        .send()
-        .await?
-        .json()
-        .await?;
-
-    if file_info.ok {
-        let file_path = file_info.result.unwrap().file_path.unwrap();
-        let file_url = format!(
-            "https://api.telegram.org/file/bot{}/{}", 
-            telegram_bot_token, 
-            file_path,
-        );
-        let image_response = telegram_client.get(&file_url).send().await?;
-        let image_bytes = image_response.bytes().await?;
-        // std::fs::write("image.jpg", &bytes)?;
-        // println!("Image saved as image.jpg");
-        Ok(STANDARD.encode(image_bytes))
-    } else {
-        Err(format!("Error getting file info: {:?}", file_info.description).into())
-    }
 }
 
 pub async fn get_chat_history(
@@ -492,40 +330,3 @@ pub async fn save_chat_history(chat_history: Vec<Content>, file_path: String) ->
         }
     }
 }
-
-// pub async fn telegram_get_file_data(
-//     file_id: String, 
-//     telegram_bot_token: String,
-//     ) -> Result<String, Box<dyn std::error::Error>> {
-    
-//     let telegram_client = Arc::new(Client::new());
-//     let telegram_api_url = format!(
-//         "https://api.telegram.org/bot{}/getFile?file_id={}", 
-//         telegram_bot_token,
-//         file_id,
-//     );
-    
-//     let file_info: TelegramGetFile = telegram_client
-//         .get(telegram_api_url)
-//         .send()
-//         .await?
-//         .json()
-//         .await?;
-
-//     if file_info.ok {
-//         let file_path = file_info.result.unwrap().file_path.unwrap();
-//         let file_url = format!(
-//             "https://api.telegram.org/file/bot{}/{}", 
-//             telegram_bot_token, 
-//             file_path,
-//         );
-//         let image_response = telegram_client.get(&file_url).send().await?;
-//         let image_bytes = image_response.bytes().await?;
-//         // std::fs::write("image.jpg", &bytes)?;
-//         // println!("Image saved as image.jpg");
-//         println!("File url get successfully");
-//         Ok(STANDARD.encode(image_bytes))
-//     } else {
-//         Err(format!("Error getting file info: {:?}", file_info.description).into())
-//     }
-// }

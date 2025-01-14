@@ -1,11 +1,13 @@
 use lambda_runtime::{tracing, Error, LambdaEvent};
 use gemini_api::get_gemini_response;
 use libs::{Part, Content};
+use telegram_bot::{MessageBody, TelegramMessage};
 use serde::Deserialize;
 use serde_json::Value;
 use std::env;
 
 pub mod gemini_api;
+pub mod telegram_bot;
 pub mod chat;
 pub mod embed;
 pub mod gen_config;
@@ -20,43 +22,6 @@ pub static UPLOAD_BASE_URL: &str = "https://generativelanguage.googleapis.com/up
 
 pub const DEBUG_PRE: bool = false;
 pub const DEBUG_POST: bool = false;
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
-struct MessageBody {
-    message: MessageData,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
-struct MessageData {
-    message_id: i64,
-    from: UserData,
-    // chat: Chat,
-    date: i64,
-    text: Option<String>,
-    photo: Option<Vec<Photo>>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
-struct Photo {
-    file_id: String,
-    file_unique_id: String,
-    file_size: i64,
-    width: i64,
-    height: i64,
-    caption: Option<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
-struct UserData {
-    id: i32,
-    is_bot: bool,
-    first_name: String,
-    language_code: String,
-}
 
 pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Error> {
     let payload = event.payload;
@@ -87,22 +52,53 @@ pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Err
         }
     };
 
-    let telegram_chat_id = body_data.message.from.id;
-    let message = body_data.message.clone();
-    // let user_id = chat_id.to_string();
+    let message = match body_data.message {
+        Some(message) => message,
+        None => {
+            println!("[ERROR] No message found in the body");
+            return Ok(());
+        }
+    };
+
+    let telegram_chat_id = match message.message_id {
+        Some(chat_id) => chat_id,
+        None => {
+            println!("[ERROR] No chat_id found in the body");
+            return Ok(());
+        }
+    };
     
     // Verify type of message
-    if message.photo.is_some() {
+    if let Some(photo) = message.photo {
         println!("Photo received");
-        println!("Photo: {:?}", message.photo);
-        let prompt = message.photo.unwrap().last().unwrap().file_id.clone();
-        let is_image = true;
+
+        let default_caption = "Analyze this image in few lines.".to_string();
+        let caption = message.caption.unwrap_or(default_caption);
+        let file_id = match photo.last() {
+            Some(photo) => {
+                match &photo.file_id {
+                    Some(file_id) => file_id,
+                    None => {
+                        println!("[ERROR] No file_id found in the body");
+                        return Ok(());
+                    }
+                }
+            }
+            None => {
+                println!("[ERROR] No photo found in the body");
+                return Ok(());
+            }
+        };
+
+        let message_type = TelegramMessage::Image {
+            file_id: file_id.to_string(),
+            caption: caption,
+        };
 
         match get_gemini_response(
-            prompt,
+            message_type,
             telegram_bot_token,
             telegram_chat_id.to_string(),
-            is_image,
             bucket_name,
         ).await {
             Ok(response) => {
@@ -112,18 +108,18 @@ pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Err
                 println!("[ERROR]: {}", e);
             }
         }
-    } else if message.text.is_some() {
-        println!("Text received");
-        let is_image = false;
-        let prompt = message.text.as_ref()
-            .ok_or("Text message is empty")?
-            .to_string();
     
+    } else if let Some(text) = message.text {
+        println!("Text received");
+
+        let message_type = TelegramMessage::Text {
+            content: text,
+        };
+        
         match get_gemini_response(
-            prompt,
+            message_type,
             telegram_bot_token,
             telegram_chat_id.to_string(),
-            is_image,
             bucket_name,
         ).await {
             Ok(response) => {

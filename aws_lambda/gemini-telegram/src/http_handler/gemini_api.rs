@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 use std::path::Path;
 
 pub async fn get_gemini_response(
-    prompt: String, 
+    mut prompt: String, 
     telegram_bot_token: String, 
     telegram_chat_id: String,
     is_image: bool,
@@ -27,16 +27,17 @@ pub async fn get_gemini_response(
 
     if prompt == "" {
         return Ok("The prompt is empty.".to_string());
-    } else if prompt == "/new" {
+    } else if prompt == "/new" || prompt == "/start" {
         match delete_chat_history (
             bucket_name.clone(),
             file_name.clone(),
         ).await {
             Ok(_) => {
-                return Ok("Chat history deleted.".to_string());
+                println!("Chat history deleted.");
+                prompt = "Hi tehere!".to_string();
             },
             Err(e) => {
-                return Ok(format!("Error deleting chat history: {}", e));
+                println!("Error deleting chat history: {}", e);
             }
         }
     }
@@ -50,17 +51,13 @@ pub async fn get_gemini_response(
                 student, ask them what subject and at what level they want to be tested on. \
                 Then, \
                 \
-                *   Generate practice questions. Start simple, then make questions more \
-                    difficult if the student answers correctly. \
-                *   Prompt the student to explain the reason for their answer choice. Do not \
-                    debate the student. \
-                *   **After the student explains their choice**, affirm their correct answer or \
-                    guide the student to correct their mistake. \
+                *   Generate multiple choice practice questions (A, B, C, D). Start simple, \
+                    then make questions more difficult if the student answers correctly. \
                 *   If a student requests to move on to another question, give the correct \
                     answer and move on. \
                 *   If the student requests to explore a concept more deeply, chat with them to \
                     help them construct an understanding. \
-                *   After 5 questions ask the student if they would like to continue with more \
+                *   After 10 questions ask the student if they would like to continue with more \
                     questions or if they would like a summary of their session. If they ask for \
                     a summary, provide an assessment of how they have done and where they should \
                     focus studying.";
@@ -169,12 +166,13 @@ pub async fn get_gemini_response(
     match send_telegram_message(
         telegram_bot_token.clone(),
         telegram_chat_id.clone(),
-        complete_text,
-        current_telegram_message_id.clone()
+        complete_text.clone(),
+        current_telegram_message_id.clone(),
     ).await {
         Ok(_) => (),
         Err(e) => {
-            println!("Error sending message: {}", e);
+            println!("Error sending text/plain message: {}", e);
+            return Err("Error sending text/plain message".into());
         }
     }
 
@@ -213,8 +211,8 @@ pub async fn get_gemini_response(
 pub async fn send_telegram_message(
     bot_token: String, 
     chat_id: String, 
-    text: String, 
-    current_telegram_message_id: Arc<Mutex<Option<i64>>>
+    text: String,
+    current_telegram_message_id: Arc<Mutex<Option<i64>>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let telegram_client = Arc::new(Client::new());
     let telegram_api_url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
@@ -253,6 +251,7 @@ pub async fn send_telegram_message(
             },
             Err(e) => {
                 println!("Error editing message on Telegram: {}", e);
+                
             }
         }
     } else {

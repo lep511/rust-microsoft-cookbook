@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let base64_string_01 = STANDARD.encode(&buffer_01);
 
     let llm = ChatGemini::new("gemini-1.5-flash-001")?;
-
+    
     let instruction = "You are an expert at analyzing transcripts.";
     let ttl = 300;
 

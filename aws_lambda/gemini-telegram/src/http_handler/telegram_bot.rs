@@ -15,6 +15,11 @@ pub enum TelegramMessage {
     Text {
         content: String,
     },
+    Document {
+        file_id: String,
+        caption: String,
+        mime_type: String,
+    },
 }
 
 #[allow(dead_code)]
@@ -37,6 +42,8 @@ pub struct MessageData {
     pub caption: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document: Option<DocumentData>,
 }
 
 #[allow(dead_code)]
@@ -65,6 +72,16 @@ pub struct PhotoData {
     pub file_size: Option<u32>,
     pub width: Option<u32>,
     pub height: Option<u32>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DocumentData {
+    pub file_name: Option<String>,
+    pub mime_type: Option<String>,
+    pub file_id: Option<String>,
+    pub file_unique_id: Option<String>,
+    pub file_size: Option<i64>,
 }
 
 #[allow(dead_code)]
@@ -115,9 +132,9 @@ pub struct FileInfo {
 /// - Stores the message ID of newly sent messages in the provided Arc<Mutex>
 /// - Prints errors to stderr but does not propagate them
 pub async fn send_telegram_message(
-    bot_token: String, 
-    chat_id: String, 
-    text_raw: String,
+    bot_token: &str, 
+    chat_id: u32, 
+    text_raw: &str,
     current_telegram_message_id: Arc<Mutex<Option<i64>>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let telegram_client = Arc::new(Client::new());
@@ -190,8 +207,8 @@ pub async fn send_telegram_message(
 }
 
 pub async fn telegram_get_file_data(
-    file_id: String, 
-    telegram_bot_token: String,
+    file_id: &str, 
+    telegram_bot_token: &str,
     ) -> Result<String, Box<dyn std::error::Error>> {
     
     let telegram_client = Client::builder()
@@ -263,7 +280,6 @@ pub fn replace_raw_escapes(sentence: &str) -> String {
     // Convert to UTF-16
     let utf16_string: Vec<u16> = new_sentence.encode_utf16().collect();
     
-    // If you need to convert back to String:
     let decoded_string = String::from_utf16(&utf16_string).unwrap_or_default();
     let decoded_string = decoded_string.replace("\\*\\*", "*");
     decoded_string

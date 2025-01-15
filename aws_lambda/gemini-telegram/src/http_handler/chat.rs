@@ -477,7 +477,7 @@ impl ChatGemini {
         self
     }
 
-    pub fn with_image(mut self, image: &str, mime_type: &str) -> Self {
+    pub fn with_inline_data(mut self, inline_data: &str, mime_type: &str) -> Self {
         let content = Content {
             role: "user".to_string(),
             parts: vec![Part {
@@ -486,7 +486,7 @@ impl ChatGemini {
                 function_response: None,
                 inline_data: Some(InlineData {
                     mime_type: mime_type.to_string(),
-                    data: Some(image.to_string()),
+                    data: Some(inline_data.to_string()),
                 }),
                 file_data: None,
             }],

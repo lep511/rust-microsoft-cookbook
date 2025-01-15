@@ -21,8 +21,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let base64_string_02 = STANDARD.encode(&buffer_02);
 
     let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
-    let llm = llm.with_image_jpeg(&base64_string_01);
-    let llm = llm.with_image_png(&base64_string_02);
+    let llm = llm.with_inline_data_jpeg(&base64_string_01);
+    let llm = llm.with_inline_data_png(&base64_string_02);
     let prompt = "Compare the two pictures provided";
     let response = llm.invoke(prompt).await?;
 

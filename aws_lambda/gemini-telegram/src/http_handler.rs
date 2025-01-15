@@ -19,6 +19,7 @@ pub mod errors;
 
 pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 pub static UPLOAD_BASE_URL: &str = "https://generativelanguage.googleapis.com/upload/v1beta";
+pub static GEMINI_MODEL: &str = "learnlm-1.5-pro-experimental";
 
 pub const DEBUG_PRE: bool = false;
 pub const DEBUG_POST: bool = false;
@@ -26,7 +27,7 @@ pub const DEBUG_POST: bool = false;
 pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Error> {
     let payload = event.payload;
     let payload_body = payload["body"].as_str().unwrap_or("no content");
-    // println!("Payload: {:?}", payload_body);
+    println!("Payload: {:?}", payload_body);
 
     let body_data: MessageBody = match serde_json::from_str(payload_body) {
         Ok(update) => update,
@@ -104,10 +105,10 @@ pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Err
         };
 
         match get_gemini_response(
-            message_type,
-            telegram_bot_token,
-            telegram_chat_id.to_string(),
-            bucket_name,
+            &message_type,
+            &telegram_bot_token,
+            telegram_chat_id,
+            &bucket_name,
         ).await {
             Ok(response) => {
                 println!("Photo processed: {}", response);
@@ -116,19 +117,53 @@ pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Err
                 println!("[ERROR]: {}", e);
             }
         }
-    
+    } else if let Some(document) = message.document {
+        println!("Document received");
+
+        let default_caption = "Analyze this document in few lines.".to_string();
+        let caption = message.caption.unwrap_or(default_caption);
+
+        let file_id = match &document.file_id {
+            Some(file_id) => file_id,
+            None => {
+                println!("[ERROR] No file_id found in the body");
+                return Ok(());
+            }
+        };
+
+        let mime_type = &document.mime_type.unwrap_or("application/pdf".to_string());
+
+        let message_type = TelegramMessage::Document {
+            file_id: file_id.to_string(),
+            caption: caption,
+            mime_type: mime_type.to_string(),
+        };
+
+        match get_gemini_response(
+            &message_type,
+            &telegram_bot_token,
+            telegram_chat_id,
+            &bucket_name,
+        ).await {
+            Ok(response) => {
+                println!("Document processed: {}", response);
+            }
+            Err(e) => {
+                println!("[ERROR]: {}", e);
+            }
+        }
     } else if let Some(text) = message.text {
         println!("Text received");
 
         let message_type = TelegramMessage::Text {
-            content: text,
+            content: text.to_string(),
         };
         
         match get_gemini_response(
-            message_type,
-            telegram_bot_token,
-            telegram_chat_id.to_string(),
-            bucket_name,
+            &message_type,
+            &telegram_bot_token,
+            telegram_chat_id,
+            &bucket_name,
         ).await {
             Ok(response) => {
                 println!("Text processed: {}", response);

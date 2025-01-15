@@ -6,6 +6,7 @@ use super::telegram_bot::{
     telegram_get_file_data
 };
 use super::chat::ChatGemini;
+use super::GEMINI_MODEL;
 use super::libs::{Part, Content};
 use super::errors::{S3Error};
 use std::fs::{self, File};
@@ -17,25 +18,24 @@ use tokio::sync::Mutex;
 use std::path::Path;
 
 pub async fn get_gemini_response(
-    message: TelegramMessage,
-    telegram_bot_token: String, 
-    telegram_chat_id: String,
-    bucket_name: String,
+    message: &TelegramMessage,
+    telegram_bot_token: &str, 
+    telegram_chat_id: u32,
+    bucket_name: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
 
     let file_name = format!("chat-history-{}.json", telegram_chat_id);
     let file_path = format!("/tmp/{}", file_name);
     let mut prompt = String::new();
-    let mut image_file_id = String::from("");
-    let mut is_image = false;
 
+    // First check of type 1/2
     match message {
-        TelegramMessage::Text { content } => {
-            prompt = content.clone();
-            if content == "/new" || content == "/start" {
+        TelegramMessage::Text { ref content } => {
+            prompt = content.to_string();
+            if prompt == "/new" || prompt == "/start" {
                 match delete_chat_history (
-                    bucket_name.clone(),
-                    file_name.clone(),
+                    bucket_name,
+                    &file_name,
                 ).await {
                     Ok(_) => {
                         println!("Chat history deleted.");
@@ -47,14 +47,15 @@ pub async fn get_gemini_response(
                 }
             }
         },
-        TelegramMessage::Image { file_id, caption } => {    
+        TelegramMessage::Image { file_id: _, caption } => {    
             prompt = caption.clone();
-            image_file_id = file_id.clone();
-            is_image = true;
-        }
+        },
+        TelegramMessage::Document { file_id: _, caption, mime_type: _ } => {
+            prompt = caption.clone();
+        },
     }
 
-    let mut llm = ChatGemini::new("learnlm-1.5-pro-experimental")?;
+    let mut llm = ChatGemini::new(GEMINI_MODEL)?;
 
     let system_prompt = "You are a tutor helping a student prepare for a test. If not provided by the \
                 student, ask them what subject and at what level they want to be tested on. \
@@ -84,9 +85,9 @@ pub async fn get_gemini_response(
     let mut chat_history = vec![content.clone()];
 
     match get_chat_history(
-        bucket_name.clone(),
-        file_name.clone(),
-        file_path.clone(),
+        bucket_name,
+        &file_name,
+        &file_path,
     ).await {
         Ok(bytes) => {
             println!("File temp saved. Wrote {} bytes.", bytes);
@@ -99,24 +100,45 @@ pub async fn get_gemini_response(
         }
     }
 
-    if is_image {       
-        let image_base64 = match telegram_get_file_data(
-            image_file_id,
-            telegram_bot_token.clone(),
-        ).await {
-            Ok(image) => image,
-            Err(e) => {
-                println!("Error getting image: {}", e);
-                return Err(e.into());
-            }
-        };
-        
-        let mime_type = "image/jpeg";
-        
-        llm = llm.with_image(
-            &image_base64,
-            mime_type,
-        );
+    // Second check of type 2/2
+    match message {
+        TelegramMessage::Text { ref content } => (),
+        TelegramMessage::Image { ref file_id, caption: _ } => {
+            let image_base64 = match telegram_get_file_data(
+                file_id,
+                telegram_bot_token,
+            ).await {
+                Ok(image) => image,
+                Err(e) => {
+                    println!("Error getting image: {}", e);
+                    return Err(e.into());
+                }
+            };
+            
+            let mime_type = "image/jpeg";
+            
+            llm = llm.with_inline_data(
+                &image_base64,
+                mime_type,
+            );
+        },
+        TelegramMessage::Document { ref file_id, caption: _, ref mime_type } => {
+            let doc_base64 = match telegram_get_file_data(
+                file_id,
+                telegram_bot_token,
+            ).await {
+                Ok(image) => image,
+                Err(e) => {
+                    println!("Error getting document: {}", e);
+                    return Err(e.into());
+                }
+            };
+
+            llm = llm.with_inline_data(
+                &doc_base64,
+                mime_type,
+            );
+        },
     }
 
     let stream = llm
@@ -138,10 +160,10 @@ pub async fn get_gemini_response(
                         if let Some(text) = part.text {
                             complete_text = complete_text + &text;
                             match send_telegram_message(
-                                telegram_bot_token.clone(),
-                                telegram_chat_id.clone(),
-                                complete_text.clone(),
-                                current_telegram_message_id.clone()
+                                telegram_bot_token,
+                                telegram_chat_id,
+                                &complete_text,
+                                current_telegram_message_id.clone(),
                             ).await {
                                 Ok(_) => (),
                                 Err(e) => {
@@ -170,13 +192,13 @@ pub async fn get_gemini_response(
     let file_path_save = format!("/tmp/created-{}", file_name);
     match save_chat_history(
         chat_history.clone(), 
-        file_path_save.clone(),
+        &file_path_save,
     ).await {
         Ok(_) => {
             match put_chat_history(
-                bucket_name.clone(),
-                file_name.clone(),
-                file_path_save.clone(),
+                bucket_name,
+                &file_name,
+                &file_path_save,
             ).await {
                 Ok(_) => (),
                 Err(e) => {
@@ -190,10 +212,10 @@ pub async fn get_gemini_response(
     }
     
     match send_telegram_message(
-        telegram_bot_token.clone(),
-        telegram_chat_id.clone(),
-        complete_text.clone(),
-        current_telegram_message_id.clone(),
+        telegram_bot_token,
+        telegram_chat_id,
+        &complete_text,
+        current_telegram_message_id,
     ).await {
         Ok(_) => (),
         Err(e) => {
@@ -208,9 +230,9 @@ pub async fn get_gemini_response(
 }
 
 pub async fn get_chat_history(
-    bucket_name: String,
-    key: String,
-    file_path: String,
+    bucket_name: &str,
+    key: &str,
+    file_path: &str,
 ) -> Result<usize, S3Error> {
     let config = aws_config::load_from_env().await;
     let client = aws_sdk_s3::Client::new(&config);
@@ -245,19 +267,19 @@ pub async fn get_chat_history(
 }
 
 pub async fn put_chat_history(
-    bucket_name: String,
-    key: String,
-    file_path: String,
+    bucket_name: &str,
+    key: &str,
+    file_path: &str,
 ) -> Result<(), S3Error> {
     let config = aws_config::load_from_env().await;
     let client = aws_sdk_s3::Client::new(&config);
 
     // Create a ByteStream from the file in the temp directory
-    let body = ByteStream::from_path(Path::new(&file_path))
+    let body = ByteStream::from_path(Path::new(file_path))
         .await
         .map_err(|err| S3Error::new(format!("Failed to start file read stream: {err:?}")))?;
 
-    let request = client
+    let _request = client
         .put_object()
         .bucket(bucket_name)
         .key(key)
@@ -269,20 +291,20 @@ pub async fn put_chat_history(
 }
 
 pub async fn delete_chat_history(
-    bucket_name: String,
-    key: String,
+    bucket_name: &str,
+    key: &str,
 ) -> Result<(), S3Error> {
     let config = aws_config::load_from_env().await;
     let client = aws_sdk_s3::Client::new(&config);
 
     client
         .delete_object()
-        .bucket(&bucket_name)
-        .key(&key)
+        .bucket(bucket_name)
+        .key(key)
         .send()
         .await?;
 
-    println!("Object deleted: {}/{}", &bucket_name, &key);
+    println!("Object deleted: {}/{}", bucket_name, key);
     Ok(())
 }
 
@@ -310,7 +332,10 @@ pub async fn read_chat_history(
     }
 }
 
-pub async fn save_chat_history(chat_history: Vec<Content>, file_path: String) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn save_chat_history(
+    chat_history: Vec<Content>, 
+    file_path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let json = serde_json::to_string(&chat_history)?;
     let mut file = match File::create(file_path) {
         Ok(file) => file,

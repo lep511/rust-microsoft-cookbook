@@ -117,17 +117,17 @@ pub struct FileInfo {
 pub async fn send_telegram_message(
     bot_token: String, 
     chat_id: String, 
-    text: String,
+    text_raw: String,
     current_telegram_message_id: Arc<Mutex<Option<i64>>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let telegram_client = Arc::new(Client::new());
     let telegram_api_url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
-    let text = replace_raw_escapes(&text);
+    let text = replace_raw_escapes(&text_raw);
     
     let mut message_body = json!({
         "chat_id": chat_id,
         "text": text,
-        "parse_mode": "markdown"
+        "parse_mode": "markdownV2"
     });
 
     let current_message_id = *current_telegram_message_id.lock().await;
@@ -138,7 +138,7 @@ pub async fn send_telegram_message(
             "chat_id": chat_id,
             "text": text,
             "message_id": message_id,
-            "parse_mode": "markdown"
+            "parse_mode": "markdownV2"
         });
             
         let response = telegram_client
@@ -240,14 +240,31 @@ pub async fn telegram_get_file_data(
 
 }
 
-pub fn replace_raw_escapes(input: &str) -> String {  
-    let result = input
-        .replace("\n\n\n\n* ", "\n\n")    
-        .replace("\n\n\n* ", "\n\n")
-        .replace("\n\n* ", "\n\n")
-        .replace("\n* ", "\n")
-        .replace("* ", "")
-        .replace("**", "*");
+pub fn replace_raw_escapes(sentence: &str) -> String {  
+    const ESCAPE_CHARS: [char; 18] = [
+        '\\', '_', '*', '[', ']', '(', ')', '~', '>', '#', 
+        '+', '-', '=', '|', '{', '}', '.', '!'
+    ];
     
-    result
+    // Preallocate string with estimated capacity
+    let estimated_size = sentence.len() * 2;
+    let mut new_sentence = String::with_capacity(estimated_size);
+    
+    // Escape special characters
+    sentence.chars().for_each(|c| {
+        if ESCAPE_CHARS.contains(&c) {
+            new_sentence.push('\\');
+            new_sentence.push(c);
+        } else {
+            new_sentence.push(c);
+        }
+    });
+    
+    // Convert to UTF-16
+    let utf16_string: Vec<u16> = new_sentence.encode_utf16().collect();
+    
+    // If you need to convert back to String:
+    let decoded_string = String::from_utf16(&utf16_string).unwrap_or_default();
+    let decoded_string = decoded_string.replace("\\*\\*", "*");
+    decoded_string
 }

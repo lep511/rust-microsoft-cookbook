@@ -3,16 +3,22 @@ use futures::StreamExt;
 use async_stream::stream;
 use crate::llmerror::GeminiError;
 use crate::gemini::gen_config::GenerationConfig;
-use crate::gemini::utils::{GetApiKey, get_mime_type};
+use crate::gemini::utils::{
+    GetApiKey, get_mime_type, get_base64_bytes_length
+};
 use crate::gemini::libs::{
     ChatRequest, Content, Part, FileData, InlineData,
     ChatResponse, FunctionResponse, SafetySetting,
 };
 use crate::gemini::requests::{
-    request_chat, request_media, request_cache, 
+    request_chat, upload_media, request_cache, 
     strem_chat,
 };
 use crate::gemini::{GEMINI_BASE_URL, UPLOAD_BASE_URL};
+use std::fs::File;
+use std::io::Read;
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+use std::fs::metadata;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -211,28 +217,90 @@ impl ChatGemini {
     //     Ok(response)       
     // }
 
-    pub async fn media_upload(mut self, img_path: &str, mut mime_type: &str) 
-    -> Result<Self, GeminiError> {
+    pub async fn media_upload(
+        mut self,
+        file_path: Option<&str>,
+        upload_data: Option<String>,
+        display_name: &str,
+        mut mime_type: &str,
+    ) -> Result<Self, GeminiError> {
         let api_key = Self::get_api_key()?;
+        let mut base64_string = String::new();
+        let mut content_length = String::new();
+        
         let upload_url = format!(
             "{}/files?key={}",
             UPLOAD_BASE_URL,
             api_key,
         );
-
-        if mime_type == "auto" {
-            let extension = match img_path.split('.').last() {
-                Some(extension) => extension,
-                None => return Err(GeminiError::InvalidMimeType),
-            };
-            mime_type = get_mime_type(extension);
+                
+        if file_path.is_some() && upload_data.is_some() {
+            println!("[ERROR] Can't use both file_path and upload_data");
+            return Err(GeminiError::RequestUploadError);
+        } else if file_path.is_none() && upload_data.is_none() {
+            println!("[ERROR] Must use file_path or upload_data");
+            return Err(GeminiError::RequestUploadError);
         }
+ 
+        // -------- Read from local file --------
+        if let Some(file_path) = file_path {
+            if mime_type == "auto" {
+                let extension = match file_path.split('.').last() {
+                    Some(extension) => extension,
+                    None => return Err(GeminiError::InvalidMimeType),
+                };
+                mime_type = get_mime_type(extension);
+            }
+
+            let num_bytes = match metadata(file_path) {
+                Ok(file_data) => file_data.len(),
+                Err(e) => {
+                    println!("[ERROR] Read local file. {:?}", e);
+                    return Err(GeminiError::RequestUploadError);
+                }
+            };
+
+            content_length = num_bytes.to_string();
+            
+            let mut file_content = match File::open(file_path) {
+                Ok(file) => file,
+                Err(e) => {
+                    println!("[ERROR] Open local file. {:?}", e);
+                    return Err(GeminiError::RequestUploadError);
+                }
+            };
+            
+            let mut buffer = Vec::new();
+            
+            match file_content.read_to_end(&mut buffer) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("[ERROR] Read local file. {:?}", e);
+                    return Err(GeminiError::RequestUploadError);
+                }
+            };
+    
+            base64_string = STANDARD.encode(buffer);
+
+        } 
+
+        // -------- Base 64 data ---------
+        if let Some(upload_data) = upload_data {
+            if mime_type == "auto" {
+                println!("[ERROR] Can't use auto with upload_data");
+                return Err(GeminiError::InvalidMimeType);
+            }
+            let num_bytes = get_base64_bytes_length(&upload_data);
+            content_length = num_bytes.to_string();
+            base64_string = upload_data;
+        } 
       
-        let file_uri = match request_media(
+        let file_uri = match upload_media(
             &upload_url, 
-            img_path, 
+            base64_string,
+            display_name,
+            &content_length,
             mime_type,
-            self.retry,
         ).await {
             Ok(response) => response,
             Err(e) => {

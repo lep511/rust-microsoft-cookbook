@@ -96,3 +96,8 @@ pub fn get_mime_type(extension: &str) -> &'static str {
     };
     mime
 }
+
+pub fn get_base64_bytes_length(base64_str: &str) -> usize {
+    let padding_count = base64_str.chars().filter(|&c| c == '=').count();
+    (base64_str.len() * 3 / 4) - padding_count
+}

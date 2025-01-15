@@ -2,16 +2,33 @@ use regex::Regex;
 use reqwest::{Client, Response};
 use serde_json::json;
 
-fn replace_raw_escapes(input: &str) -> String {  
-    let result = input
-        .replace("\n\n\n\n* ", "\n\n")    
-        .replace("\n\n\n* ", "\n\n")
-        .replace("\n\n* ", "\n\n")
-        .replace("\n* ", "\n")
-        .replace("* ", "")
-        .replace("**", "*");
+fn replace_raw_escapes(sentence: &str) -> String {  
+    const ESCAPE_CHARS: [char; 18] = [
+        '\\', '_', '*', '[', ']', '(', ')', '~', '>', '#', 
+        '+', '-', '=', '|', '{', '}', '.', '!'
+    ];
     
-    result
+    // Preallocate string with estimated capacity
+    let estimated_size = sentence.len() * 2;
+    let mut new_sentence = String::with_capacity(estimated_size);
+    
+    // Escape special characters
+    sentence.chars().for_each(|c| {
+        if ESCAPE_CHARS.contains(&c) {
+            new_sentence.push('\\');
+            new_sentence.push(c);
+        } else {
+            new_sentence.push(c);
+        }
+    });
+    
+    // Convert to UTF-16
+    let utf16_string: Vec<u16> = new_sentence.encode_utf16().collect();
+    
+    // If you need to convert back to String:
+    let decoded_string = String::from_utf16(&utf16_string).unwrap_or_default();
+    let decoded_string = decoded_string.replace("\\*\\*", "*");
+    decoded_string
 }
 
 pub async fn send_telegram_message(
@@ -27,7 +44,7 @@ pub async fn send_telegram_message(
     let mut message_body = json!({
         "chat_id": chat_id,
         "text": text,
-        "parse_mode": "markdown"
+        "parse_mode": "markdownV2"
     });
 
     let response = telegram_client

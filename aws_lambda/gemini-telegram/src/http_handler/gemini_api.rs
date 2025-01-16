@@ -6,6 +6,7 @@ use super::telegram_bot::{
     telegram_get_file_data,
     telegram_get_file_url
 };
+use super::utils::check_mimetype;
 use super::chat::ChatGemini;
 use super::GEMINI_MODEL;
 use super::libs::{Part, Content};
@@ -24,6 +25,23 @@ pub async fn get_gemini_response(
     telegram_chat_id: u32,
     bucket_name: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
+
+    let mut llm = ChatGemini::new(GEMINI_MODEL)?;
+
+    let system_prompt = "You are a tutor helping a student prepare for a test. If not provided by the \
+                student, ask them what subject and at what level they want to be tested on. \
+                Then, \
+                \
+                *   Generate multiple choice practice questions (A, B, C, D). Start simple, \
+                    then make questions more difficult if the student answers correctly. \
+                *   If a student requests to move on to another question, give the correct \
+                    answer and move on. \
+                *   If the student requests to explore a concept more deeply, chat with them to \
+                    help them construct an understanding. \
+                *   After 10 questions ask the student if they would like to continue with more \
+                    questions or if they would like a summary of their session. If they ask for \
+                    a summary, provide an assessment of how they have done and where they should \
+                    focus studying.";
 
     let current_telegram_message_id = Arc::new(Mutex::new(None));
     let file_name = format!("chat-history-{}.json", telegram_chat_id);
@@ -57,7 +75,7 @@ pub async fn get_gemini_response(
             file_size,
             file_id: _, 
             caption, 
-            mime_type: _ 
+            mime_type, 
         } => {
             // Check if file size is greater than 12MB
             if *file_size > 12 * 1024 * 1024 {
@@ -70,28 +88,22 @@ pub async fn get_gemini_response(
                 ).await?;
                 println!("Error: {}", message);
                 return Err(message.into());
+            // Check mime type
+            } else if check_mimetype(mime_type) {
+                let message = "File type is not supported.";
+                send_telegram_message(
+                    telegram_bot_token,
+                    telegram_chat_id,
+                    message,
+                    current_telegram_message_id.clone(),
+                ).await?;
+                println!("Error: {}", message);
+                return Err(message.into());
+            } else {
+                prompt = caption.clone();
             }
-            prompt = caption.clone();
-            println!("------------Prompt {}", prompt);
         },
     }
-
-    let mut llm = ChatGemini::new(GEMINI_MODEL)?;
-
-    let system_prompt = "You are a tutor helping a student prepare for a test. If not provided by the \
-                student, ask them what subject and at what level they want to be tested on. \
-                Then, \
-                \
-                *   Generate multiple choice practice questions (A, B, C, D). Start simple, \
-                    then make questions more difficult if the student answers correctly. \
-                *   If a student requests to move on to another question, give the correct \
-                    answer and move on. \
-                *   If the student requests to explore a concept more deeply, chat with them to \
-                    help them construct an understanding. \
-                *   After 10 questions ask the student if they would like to continue with more \
-                    questions or if they would like a summary of their session. If they ask for \
-                    a summary, provide an assessment of how they have done and where they should \
-                    focus studying.";
     
     let content = Content {
         role: "user".to_string(),
@@ -168,6 +180,12 @@ pub async fn get_gemini_response(
                 file_name,
                 mime_type,
             ).await?;
+
+            let last_content = llm.clone().get_last_content();
+            chat_history.push(
+                last_content.expect("No last content found")
+            );
+            llm = llm.with_chat_history(chat_history.clone());
         },
     }
 

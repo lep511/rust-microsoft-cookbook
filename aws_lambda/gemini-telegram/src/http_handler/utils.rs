@@ -97,6 +97,40 @@ pub fn get_mime_type(extension: &str) -> &'static str {
     mime
 }
 
+pub fn check_mimetype(mime: &str) -> bool {
+    let accepted_mime_type = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+        "video/mp4",
+        "video/x-flv",
+        "video/quicktime",
+        "video/mpeg",
+        "video/3gpp",
+        "video/webm",
+        "video/x-ms-wmv",
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/rtf",
+        "text/plain",
+        "text/csv",
+        "text/tab-separated-values",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "audio/mpeg",
+        "audio/aac",
+        "audio/wav",
+        "audio/opus",
+        "audio/pcm",
+    ];
+
+    // Check if mime is in accepted_mime_type array
+    !accepted_mime_type.iter().any(|&x| x == mime)
+}
+
 pub fn get_base64_bytes_length(base64_str: &str) -> usize {
     let padding_count = base64_str.chars().filter(|&c| c == '=').count();
     (base64_str.len() * 3 / 4) - padding_count

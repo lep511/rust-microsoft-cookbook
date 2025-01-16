@@ -3,7 +3,8 @@ use aws_sdk_s3::primitives::ByteStream;
 use super::telegram_bot::{
     TelegramMessage,
     send_telegram_message, 
-    telegram_get_file_data
+    telegram_get_file_data,
+    telegram_get_file_url
 };
 use super::chat::ChatGemini;
 use super::GEMINI_MODEL;
@@ -24,6 +25,7 @@ pub async fn get_gemini_response(
     bucket_name: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
 
+    let current_telegram_message_id = Arc::new(Mutex::new(None));
     let file_name = format!("chat-history-{}.json", telegram_chat_id);
     let file_path = format!("/tmp/{}", file_name);
     let mut prompt = String::new();
@@ -50,7 +52,25 @@ pub async fn get_gemini_response(
         TelegramMessage::Image { file_id: _, caption } => {    
             prompt = caption.clone();
         },
-        TelegramMessage::Document { file_name: _, file_id: _, caption, mime_type: _ } => {
+        TelegramMessage::Document { 
+            file_name: _,
+            file_size,
+            file_id: _, 
+            caption, 
+            mime_type: _ 
+        } => {
+            // Check if file size is greater than 12MB
+            if *file_size > 12 * 1024 * 1024 {
+                let message = "The file size cannot exceed 12MB.";
+                send_telegram_message(
+                    telegram_bot_token,
+                    telegram_chat_id,
+                    message,
+                    current_telegram_message_id.clone(),
+                ).await?;
+                println!("Error: {}", message);
+                return Err(message.into());
+            }
             prompt = caption.clone();
             println!("------------Prompt {}", prompt);
         },
@@ -123,12 +143,17 @@ pub async fn get_gemini_response(
                 mime_type,
             );
         },
-        TelegramMessage::Document { ref file_name, ref file_id, caption: _, ref mime_type } => {
+        TelegramMessage::Document { 
+            ref file_name, 
+            file_size,
+            ref file_id, caption: _, 
+            ref mime_type 
+        } => {
             let upload_data = match telegram_get_file_data(
                 file_id,
                 telegram_bot_token,
             ).await {
-                Ok(image) => image,
+                Ok(docdata) => docdata,
                 Err(e) => {
                     println!("Error getting document: {}", e);
                     return Err(e.into());
@@ -155,7 +180,6 @@ pub async fn get_gemini_response(
     pin_mut!(stream);
 
     let mut complete_text = String::from("");
-    let current_telegram_message_id = Arc::new(Mutex::new(None));
 
     while let Some(stream_response) = stream.next().await { 
         if let Some(candidates) = stream_response.candidates {

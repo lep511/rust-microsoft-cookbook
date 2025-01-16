@@ -17,6 +17,7 @@ pub enum TelegramMessage {
     },
     Document {
         file_name: String,
+        file_size: i64,
         file_id: String,
         caption: String,
         mime_type: String,
@@ -207,7 +208,7 @@ pub async fn send_telegram_message(
     Ok(())
 }
 
-pub async fn telegram_get_file_data(
+pub async fn telegram_get_file_url(
     file_id: &str, 
     telegram_bot_token: &str,
     ) -> Result<String, Box<dyn std::error::Error>> {
@@ -247,6 +248,24 @@ pub async fn telegram_get_file_data(
         telegram_bot_token, 
         file_path
     );
+    
+    Ok(file_url)
+
+}
+
+pub async fn telegram_get_file_data(
+    file_id: &str, 
+    telegram_bot_token: &str,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+
+    let telegram_client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
+            
+    let file_url = telegram_get_file_url(
+        file_id, 
+        telegram_bot_token
+    ).await?;
     
     Ok(telegram_client
         .get(&file_url)

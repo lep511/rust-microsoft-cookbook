@@ -120,6 +120,7 @@ pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Err
         println!("Document received");
 
         let file_name = document.file_name.unwrap_or("filetemp001".to_string());
+        let file_size = document.file_size.unwrap_or(0);
         let default_caption = "Analyze this document in few lines.".to_string();
         let caption = message.caption.unwrap_or(default_caption);
 
@@ -135,6 +136,7 @@ pub(crate)async fn function_handler(event: LambdaEvent<Value>) -> Result<(), Err
 
         let message_type = TelegramMessage::Document {
             file_name: file_name,
+            file_size: file_size,
             file_id: file_id.to_string(),
             caption: caption,
             mime_type: mime_type,

@@ -12,8 +12,7 @@ fn base64_encode(file_path: &str) -> String {
     STANDARD.encode(buffer)
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn small_documents() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
 
     let prompt = "What's the document type? Reply from the following options: \
@@ -56,6 +55,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     println!("[Task took {:.2} seconds]", elapsed);
+    
+    Ok(())
+}
 
+async fn large_documents() -> Result<(), Box<dyn std::error::Error>> {
+    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+
+    let prompt = "Summarize the content of the document for a second year student.";
+    let file_path = Some("tests/files/large-document.pdf");
+    let upload_data = None;
+    let display_name = "dosto-kafka.pdf";
+    let mime_type = "application/pdf";
+
+    let start = Instant::now();
+    
+    let response = llm
+        .media_upload(
+            file_path,
+            upload_data,
+            display_name,
+            mime_type,
+        )
+        .await?
+        .invoke(prompt)
+        .await?;
+
+    let elapsed = start.elapsed().as_secs_f64();
+
+    if let Some(candidates) = response.candidates {
+        for candidate in candidates {
+            if let Some(content) = candidate.content {
+                for part in content.parts {
+                    if let Some(text) = part.text {
+                        println!("{}", text);
+                    }
+                }
+            }
+        }
+    };
+
+    println!("[Task took {:.2} seconds]", elapsed);
+    
+    Ok(())
+}
+    
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+    // small_documents().await?;
+    large_documents().await?;    
+    
     Ok(())
 }

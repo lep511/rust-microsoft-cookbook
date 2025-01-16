@@ -50,8 +50,9 @@ pub async fn get_gemini_response(
         TelegramMessage::Image { file_id: _, caption } => {    
             prompt = caption.clone();
         },
-        TelegramMessage::Document { file_id: _, caption, mime_type: _ } => {
+        TelegramMessage::Document { file_name: _, file_id: _, caption, mime_type: _ } => {
             prompt = caption.clone();
+            println!("------------Prompt {}", prompt);
         },
     }
 
@@ -122,8 +123,8 @@ pub async fn get_gemini_response(
                 mime_type,
             );
         },
-        TelegramMessage::Document { ref file_id, caption: _, ref mime_type } => {
-            let doc_base64 = match telegram_get_file_data(
+        TelegramMessage::Document { ref file_name, ref file_id, caption: _, ref mime_type } => {
+            let upload_data = match telegram_get_file_data(
                 file_id,
                 telegram_bot_token,
             ).await {
@@ -134,10 +135,14 @@ pub async fn get_gemini_response(
                 }
             };
 
-            llm = llm.with_inline_data(
-                &doc_base64,
+            let file_path = None;
+
+            llm = llm.media_upload(
+                file_path,
+                Some(upload_data),
+                file_name,
                 mime_type,
-            );
+            ).await?;
         },
     }
 

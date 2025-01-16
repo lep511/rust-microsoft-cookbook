@@ -6,9 +6,9 @@ use super::libs::{ChatRequest, Part, Content, ChatResponse};
 use super::libs::{CacheRequest, InlineData, EmbedRequest};
 use super::utils::{print_pre, get_mime_type};
 use super::{DEBUG_PRE, DEBUG_POST};
+use base64::decode;
 use serde_json::json;
 use std::time::Duration;
-use std::fs;
 
 // ======== REQUEST CHAT ===========
 /// Makes an async HTTP POST request to chat endpoint with the provided chat request
@@ -87,63 +87,19 @@ pub async fn request_chat(
     Ok(response_string)
 }
 
-// ======== REQUEST MEDIA ===========
-/// Uploads a media file to a remote server using a resumable upload protocol
-///
-/// # Arguments
-///
-/// * `url` - The endpoint URL for initiating the upload
-/// * `img_path` - Path to the media file on the local filesystem
-/// * `mime_type` - MIME type of the file, or "auto" to detect from file extension
-/// * `retry` - Maximum number of retry attempts if the request fails
-///
-/// # Returns
-///
-/// * `Result<String, Box<dyn std::error::Error>>` - Returns the uploaded file's URI on success,
-///   or a boxed error on failure
-///
-/// # Details
-///
-/// This function performs a two-step upload process:
-/// 1. Initiates the upload and obtains an upload URL
-/// 2. Uploads the actual file content to the provided upload URL
-///
-/// For video files, the function waits 5 seconds after upload to allow for processing.
-///
-/// # Errors
-///
-/// This function will return an error if:
-/// * The file path is invalid or file cannot be read
-/// * The HTTP client cannot be built
-/// * The initial upload request fails
-/// * The upload URL is missing from response headers
-/// * The file content upload fails
-/// * The response JSON is malformed or missing the file URI
-pub async fn request_media(
+// ======== UPLOAD MEDIA ===========
+pub async fn upload_media(
     url: &str,
-    img_path: &str,
+    base64_string: String,
+    display_name: &str,
+    content_length: &str,
     mut mime_type: &str,
-    retry: u32,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let display_name = match img_path.split('/').last() {
-        Some(name) => name,
-        None => "_",
-    };
-
-    if mime_type == "auto" {
-        let ext = img_path.split('.').last().unwrap();
-        let mime = get_mime_type(ext);
-        mime_type = mime;
-    }
-
-    let num_bytes = fs::metadata(&img_path)?.len();
-    let num_bytes = num_bytes.to_string();
-
     let mut headers = HeaderMap::new();
     headers.insert("X-Goog-Upload-Protocol", HeaderValue::from_static("resumable"));
     headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("start"));
-    headers.insert("X-Goog-Upload-Header-Content-Length", HeaderValue::from_str(&num_bytes)?);
-    headers.insert("X-Goog-Upload-Header-Content-Type", HeaderValue::from_str(&mime_type)?);
+    headers.insert("X-Goog-Upload-Header-Content-Length", HeaderValue::from_str(content_length)?);
+    headers.insert("X-Goog-Upload-Header-Content-Type", HeaderValue::from_str(mime_type)?);
     headers.insert("Content-Type", HeaderValue::from_static("application/json"));
 
     let client = Client::builder()
@@ -168,12 +124,15 @@ pub async fn request_media(
         .ok_or("Missing upload URL")?
         .to_str()?;
 
+    println!("Upload URL: {}", upload_url);
+
     // Upload file content
-    let file_content = fs::read(&img_path)?;
     let mut upload_headers = HeaderMap::new();
-    upload_headers.insert("Content-Length", HeaderValue::from_str(&num_bytes)?);
+    upload_headers.insert("Content-Length", HeaderValue::from_str(content_length)?);
     upload_headers.insert("X-Goog-Upload-Offset", HeaderValue::from_static("0"));
     upload_headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("upload, finalize")); 
+
+    let body_data = decode(base64_string).expect("Invalid base64 string");
 
     let client = Client::builder()
         .use_rustls_tls()
@@ -182,7 +141,7 @@ pub async fn request_media(
     let upload_resp: serde_json::Value = client
         .post(upload_url)
         .headers(upload_headers)
-        .body(file_content)
+        .body(body_data)
         .send()
         .await?
         .json()
@@ -243,8 +202,7 @@ pub async fn request_cache(
     mime_type: String,
     instruction: String,
     model: &str,
-    ttl: u32,
-    retry: u32,
+    ttl: u32
 ) -> Result<String, Box<dyn std::error::Error>> {
 
     let mut headers = HeaderMap::new();

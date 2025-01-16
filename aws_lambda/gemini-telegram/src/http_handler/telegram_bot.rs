@@ -16,6 +16,7 @@ pub enum TelegramMessage {
         content: String,
     },
     Document {
+        file_name: String,
         file_id: String,
         caption: String,
         mime_type: String,

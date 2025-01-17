@@ -523,6 +523,36 @@ impl ChatGemini {
         self.request.contents.push(content);
         self
     }
+
+    pub fn get_last_content(self) -> Option<Content> {
+        let last_content = match self.request.contents.last() {
+            Some(content) => content,
+            None => {
+                println!("[ERROR] No last content found");
+                return None
+            },
+        };
+        Some(last_content.clone())
+    }
+
+    pub fn with_model(mut self, model: &str) -> Self {
+        let api_key = match Self::get_api_key() {
+            Ok(key) => key,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return self;
+            }
+        };
+        self.model = model.to_string();
+        self.base_url = format!(
+            "{}/models/{}:generateContent?key={}",
+            GEMINI_BASE_URL,
+            model,
+            api_key,
+        );
+        
+        self
+    }
 }
 
 impl GetApiKey for ChatGemini {}

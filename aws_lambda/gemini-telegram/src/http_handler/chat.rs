@@ -144,6 +144,7 @@ impl ChatGemini {
         mut self,
         prompt: String
     ) -> impl futures::Stream<Item = ChatResponse> {
+        println!("----------------URL {}", self.base_url);
         stream! {
             self.base_url = self.base_url
                 .replace("generateContent", "streamGenerateContent?alt=sse")

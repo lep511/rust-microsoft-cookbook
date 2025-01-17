@@ -93,3 +93,18 @@ pub enum XAIChatError {
     #[error("Failed to get response content")]
     ResponseContentError,
 }
+
+#[allow(dead_code)]
+#[derive(Debug, thiserror::Error)]
+pub enum AssemblyAIError {
+    #[error("AssemblyAI API key not found in environment variables")]
+    ApiKeyNotFound,
+    #[error("Request error: {0}")]
+    RequestError(#[from] reqwest::Error),
+    #[error("Environment error: {0}")]
+    EnvError(#[from] env::VarError),
+    #[error("Failed to get response content")]
+    ResponseContentError,
+    #[error("The model must be best or nano")]
+    InvalidModel
+}

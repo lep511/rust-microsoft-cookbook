@@ -154,6 +154,11 @@ pub async fn get_gemini_response(
                 &image_base64,
                 mime_type,
             );
+            let last_content = llm.clone().get_last_content();
+            chat_history.push(
+                last_content.expect("No last content found")
+            );
+            llm = llm.with_chat_history(chat_history.clone());
         },
         TelegramMessage::Document { 
             ref file_name, 

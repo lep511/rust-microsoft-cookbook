@@ -1,4 +1,5 @@
 use reqwest::Client;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use crate::llmerror::AssemblyAIError;
@@ -8,13 +9,14 @@ use std::env;
 pub static ASSEMBLYAI_BASE_URL: &str = "https://api.assemblyai.com/v2";
 
 pub const DEBUG_PRE: bool = false;
-pub const DEBUG_POST: bool = true;
+pub const DEBUG_POST: bool = false;
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]
 pub struct TranscriptRequest {
     pub audio_url: String,
-    pub speech_model: SpeechModel,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub speech_model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audio_end_at: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -85,16 +87,6 @@ pub struct TranscriptRequest {
     pub webhook_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub word_boost: Option<Vec<String>>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum SpeechModel {
-    #[serde(rename = "best")]
-    Best,
-    #[serde(rename = "nano")]
-    Nano,
 }
 
 #[allow(dead_code)]
@@ -175,6 +167,17 @@ pub enum PiiType {
     VehicleId,
 }
 
+#[allow(dead_code)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct ListTranscriptParameters {
+    pub limit: Option<i32>,
+    pub status: Option<String>,
+    pub created_on: Option<String>,
+    pub before_id: Option<String>,
+    pub after_id: Option<String>,
+    pub throttled_only: Option<bool>,
+}
+
 pub trait PrintDebug {
     fn print_pre(request: &impl serde::Serialize, active: bool) {
         if !active {
@@ -214,18 +217,10 @@ pub struct TranscriptAssemblyAI {
 
 #[allow(dead_code)]
 impl TranscriptAssemblyAI {
-    pub fn new(model: &str) -> Result<Self, AssemblyAIError> {
+    pub fn new() -> Result<Self, AssemblyAIError> {
         let api_key = Self::get_api_key()?;
 
-        let speech_model: SpeechModel = match model {
-            "best" => SpeechModel::Best,
-            "nano" => SpeechModel::Nano,
-            _ => {
-                println!("[ERROR] The model must be best or nano");
-                return Err(AssemblyAIError::InvalidModel);
-            }
-        };
-
+        let speech_model = Some("best".to_string()); // Or nano
         let audio_url = "https://assembly.ai/wildfires.mp3";
 
         let request = TranscriptRequest {
@@ -273,6 +268,50 @@ impl TranscriptAssemblyAI {
             request: request,
             timeout: 15 * 60, // default: 15 minutes
         })
+    }
+
+    pub async fn upload_file(
+        mut self,
+        file_path: &str,
+    ) -> Result<String, AssemblyAIError> {
+        let base_url = format!("{}/upload", ASSEMBLYAI_BASE_URL);
+
+        let client = Client::builder()
+            .use_rustls_tls()
+            .build()?;
+
+        let file = match std::fs::read(file_path) {
+            Ok(file) => file,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(AssemblyAIError::FileReadError);
+            }
+        };
+
+        let response = client
+            .post(base_url)
+            .timeout(Duration::from_secs(self.timeout))
+            .header("Authorization", self.api_key.clone())
+            .body(file)
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+
+        Self::print_pre(&response, DEBUG_POST);
+
+        let response_string = response.to_string();
+        let mut response_map: HashMap<String, String> = match serde_json::from_str(&response_string) {
+            Ok(response_form) => response_form,
+            Err(e) => {
+                println!("[ERROR] UploadFileResponse: {:?}", e);
+                return Err(AssemblyAIError::ResponseContentError);
+            }
+        };
+
+        let upload_url = response_map.remove("upload_url").unwrap();
+
+        Ok(upload_url)
     }
 
     pub async fn transcript(
@@ -349,6 +388,82 @@ impl TranscriptAssemblyAI {
         Ok(transcript_response)
     }
 
+    pub async fn list_transcripts(
+        self,
+        parameters: Option<ListTranscriptParameters>,
+    ) -> Result<ListTranscriptResponse, AssemblyAIError> {
+        let mut param_data = vec![];
+
+        if let Some(params) = parameters {
+            if let Some(limit) = params.limit {
+                let param_limit = ("limit", limit.to_string());
+                param_data.push(param_limit);
+            }
+
+            if let Some(status) = params.status {
+                let param_status = ("status", status);
+                param_data.push(param_status);
+            }
+
+            if let Some(created_on) = params.created_on {
+                let param_created_on = ("created_on", created_on);
+                param_data.push(param_created_on);
+            }
+
+            if let Some(before_id) = params.before_id {
+                let param_before_id = ("before_id", before_id);
+                param_data.push(param_before_id);
+            }
+
+            if let Some(after_id) = params.after_id {
+                let param_after_id = ("after_id", after_id);
+                param_data.push(param_after_id);
+            }
+
+            if let Some(throttled_only) = params.throttled_only {
+                let param_throttled_only = ("throttled_only", throttled_only.to_string());
+                param_data.push(param_throttled_only);
+            }           
+        }
+
+        let client = Client::builder()
+            .use_rustls_tls()
+            .build()?;
+        
+        let base_url = format!("{}/transcript", ASSEMBLYAI_BASE_URL);
+        let base_url = match Url::parse_with_params(&base_url, &param_data) {
+            Ok(url) => url,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(AssemblyAIError::ResponseContentError);
+            }
+        };
+        
+        let response = client
+            .get(base_url)
+            .timeout(Duration::from_secs(self.timeout))
+            .header("Authorization", self.api_key.clone())
+            .json(&self.request)
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+
+        Self::print_pre(&response, DEBUG_POST);
+
+        let response_string = response.to_string();
+
+        let transcript_response: ListTranscriptResponse = match serde_json::from_str(&response_string) {
+            Ok(response_form) => response_form,
+            Err(e) => {
+                println!("[ERROR] ListTranscriptResponse: {:?}", e);
+                return Err(AssemblyAIError::ResponseContentError);
+            }
+        };
+
+        Ok(transcript_response)
+    }
+
     pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
         self.timeout = timeout;
         self
@@ -366,270 +481,299 @@ impl PrintDebug for TranscriptAssemblyAI {}
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TranscriptResponse {
-    acoustic_model: Option<String>,
-    audio_duration: Option<f64>,
-    audio_end_at: Option<f64>,
-    audio_start_from: Option<f64>,
-    audio_url: Option<String>,
-    auto_chapters: Option<bool>,
-    auto_highlights: Option<bool>,
-    auto_highlights_result: Option<serde_json::Value>,
-    boost_param: Option<f64>,
-    chapters: Option<serde_json::Value>,
-    confidence: Option<f64>,
-    content_safety: Option<bool>,
-    content_safety_labels: Option<HashMap<String, serde_json::Value>>,
-    custom_spelling: Option<serde_json::Value>,
-    custom_topics: Option<serde_json::Value>,
-    custom_topics_results: Option<serde_json::Value>,
-    disfluencies: Option<bool>,
-    dual_channel: Option<bool>,
-    entities: Option<serde_json::Value>,
-    entity_detection: Option<bool>,
-    filter_profanity: Option<bool>,
-    format_text: Option<bool>,
-    iab_categories: Option<bool>,
-    iab_categories_result: Option<HashMap<String, serde_json::Value>>,
-    id: Option<String>,
-    is_deleted: Option<bool>,
-    language_code: Option<String>,
-    language_confidence: Option<f64>,
-    language_confidence_threshold: Option<f64>,
-    language_detection: Option<bool>,
-    language_model: Option<String>,
-    multichannel: Option<bool>,
-    punctuate: Option<bool>,
-    redact_pii: Option<bool>,
-    redact_pii_audio: Option<bool>,
-    redact_pii_audio_quality: Option<String>,
-    redact_pii_policies: Option<Vec<String>>,
-    redact_pii_sub: Option<String>,
-    sentiment_analysis: Option<bool>,
-    sentiment_analysis_results: Option<serde_json::Value>,
-    speaker_labels: Option<bool>,
-    speakers_expected: Option<i32>,
-    speech_model: Option<String>,
-    speech_threshold: Option<f64>,
-    speed_boost: Option<bool>,
-    status: Option<String>,
-    summarization: Option<bool>,
-    summary: Option<String>,
-    summary_model: Option<String>,
-    summary_type: Option<String>,
-    text: Option<String>,
-    throttled: Option<bool>,
-    topics: Option<Vec<String>>,
-    utterances: Option<serde_json::Value>,
-    webhook_auth: Option<bool>,
-    webhook_auth_header_name: Option<String>,
-    webhook_status_code: Option<i32>,
-    webhook_url: Option<String>,
-    word_boost: Option<Vec<String>>,
-    words: Option<serde_json::Value>,
+    pub acoustic_model: Option<String>,
+    pub audio_duration: Option<f64>,
+    pub audio_end_at: Option<f64>,
+    pub audio_start_from: Option<f64>,
+    pub audio_url: Option<String>,
+    pub auto_chapters: Option<bool>,
+    pub auto_highlights: Option<bool>,
+    pub auto_highlights_result: Option<serde_json::Value>,
+    pub boost_param: Option<f64>,
+    pub chapters: Option<serde_json::Value>,
+    pub confidence: Option<f64>,
+    pub content_safety: Option<bool>,
+    pub content_safety_labels: Option<HashMap<String, serde_json::Value>>,
+    pub custom_spelling: Option<serde_json::Value>,
+    pub custom_topics: Option<serde_json::Value>,
+    pub custom_topics_results: Option<serde_json::Value>,
+    pub disfluencies: Option<bool>,
+    pub dual_channel: Option<bool>,
+    pub entities: Option<serde_json::Value>,
+    pub entity_detection: Option<bool>,
+    pub filter_profanity: Option<bool>,
+    pub format_text: Option<bool>,
+    pub iab_categories: Option<bool>,
+    pub iab_categories_result: Option<HashMap<String, serde_json::Value>>,
+    pub id: Option<String>,
+    pub is_deleted: Option<bool>,
+    pub language_code: Option<String>,
+    pub language_confidence: Option<f64>,
+    pub language_confidence_threshold: Option<f64>,
+    pub language_detection: Option<bool>,
+    pub language_model: Option<String>,
+    pub multichannel: Option<bool>,
+    pub punctuate: Option<bool>,
+    pub redact_pii: Option<bool>,
+    pub redact_pii_audio: Option<bool>,
+    pub redact_pii_audio_quality: Option<String>,
+    pub redact_pii_policies: Option<Vec<String>>,
+    pub redact_pii_sub: Option<String>,
+    pub sentiment_analysis: Option<bool>,
+    pub sentiment_analysis_results: Option<serde_json::Value>,
+    pub speaker_labels: Option<bool>,
+    pub speakers_expected: Option<i32>,
+    pub speech_model: Option<String>,
+    pub speech_threshold: Option<f64>,
+    pub speed_boost: Option<bool>,
+    pub status: Option<String>,
+    pub summarization: Option<bool>,
+    pub summary: Option<String>,
+    pub summary_model: Option<String>,
+    pub summary_type: Option<String>,
+    pub text: Option<String>,
+    pub throttled: Option<bool>,
+    pub topics: Option<Vec<String>>,
+    pub utterances: Option<serde_json::Value>,
+    pub webhook_auth: Option<bool>,
+    pub webhook_auth_header_name: Option<String>,
+    pub webhook_status_code: Option<i32>,
+    pub webhook_url: Option<String>,
+    pub word_boost: Option<Vec<String>>,
+    pub words: Option<serde_json::Value>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct GetTranscriptResponse {
-    id: Option<String>,
-    audio_url: Option<String>,
-    status: Option<String>,
-    webhook_auth: Option<bool>,
-    auto_highlights: Option<bool>,
-    redact_pii: Option<bool>,
-    summarization: Option<bool>,
-    language_model: Option<String>,
-    acoustic_model: Option<String>,
-    language_code: Option<String>,
-    language_detection: Option<bool>,
-    language_confidence_threshold: Option<f64>,
-    language_confidence: Option<f64>,
-    speech_model: Option<String>,
-    text: Option<String>,
-    words: Option<Vec<Word>>,
-    utterances: Option<Vec<Utterance>>,
-    confidence: Option<f64>,
-    audio_duration: Option<u32>,
-    punctuate: Option<bool>,
-    format_text: Option<bool>,
-    disfluencies: Option<bool>,
-    multichannel: Option<bool>,
-    audio_channels: Option<u32>,
-    webhook_url: Option<String>,
-    webhook_status_code: Option<u32>,
-    webhook_auth_header_name: Option<String>,
-    auto_highlights_result: Option<AutoHighlightsResult>,
-    audio_start_from: Option<u32>,
-    audio_end_at: Option<u32>,
-    word_boost: Option<Vec<String>>,
-    boost_param: Option<String>,
-    filter_profanity: Option<bool>,
-    redact_pii_audio: Option<bool>,
-    redact_pii_audio_quality: Option<String>,
-    redact_pii_policies: Option<Vec<String>>,
-    redact_pii_sub: Option<String>,
-    speaker_labels: Option<bool>,
-    speakers_expected: Option<u32>,
-    content_safety: Option<bool>,
-    content_safety_labels: Option<ContentSafetyLabels>,
-    iab_categories: Option<bool>,
-    iab_categories_result: Option<IabCategoriesResult>,
-    custom_spelling: Option<Vec<CustomSpelling>>,
-    auto_chapters: Option<bool>,
-    chapters: Option<Vec<Chapter>>,
-    summary_type: Option<String>,
-    summary_model: Option<String>,
-    summary: Option<String>,
-    custom_topics: Option<bool>,
-    topics: Option<Vec<String>>,
-    sentiment_analysis: Option<bool>,
-    sentiment_analysis_results: Option<Vec<SentimentAnalysisResult>>,
-    entity_detection: Option<bool>,
-    entities: Option<Vec<Entity>>,
-    speech_threshold: Option<f64>,
-    throttled: Option<bool>,
-    error: Option<String>,
-    dual_channel: Option<bool>,
-    speed_boost: Option<bool>,
+    pub id: Option<String>,
+    pub audio_url: Option<String>,
+    pub status: Option<String>,
+    pub webhook_auth: Option<bool>,
+    pub auto_highlights: Option<bool>,
+    pub redact_pii: Option<bool>,
+    pub summarization: Option<bool>,
+    pub language_model: Option<String>,
+    pub acoustic_model: Option<String>,
+    pub language_code: Option<String>,
+    pub language_detection: Option<bool>,
+    pub language_confidence_threshold: Option<f64>,
+    pub language_confidence: Option<f64>,
+    pub speech_model: Option<String>,
+    pub text: Option<String>,
+    pub words: Option<Vec<Word>>,
+    pub utterances: Option<Vec<Utterance>>,
+    pub confidence: Option<f64>,
+    pub audio_duration: Option<u32>,
+    pub punctuate: Option<bool>,
+    pub format_text: Option<bool>,
+    pub disfluencies: Option<bool>,
+    pub multichannel: Option<bool>,
+    pub audio_channels: Option<u32>,
+    pub webhook_url: Option<String>,
+    pub webhook_status_code: Option<u32>,
+    pub webhook_auth_header_name: Option<String>,
+    pub auto_highlights_result: Option<AutoHighlightsResult>,
+    pub audio_start_from: Option<u32>,
+    pub audio_end_at: Option<u32>,
+    pub word_boost: Option<Vec<String>>,
+    pub boost_param: Option<String>,
+    pub filter_profanity: Option<bool>,
+    pub redact_pii_audio: Option<bool>,
+    pub redact_pii_audio_quality: Option<String>,
+    pub redact_pii_policies: Option<Vec<String>>,
+    pub redact_pii_sub: Option<String>,
+    pub speaker_labels: Option<bool>,
+    pub speakers_expected: Option<u32>,
+    pub content_safety: Option<bool>,
+    pub content_safety_labels: Option<ContentSafetyLabels>,
+    pub iab_categories: Option<bool>,
+    pub iab_categories_result: Option<IabCategoriesResult>,
+    pub custom_spelling: Option<Vec<CustomSpelling>>,
+    pub auto_chapters: Option<bool>,
+    pub chapters: Option<Vec<Chapter>>,
+    pub summary_type: Option<String>,
+    pub summary_model: Option<String>,
+    pub summary: Option<String>,
+    pub custom_topics: Option<bool>,
+    pub topics: Option<Vec<String>>,
+    pub sentiment_analysis: Option<bool>,
+    pub sentiment_analysis_results: Option<Vec<SentimentAnalysisResult>>,
+    pub entity_detection: Option<bool>,
+    pub entities: Option<Vec<Entity>>,
+    pub speech_threshold: Option<f64>,
+    pub throttled: Option<bool>,
+    pub error: Option<String>,
+    pub dual_channel: Option<bool>,
+    pub speed_boost: Option<bool>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Word {
-    confidence: Option<f64>,
-    start: Option<u32>,
-    end: Option<u32>,
-    text: Option<String>,
-    channel: Option<String>, // Added channel based on the provided JSON
-    speaker: Option<String>, // Added speaker based on the provided JSON
+    pub confidence: Option<f64>,
+    pub start: Option<u32>,
+    pub end: Option<u32>,
+    pub text: Option<String>,
+    pub channel: Option<String>, // Added channel based on the provided JSON
+    pub speaker: Option<String>, // Added speaker based on the provided JSON
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Utterance {
-    confidence: Option<f64>,
-    start: Option<u32>,
-    end: Option<u32>,
-    text: Option<String>,
-    words: Option<Vec<Word>>,
-    speaker: Option<String>,
-    channel: Option<String>,
+    pub confidence: Option<f64>,
+    pub start: Option<u32>,
+    pub end: Option<u32>,
+    pub text: Option<String>,
+    pub words: Option<Vec<Word>>,
+    pub speaker: Option<String>,
+    pub channel: Option<String>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AutoHighlightsResult {
-    status: Option<String>,
-    results: Option<Vec<AutoHighlight>>,
+    pub status: Option<String>,
+    pub results: Option<Vec<AutoHighlight>>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AutoHighlight {
-    count: Option<u32>,
-    rank: Option<f64>,
-    text: Option<String>,
-    timestamps: Option<Vec<Timestamp>>,
+    pub count: Option<u32>,
+    pub rank: Option<f64>,
+    pub text: Option<String>,
+    pub timestamps: Option<Vec<Timestamp>>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Timestamp {
-    start: Option<u32>,
-    end: Option<u32>,
+    pub start: Option<u32>,
+    pub end: Option<u32>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ContentSafetyLabels {
-    status: Option<String>,
-    results: Option<Vec<ContentSafetyResult>>,
-    summary: Option<HashMap<String, f64>>,
-    severity_score_summary: Option<HashMap<String, SeverityScore>>,
+    pub status: Option<String>,
+    pub results: Option<Vec<ContentSafetyResult>>,
+    pub summary: Option<HashMap<String, f64>>,
+    pub severity_score_summary: Option<HashMap<String, SeverityScore>>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ContentSafetyResult {
-    text: Option<String>,
-    labels: Option<Vec<ContentSafetyLabel>>,
-    sentences_idx_start: Option<u32>,
-    sentences_idx_end: Option<u32>,
-    timestamp: Option<Timestamp>,
+    pub text: Option<String>,
+    pub labels: Option<Vec<ContentSafetyLabel>>,
+    pub sentences_idx_start: Option<u32>,
+    pub sentences_idx_end: Option<u32>,
+    pub timestamp: Option<Timestamp>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ContentSafetyLabel {
-    label: Option<String>,
-    confidence: Option<f64>,
-    severity: Option<f64>,
+    pub label: Option<String>,
+    pub confidence: Option<f64>,
+    pub severity: Option<f64>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SeverityScore {
-    low: Option<f64>,
-    medium: Option<f64>,
-    high: Option<f64>,
+    pub low: Option<f64>,
+    pub medium: Option<f64>,
+    pub high: Option<f64>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct IabCategoriesResult {
-    status: Option<String>,
-    results: Option<Vec<IabCategoryResult>>,
-    summary: Option<HashMap<String, f64>>,
+    pub status: Option<String>,
+    pub results: Option<Vec<IabCategoryResult>>,
+    pub summary: Option<HashMap<String, f64>>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct IabCategoryResult {
-    text: Option<String>,
-    labels: Option<Vec<IabCategoryLabel>>,
-    timestamp: Option<Timestamp>,
+    pub text: Option<String>,
+    pub labels: Option<Vec<IabCategoryLabel>>,
+    pub timestamp: Option<Timestamp>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct IabCategoryLabel {
-    relevance: Option<f64>,
-    label: Option<String>,
+    pub relevance: Option<f64>,
+    pub label: Option<String>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CustomSpelling {
-    from: Option<Vec<String>>,
-    to: Option<String>,
+    pub from: Option<Vec<String>>,
+    pub to: Option<String>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Chapter {
-    gist: Option<String>,
-    headline: Option<String>,
-    summary: Option<String>,
-    start: Option<u32>,
-    end: Option<u32>,
+    pub gist: Option<String>,
+    pub headline: Option<String>,
+    pub summary: Option<String>,
+    pub start: Option<u32>,
+    pub end: Option<u32>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SentimentAnalysisResult {
-    text: Option<String>,
-    start: Option<u32>,
-    end: Option<u32>,
-    sentiment: Option<String>,
-    confidence: Option<f64>,
-    channel: Option<String>,
-    speaker: Option<String>,
+    pub text: Option<String>,
+    pub start: Option<u32>,
+    pub end: Option<u32>,
+    pub sentiment: Option<String>,
+    pub confidence: Option<f64>,
+    pub channel: Option<String>,
+    pub speaker: Option<String>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Entity {
-    entity_type: Option<String>,
-    text: Option<String>,
-    start: Option<u32>,
-    end: Option<u32>,
+    pub entity_type: Option<String>,
+    pub text: Option<String>,
+    pub start: Option<u32>,
+    pub end: Option<u32>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ListTranscriptResponse {
+    pub page_details: PageDetails,
+    pub transcripts: Vec<Transcript>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PageDetails {
+    pub limit: Option<u32>,
+    pub result_count: Option<u32>,
+    pub current_url: Option<String>,
+    pub prev_url: Option<String>,
+    pub next_url: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Transcript {
+    pub id: Option<String>,
+    pub resource_url: Option<String>,
+    pub status: Option<String>,
+    pub created: Option<String>,
+    pub audio_url: Option<String>,
+    pub completed: Option<String>,
+    pub error: Option<String>,
 }

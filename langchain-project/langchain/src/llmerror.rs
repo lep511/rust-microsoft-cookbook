@@ -106,5 +106,7 @@ pub enum AssemblyAIError {
     #[error("Failed to get response content")]
     ResponseContentError,
     #[error("The model must be best or nano")]
-    InvalidModel
+    InvalidModel,
+    #[error("Error reading from file")]
+    FileReadError,
 }

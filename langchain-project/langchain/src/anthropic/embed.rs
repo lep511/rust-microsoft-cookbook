@@ -1,3 +1,4 @@
+use crate::anthropic::requests::request_embed;
 use crate::anthropic::utils::GetApiKeyVoyage;
 use crate::llmerror::AnthropicError;
 
@@ -29,35 +30,23 @@ impl EmbedVoyage {
         })
     }
 
-    pub async fn embed_content(mut self, input: InputEmbed) -> Result<EmbedResponse, AnthropicError> {
+    pub async fn embed_content(
+        mut self, 
+        input: InputEmbed
+    ) -> Result<EmbedResponse, AnthropicError> {
         self.request.input = input;
-        
-        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
-        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //     }
-        // };
 
-        let response = self
-            .client
-            .post(ANTHROPIC_EMBED_URL)
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .header("content-type", "application/json")
-            .json(&self.request)
-            .send()
-            .await?
-            .json::<serde_json::Value>()
-            .await?;
-        
-        // let _pretty_json = match serde_json::to_string_pretty(&response) {
-        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //     }
-        // };
-
-        let response = response.to_string();
+        let response: String = match request_embed(
+            &self.request,
+            &self.api_key
+        ).await {
+            Ok(response) => response,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(AnthropicError::ResponseContentError);
+            }
+        };
+               
         let embed_response: EmbedResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
@@ -123,32 +112,17 @@ impl EmbedMultiVoyage {
     ) -> Result<EmbedResponse, AnthropicError> {
         self.request.inputs[0].content[0].text = Some(input_str.to_string());
         
-        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
-        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //     }
-        // };
+        let response: String = match request_embed(
+            &self.request,
+            &self.api_key
+        ).await {
+            Ok(response) => response,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(AnthropicError::ResponseContentError);
+            }
+        };
 
-        let response = self
-            .client
-            .post(ANTHROPIC_EMBEDMUL_URL)
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .header("content-type", "application/json")
-            .json(&self.request)
-            .send()
-            .await?
-            .json::<serde_json::Value>()
-            .await?;
-        
-        // let _pretty_json = match serde_json::to_string_pretty(&response) {
-        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //     }
-        // };
-
-        let response = response.to_string();
         let embed_response: EmbedResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
@@ -252,32 +226,17 @@ impl EmbedRankVoyage {
     ) -> Result<EmbedResponse, AnthropicError> {
         self.request.query = input_str.to_string();
         
-        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
-        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //     }
-        // };
-
-        let response = self
-            .client
-            .post(ANTHROPIC_EMBEDRANK_URL)
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .header("content-type", "application/json")
-            .json(&self.request)
-            .send()
-            .await?
-            .json::<serde_json::Value>()
-            .await?;
+        let response: String = match request_embed(
+            &self.request,
+            &self.api_key
+        ).await {
+            Ok(response) => response,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(AnthropicError::ResponseContentError);
+            }
+        };
         
-        // let _pretty_json = match serde_json::to_string_pretty(&response) {
-        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //     }
-        // };
-
-        let response = response.to_string();
         let embed_response: EmbedResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {

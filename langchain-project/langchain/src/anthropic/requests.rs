@@ -2,7 +2,8 @@ use reqwest::Client;
 use crate::anthropic::libs::ChatRequest;
 use crate::anthropic::utils::print_pre;
 use crate::anthropic::{
-    ANTHROPIC_VERSION, ANTHROPIC_BASE_URL, DEBUG_PRE, DEBUG_POST
+    ANTHROPIC_VERSION, ANTHROPIC_BASE_URL, DEBUG_PRE, DEBUG_POST,
+    ANTHROPIC_EMBED_URL
 };
 use crate::llmerror::AnthropicError;
 use std::time::Duration;
@@ -62,6 +63,35 @@ pub async fn request_chat(
         }
     }
     
+    let response_string = response.to_string();
+    Ok(response_string)
+}
+
+pub async fn request_embed(
+    request: &ChatRequest,
+    api_key: &str,
+    timeout: u64,
+) -> Result<String, AnthropicError> {
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
+    let mut response: serde_json::Value;
+    
+    print_pre(&request, DEBUG_PRE);
+
+    response = client
+        .post(ANTHROPIC_EMBED_URL)
+        .timeout(Duration::from_secs(timeout))
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .json(request)
+        .send()
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
+
+    print_pre(&response, DEBUG_POST);
+
     let response_string = response.to_string();
     Ok(response_string)
 }

@@ -1,5 +1,5 @@
 pub mod chat;
-// pub mod embed;
+pub mod embed;
 pub mod libs;
 pub mod utils;
 pub mod requests;

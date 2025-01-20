@@ -1,6 +1,6 @@
 #[allow(dead_code)]
-use langchain::anthropic::EmbedVoyage;
-use langchain::anthropic::InputEmbed;
+use langchain::anthropic::embed::EmbedVoyage;
+use langchain::anthropic::libs::InputEmbed;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -21,6 +21,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response = llm.embed_content(input_array).await?;
 
     println!("Response: {:?}", response);
-
     Ok(())
 }

@@ -1,5 +1,5 @@
 use reqwest::Client;
-use crate::anthropic::libs::ChatRequest;
+use crate::anthropic::libs::{ChatRequest, EmbedRequest};
 use crate::anthropic::utils::print_pre;
 use crate::anthropic::{
     ANTHROPIC_VERSION, ANTHROPIC_BASE_URL, DEBUG_PRE, DEBUG_POST,
@@ -68,20 +68,18 @@ pub async fn request_chat(
 }
 
 pub async fn request_embed(
-    request: &ChatRequest,
+    request: &EmbedRequest,
     api_key: &str,
-    timeout: u64,
 ) -> Result<String, AnthropicError> {
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
-    let mut response: serde_json::Value;
+    let response: serde_json::Value;
     
     print_pre(&request, DEBUG_PRE);
 
     response = client
         .post(ANTHROPIC_EMBED_URL)
-        .timeout(Duration::from_secs(timeout))
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .json(request)

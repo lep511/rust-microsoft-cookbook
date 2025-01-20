@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-use langchain::anthropic::EmbedMultiVoyage;
+use langchain::anthropic::embed::EmbedMultiVoyage;
 use std::fs::File;
 use std::io::Read;
 use base64::{Engine as _, engine::general_purpose::STANDARD};

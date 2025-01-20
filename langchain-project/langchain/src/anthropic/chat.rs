@@ -2,6 +2,7 @@ use crate::anthropic::libs::{
     ChatRequest, InputContent, Message, ChatResponse,
     Source,
 };
+use crate::anthropic::MIME_TYPE_SUPPORTED;
 use crate::anthropic::utils::GetApiKey;
 use crate::anthropic::requests::request_chat;
 use crate::llmerror::AnthropicError;
@@ -172,7 +173,21 @@ impl ChatAnthropic {
         self
     }
 
-    pub fn with_image(mut self, image_base64: &str, mime_type: &str) -> Self {
+    pub fn with_image(
+        mut self, 
+        image_base64: &str, 
+        mime_type: &str
+    ) -> Self {
+
+        if !MIME_TYPE_SUPPORTED.contains(&mime_type) {
+            println!(
+                "[ERROR] Unsupported media type: {}. Supported: {}", 
+                mime_type,
+                MIME_TYPE_SUPPORTED.join(", ")
+            );
+            return self;
+        }
+
         let content = vec![InputContent {
             content_type: "image".to_string(),
             text: None,
@@ -191,9 +206,9 @@ impl ChatAnthropic {
                 content: Some(content),
             }
         );
+
         self
     }
-
 }
 
 impl GetApiKey for ChatAnthropic {}

@@ -29,46 +29,34 @@ pub enum InputEmbed {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EmbedRequest {
     pub model: String,
-    pub input: InputEmbed,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input: Option<InputEmbed>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inputs: Option<Vec<EmbedContent>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_dimension: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_dtype: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub encoding_format: Option<String>,
-
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct EmbedMultiRequest {
-    pub model: String,
-    pub inputs: Vec<EmbedContent>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_encoding: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub truncation: Option<bool>,
-
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub query: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documents: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<u32>,  
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EmbedContent {
     pub content: Vec<InputContent>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct EmbedRankRequest {
-    pub model: String,
-    pub query: String,
-    pub documents: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub top_k: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub truncation: Option<bool>,
 }
 
 #[allow(dead_code)]

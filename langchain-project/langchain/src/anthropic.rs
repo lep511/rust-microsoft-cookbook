@@ -11,5 +11,14 @@ pub static ANTHROPIC_EMBEDMUL_URL: &str = "https://api.voyageai.com/v1/multimoda
 pub static ANTHROPIC_EMBEDRANK_URL: &str = "https://api.voyageai.com/v1/rerank";
 pub static ANTHROPIC_VERSION: &str = "2023-06-01";
 
+pub static MIME_TYPE_SUPPORTED: [&str; 6] = [
+    "image/png", 
+    "image/jpeg",
+    "image/jpg",
+    "image/gif", 
+    "image/webp", 
+    "image/gif"
+];
+
 pub const DEBUG_PRE: bool = false;
 pub const DEBUG_POST: bool = false;

@@ -1,5 +1,6 @@
 #[allow(dead_code)]
-use langchain::anthropic::{EmbedRankVoyage, EmbedResponse};
+use langchain::anthropic::embed::EmbedRankVoyage;
+use langchain::anthropic::libs::EmbedResponse;
 use langchain::anthropic::chat::ChatAnthropic;
 use std::cmp::Ordering::Equal;
 

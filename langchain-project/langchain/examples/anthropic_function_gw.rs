@@ -1,19 +1,19 @@
 #[allow(dead_code)]
 use langchain::anthropic::chat::ChatAnthropic;
 use reqwest::Client;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 use std::env;
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WeatherResponse {
     main: MainWeather,
     name: String,
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MainWeather {
     temp: f64,
     feels_like: f64,
@@ -22,10 +22,32 @@ pub struct MainWeather {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WeatherParams {
     location: String,
     unit: String,
+}
+
+pub async fn get_response(location: &str, weather_data: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+    let prompt = format!(
+        "How is the weather in {} according to this data: {}", 
+        location,
+        weather_data,
+    );
+
+    let response = llm.invoke(&prompt).await?;
+    
+    if let Some(candidates) = response.content {
+        for candidate in candidates {
+            match candidate.text {
+                Some(text) => println!("{}", text),
+                None => println!(""),
+            }
+        }
+    };
+
+    Ok(())
 }
 
 #[allow(dead_code)]
@@ -109,6 +131,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 Ok(weather) => {
                                     println!("Weather {}", weather.name);
                                     println!("Weather {:?}", weather.main);
+                                    let weather_data = serde_json::to_string(&weather.main).unwrap();
+                                    match get_response(&weather.name, &weather_data).await {
+                                        Ok(_) => (),
+                                        Err(e) => println!("Error sending response: {}", e),
+                                    
+                                    }
                                 }
                                 Err(e) => println!("Error fetching weather: {}", e),
                             }

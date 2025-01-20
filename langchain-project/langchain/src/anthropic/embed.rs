@@ -3,8 +3,8 @@ use crate::anthropic::requests::request_embed;
 use crate::anthropic::utils::GetApiKeyVoyage;
 use crate::llmerror::AnthropicError;
 use crate::anthropic::libs::{
-    EmbedRequest, InputContent, InputEmbed,
-    EmbedContent, EmbedResponse, 
+    EmbedRequest, InputContent, InputEmbed, EmbedContent,
+    EmbedResponse, AnthropicEmbedEndpoint
 };
 
 #[allow(dead_code)]
@@ -19,10 +19,9 @@ pub struct EmbedVoyage {
 impl EmbedVoyage {
     pub fn new(model: &str) -> Result<Self, AnthropicError> {
         let api_key = Self::get_api_key()?;
-        let init_msg = InputEmbed::String("".to_string());
         let request = EmbedRequest {
             model: model.to_string(),
-            input: Some(init_msg),
+            input: None,
             output_dimension: None,
             output_dtype: None,
             encoding_format: None,
@@ -48,9 +47,12 @@ impl EmbedVoyage {
     ) -> Result<EmbedResponse, AnthropicError> {
         self.request.input = Some(input);
 
+        let endpoint = AnthropicEmbedEndpoint::Embed;
+
         let response: String = match request_embed(
             &self.request,
-            &self.api_key
+            &self.api_key,
+            endpoint
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -93,21 +95,10 @@ pub struct EmbedMultiVoyage {
 impl EmbedMultiVoyage {
     pub fn new(model: &str) -> Result<Self, AnthropicError> {
         let api_key = Self::get_api_key()?;
-        let init_msg = InputContent {
-            content_type: "text".to_string(),
-            text: Some("".to_string()),
-            source: None,
-            image_url: None,
-            image_base64: None,
-        };
-
-        let embed_content = EmbedContent {
-            content: vec![init_msg],
-        };
 
         let request = EmbedRequest {
             model: model.to_string(),
-            inputs: Some(vec![embed_content]),
+            inputs: None,
             output_encoding: None,
             input_type: None,
             truncation: None,
@@ -131,7 +122,7 @@ impl EmbedMultiVoyage {
         mut self, 
         input_str: &str
     ) -> Result<EmbedResponse, AnthropicError> {
-        let input_msg = InputContent {
+        let content = InputContent {
             content_type: "text".to_string(),
             text: Some(input_str.to_string()),
             source: None,
@@ -140,14 +131,21 @@ impl EmbedMultiVoyage {
         };
 
         let embed_content = EmbedContent {
-            content: vec![input_msg],
+            content: vec![content],
         };
 
-        self.request.inputs = Some(vec![embed_content]);
+        if let Some(inputs) = &mut self.request.inputs {
+            inputs.push(embed_content);
+        } else {
+            self.request.inputs = Some(vec![embed_content]);
+        }
         
+        let endpoint = AnthropicEmbedEndpoint::MultimodalEmbed;
+
         let response: String = match request_embed(
             &self.request,
-            &self.api_key
+            &self.api_key,
+            endpoint,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -171,48 +169,64 @@ impl EmbedMultiVoyage {
         }
     }
 
-    // pub fn with_image_url(mut self, image_url: &str) -> Self {
-    //     let content = InputContent {
-    //         content_type: "image_url".to_string(),
-    //         text: None,
-    //         source: None,
-    //         image_url: Some(image_url.to_string()),
-    //         image_base64: None,
-    //     };
+    pub fn with_image_url(mut self, image_url: &str) -> Self {
+        let content = InputContent {
+            content_type: "image_url".to_string(),
+            text: None,
+            source: None,
+            image_url: Some(image_url.to_string()),
+            image_base64: None,
+        };
+
+        let embed_content = EmbedContent {
+            content: vec![content],
+        };
+
+        if let Some(inputs) = &mut self.request.inputs {
+            inputs.push(embed_content);
+        } else {
+            self.request.inputs = Some(vec![embed_content]);
+        }
        
-    //     self
-    // }
+        self
+    }
 
-    // pub fn with_image(
-    //     mut self, 
-    //     image_base64: &str, 
-    //     media_type: &str
-    // ) -> Self {
+    pub fn with_image(
+        mut self, 
+        image_base64: &str, 
+        media_type: &str
+    ) -> Self {
 
-    //     if !MIME_TYPE_SUPPORTED.contains(&media_type) {
-    //         println!(
-    //             "[ERROR] Unsupported media type: {}. Supported: {}", 
-    //             media_type,
-    //             MIME_TYPE_SUPPORTED.join(", ")
-    //         );
-    //         return self;
-    //     }
+        if !MIME_TYPE_SUPPORTED.contains(&media_type) {
+            println!(
+                "[ERROR] Unsupported media type: {}. Supported: {}", 
+                media_type,
+                MIME_TYPE_SUPPORTED.join(", ")
+            );
+            return self;
+        }
 
-    //     let format_base64 = format!("data:{};base64,{}", media_type, image_base64);
-    //     let content = InputContent {
-    //         content_type: "image_base64".to_string(),
-    //         text: None,
-    //         source: None,
-    //         image_url: None,
-    //         image_base64: Some(format_base64.to_string()),
-    //     };
-    //     match &mut self.request.inputs[0].content {
-    //         Some(vec) => vec.push(content),
-    //         None => self.request.inputs[0].content = Some(vec![content]),
-    //     }
+        let format_base64 = format!("data:{};base64,{}", media_type, image_base64);
+        let content = InputContent {
+            content_type: "image_base64".to_string(),
+            text: None,
+            source: None,
+            image_url: None,
+            image_base64: Some(format_base64.to_string()),
+        };
 
-    //     self
-    // }
+        let embed_content = EmbedContent {
+            content: vec![content],
+        };
+
+        if let Some(inputs) = &mut self.request.inputs {
+            inputs.push(embed_content);
+        } else {
+            self.request.inputs = Some(vec![embed_content]);
+        }
+
+        self
+    }
 }
 
 #[allow(dead_code)]
@@ -255,10 +269,13 @@ impl EmbedRankVoyage {
         input_str: &str
     ) -> Result<EmbedResponse, AnthropicError> {
         self.request.query = Some(input_str.to_string());
+
+        let endpoint = AnthropicEmbedEndpoint::Rerank;
         
         let response: String = match request_embed(
             &self.request,
-            &self.api_key
+            &self.api_key,
+            endpoint,
         ).await {
             Ok(response) => response,
             Err(e) => {

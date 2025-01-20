@@ -55,6 +55,14 @@ pub struct EmbedRequest {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum AnthropicEmbedEndpoint {
+    Embed,
+    MultimodalEmbed,
+    Rerank,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EmbedContent {
     pub content: Vec<InputContent>,
 }

@@ -17,7 +17,7 @@ fn get_highest_relevance_score(response: &EmbedResponse) -> Option<(f64, usize)>
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = EmbedRankVoyage::new("rerank-lite-1")?;
+    let llm = EmbedRankVoyage::new("rerank-2-lite")?;
 
     let doc1 = "Document 1: \
                 One of the most serious constitutional responsibilities a \
@@ -59,9 +59,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let llm = llm.with_documents(documents.clone());
 
-    // let query = "What did the president say about Ketanji Jackson Brown";
+    let query = "What did the president say about Ketanji Jackson Brown";
     // let query = "What did the president say about the Rust Belt";
-    let query = "What did the president say about inflation";
+    // let query = "What did the president say about inflation";
     let response = llm.embed_content(query).await?;
 
     // println!("Response: {:?}", response);

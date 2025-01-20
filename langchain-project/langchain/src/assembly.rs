@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::env;
 
 pub static ASSEMBLYAI_BASE_URL: &str = "https://api.assemblyai.com/v2";
+static SPEECH_ACCEPT_MODEL: [&str; 2] = ["best", "nano"];
 
 pub const DEBUG_PRE: bool = false;
 pub const DEBUG_POST: bool = false;
@@ -473,6 +474,31 @@ impl TranscriptAssemblyAI {
         self.request.language_detection = Some(language_detection);
         self
     }
+
+    pub fn with_speech_model(mut self, speech_model: &str) -> Self {
+        let speech_accept_model = ["best", "nano"];
+        if !SPEECH_ACCEPT_MODEL.contains(&speech_model) {
+            println!("[ERROR] Speech model not accepted");
+            return self;
+        }
+        self.request.speech_model = Some(speech_model.to_string());
+        self
+    }
+
+    pub fn with_redact_pii_policies(mut self, redact_pii_policies: Vec<PiiType>) -> Self {
+        self.request.redact_pii_policies = Some(redact_pii_policies);
+        self
+    }
+
+    pub fn with_audio_end_at(mut self, audio_end_at: f64) -> Self {
+        self.request.audio_end_at = Some(audio_end_at);
+        self
+    }
+
+    pub fn with_language_code(mut self, language_code: &str) -> Self {
+        self.request.language_code = Some(language_code.to_string());
+        self
+    }
 }
 
 impl GetApiKey for TranscriptAssemblyAI {}
@@ -517,7 +543,7 @@ pub struct TranscriptResponse {
     pub redact_pii: Option<bool>,
     pub redact_pii_audio: Option<bool>,
     pub redact_pii_audio_quality: Option<String>,
-    pub redact_pii_policies: Option<Vec<String>>,
+    pub redact_pii_policies: Option<Vec<PiiType>>,
     pub redact_pii_sub: Option<String>,
     pub sentiment_analysis: Option<bool>,
     pub sentiment_analysis_results: Option<serde_json::Value>,
@@ -581,7 +607,7 @@ pub struct GetTranscriptResponse {
     pub filter_profanity: Option<bool>,
     pub redact_pii_audio: Option<bool>,
     pub redact_pii_audio_quality: Option<String>,
-    pub redact_pii_policies: Option<Vec<String>>,
+    pub redact_pii_policies: Option<Vec<PiiType>>,
     pub redact_pii_sub: Option<String>,
     pub speaker_labels: Option<bool>,
     pub speakers_expected: Option<u32>,

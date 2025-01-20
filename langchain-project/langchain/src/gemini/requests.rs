@@ -4,9 +4,11 @@ use async_stream::stream;
 use futures::StreamExt;
 use crate::gemini::libs::{ChatRequest, Part, Content, ChatResponse};
 use crate::gemini::libs::{CacheRequest, InlineData, EmbedRequest};
-use crate::gemini::utils::{print_pre, get_mime_type};
+use crate::gemini::utils::print_pre;
 use crate::gemini::{DEBUG_PRE, DEBUG_POST};
-use base64::decode;
+use crate::llmerror::GeminiError;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use serde_json::json;
 use std::time::Duration;
 
@@ -37,7 +39,7 @@ pub async fn request_chat(
     request: &ChatRequest, 
     timeout: u64,
     retry: u32,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<String, GeminiError> {
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
@@ -93,7 +95,7 @@ pub async fn upload_media(
     base64_string: String,
     display_name: &str,
     content_length: &str,
-    mut mime_type: &str,
+    mime_type: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let mut headers = HeaderMap::new();
     headers.insert("X-Goog-Upload-Protocol", HeaderValue::from_static("resumable"));
@@ -132,7 +134,7 @@ pub async fn upload_media(
     upload_headers.insert("X-Goog-Upload-Offset", HeaderValue::from_static("0"));
     upload_headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("upload, finalize")); 
 
-    let body_data = decode(base64_string).expect("Invalid base64 string");
+    let body_data = STANDARD.decode(base64_string).expect("Invalid base64 string");
 
     let client = Client::builder()
         .use_rustls_tls()
@@ -203,8 +205,7 @@ pub async fn request_cache(
     instruction: String,
     model: &str,
     ttl: u32,
-    retry: u32,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<String, GeminiError> {
 
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", HeaderValue::from_static("application/json"));
@@ -261,7 +262,10 @@ pub async fn request_cache(
 
     let cache_name = cache_resp["name"]
         .as_str()
-        .ok_or("Missing cache name")?
+        .ok_or_else(|| GeminiError::GenericError { 
+            message: "Missing cache name".to_string(),
+            source: None,
+        })?
         .trim_matches('"')
         .to_string();
 
@@ -301,7 +305,7 @@ pub async fn request_embed(
     url: &str,
     request: EmbedRequest,
     retry: u32,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<String, GeminiError> {
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]
@@ -116,9 +117,9 @@ pub struct InputContent {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Source {
     #[serde(rename = "type")]
-    source_type: String,
-    media_type: String,
-    data: String,
+    pub source_type: String,
+    pub media_type: String,
+    pub data: String,
 }
 
 #[allow(dead_code)]

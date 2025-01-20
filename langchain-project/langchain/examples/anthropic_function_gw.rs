@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-use langchain::anthropic::ChatAnthropic;
+use langchain::anthropic::chat::ChatAnthropic;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{json, Value};

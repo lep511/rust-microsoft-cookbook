@@ -79,7 +79,7 @@ impl ChatGemini {
             model: model.to_string(),
             request: request,
             timeout: 15 * 60, // default: 15 minutes
-            retry: 0,
+            retry: 3,         // default: 3 times
         })
     }
 
@@ -317,7 +317,6 @@ impl ChatGemini {
             instruction.to_string(),
             &self.model,
             ttl,
-            self.retry,
         ).await {
             Ok(response) => response,
             Err(e) => {

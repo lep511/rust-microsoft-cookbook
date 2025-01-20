@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-use langchain::anthropic::ChatAnthropic;
+use langchain::anthropic::chat::ChatAnthropic;
 use std::fs::File;
 use std::io::Read;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -20,11 +20,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let base64_string_01 = STANDARD.encode(&buffer_01);
     let base64_string_02 = STANDARD.encode(&buffer_02);
 
+    let mime_type_jpeg = "image/jpeg";
+    let mime_type_png = "image/png";
+    
     let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
-    let llm = llm.with_inline_data_jpeg(&base64_string_01);
-    let llm = llm.with_inline_data_png(&base64_string_02);
-    let prompt = "Compare the two pictures provided";
-    let response = llm.invoke(prompt).await?;
+
+    let response = llm
+        .with_image(&base64_string_01, mime_type_jpeg)
+        .with_image(&base64_string_02, mime_type_png)
+        .invoke("Compare the two pictures provided")
+        .await?;
 
     println!("#### Example Anthropic Image Data ####");
     #[allow(irrefutable_let_patterns)]

@@ -21,6 +21,12 @@ pub enum GeminiError {
     RequestEmbedError,
     #[error("Failed to extract the mime type")]
     InvalidMimeType,
+    #[error("Response content error: {message}")]
+    GenericError {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
 }
 
 #[allow(dead_code)]

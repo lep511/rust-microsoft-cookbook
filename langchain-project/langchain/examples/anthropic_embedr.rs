@@ -1,6 +1,6 @@
 #[allow(dead_code)]
 use langchain::anthropic::{EmbedRankVoyage, EmbedResponse};
-use langchain::anthropic::ChatAnthropic;
+use langchain::anthropic::chat::ChatAnthropic;
 use std::cmp::Ordering::Equal;
 
 fn get_highest_relevance_score(response: &EmbedResponse) -> Option<(f64, usize)> {

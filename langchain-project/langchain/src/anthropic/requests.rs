@@ -1,13 +1,18 @@
 use reqwest::Client;
 use crate::anthropic::libs::ChatRequest;
 use crate::anthropic::utils::print_pre;
+use crate::anthropic::{
+    ANTHROPIC_VERSION, ANTHROPIC_BASE_URL, DEBUG_PRE, DEBUG_POST
+};
+use crate::llmerror::AnthropicError;
+use std::time::Duration;
 
 pub async fn request_chat(
     request: &ChatRequest,
     api_key: &str,
     timeout: u64,
     retry: u32,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<String, AnthropicError> {
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;

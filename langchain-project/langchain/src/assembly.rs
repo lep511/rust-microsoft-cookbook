@@ -19,9 +19,9 @@ pub struct TranscriptRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub speech_model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub audio_end_at: Option<i32>,
+    pub audio_end_at: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub audio_start_from: Option<i32>,
+    pub audio_start_from: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_chapters: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -272,7 +272,7 @@ impl TranscriptAssemblyAI {
     }
 
     pub async fn upload_file(
-        mut self,
+        self,
         file_path: &str,
     ) -> Result<String, AssemblyAIError> {
         let base_url = format!("{}/upload", ASSEMBLYAI_BASE_URL);
@@ -476,7 +476,6 @@ impl TranscriptAssemblyAI {
     }
 
     pub fn with_speech_model(mut self, speech_model: &str) -> Self {
-        let speech_accept_model = ["best", "nano"];
         if !SPEECH_ACCEPT_MODEL.contains(&speech_model) {
             println!("[ERROR] Speech model not accepted");
             return self;
@@ -490,7 +489,7 @@ impl TranscriptAssemblyAI {
         self
     }
 
-    pub fn with_audio_end_at(mut self, audio_end_at: f64) -> Self {
+    pub fn with_audio_end_at(mut self, audio_end_at: u32) -> Self {
         self.request.audio_end_at = Some(audio_end_at);
         self
     }
@@ -508,9 +507,9 @@ impl PrintDebug for TranscriptAssemblyAI {}
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TranscriptResponse {
     pub acoustic_model: Option<String>,
-    pub audio_duration: Option<f64>,
-    pub audio_end_at: Option<f64>,
-    pub audio_start_from: Option<f64>,
+    pub audio_duration: Option<u32>,
+    pub audio_end_at: Option<u32>,
+    pub audio_start_from: Option<u32>,
     pub audio_url: Option<String>,
     pub auto_chapters: Option<bool>,
     pub auto_highlights: Option<bool>,

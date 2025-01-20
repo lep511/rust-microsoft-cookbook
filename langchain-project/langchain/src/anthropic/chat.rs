@@ -1,6 +1,11 @@
-use std::time::Duration;
-use crate::llmerror::AnthropicError;
+use crate::anthropic::libs::{
+    ChatRequest, InputContent, Message, ChatResponse,
+    Source,
+};
+use crate::anthropic::utils::GetApiKey;
 use crate::anthropic::requests::request_chat;
+use crate::llmerror::AnthropicError;
+use serde_json::Value;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -8,6 +13,7 @@ pub struct ChatAnthropic {
     pub api_key: String,
     pub request: ChatRequest,
     pub timeout: u64,
+    pub retry: u32,
 }
 
 #[allow(dead_code)]
@@ -43,6 +49,7 @@ impl ChatAnthropic {
             api_key: api_key,
             request: request,
             timeout: 15 * 60, // default: 15 minutes 
+            retry: 3,         // default: 3 times
         })
     }
 
@@ -68,11 +75,18 @@ impl ChatAnthropic {
             }
         };
 
-        let response: String = request_chat(
+        let response: String = match request_chat(
             &self.request,
             &self.api_key,
             self.timeout,
-        ).await?;
+            self.retry,
+        ).await {
+            Ok(response) => response,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(AnthropicError::ResponseContentError);
+            }
+        };
 
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
@@ -158,14 +172,14 @@ impl ChatAnthropic {
         self
     }
 
-    pub fn with_image_gif(mut self, image: &str) -> Self {
+    pub fn with_image(mut self, image_base64: &str, mime_type: &str) -> Self {
         let content = vec![InputContent {
             content_type: "image".to_string(),
             text: None,
             source: Some(Source {
                 source_type: "base64".to_string(),
-                media_type: "image/gif".to_string(),
-                data: image.to_string(),
+                media_type: mime_type.to_string(),
+                data: image_base64.to_string(),
             }),
             image_url: None,
             image_base64: None,
@@ -180,47 +194,6 @@ impl ChatAnthropic {
         self
     }
 
-    pub fn with_image_png(mut self, image: &str) -> Self {
-        let content = vec![InputContent {
-            content_type: "image".to_string(),
-            text: None,
-            source: Some(Source {
-                source_type: "base64".to_string(),
-                media_type: "image/png".to_string(),
-                data: image.to_string(),
-            }),
-            image_url: None,
-            image_base64: None,
-        }];
-        self.request.messages.push(
-            Message {
-                role: Some("user".to_string()),
-                content: Some(content),
-            }
-        );
-        self
-    }
-
-    pub fn with_image_jpeg(mut self, image: &str) -> Self {
-        let content = vec![InputContent {
-            content_type: "image".to_string(),
-            text: None,
-            source: Some(Source {
-                source_type: "base64".to_string(),
-                media_type: "image/jpeg".to_string(),
-                data: image.to_string(),
-            }),
-            image_url: None,
-            image_base64: None,
-        }];
-        self.request.messages.push(
-            Message {
-                role: Some("user".to_string()),
-                content: Some(content),
-            }
-        );
-        self
-    }
 }
 
 impl GetApiKey for ChatAnthropic {}

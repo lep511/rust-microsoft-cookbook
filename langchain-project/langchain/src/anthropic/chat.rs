@@ -14,7 +14,7 @@ pub struct ChatAnthropic {
     pub api_key: String,
     pub request: ChatRequest,
     pub timeout: u64,
-    pub retry: u32,
+    pub retry: i32,
 }
 
 #[allow(dead_code)]
@@ -147,6 +147,11 @@ impl ChatAnthropic {
 
     pub fn with_system_prompt(mut self, system_prompt: &str) -> Self {
         self.request.system = Some(system_prompt.to_string());
+        self
+    }
+
+    pub fn with_retry(mut self, retry: i32) -> Self {
+        self.retry = retry;
         self
     }
 

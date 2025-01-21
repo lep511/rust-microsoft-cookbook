@@ -3,7 +3,6 @@ pub mod embed;
 pub mod libs;
 pub mod utils;
 pub mod requests;
-// pub mod errors;
 
 pub static ANTHROPIC_BASE_URL: &str = "https://api.anthropic.com/v1/messages";
 pub static ANTHROPIC_EMBED_URL: &str = "https://api.voyageai.com/v1/embeddings";

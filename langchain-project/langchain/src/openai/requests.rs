@@ -1,13 +1,9 @@
 use reqwest::Client;
-use crate::anthropic::libs::{
-    ChatRequest, EmbedRequest, AnthropicEmbedEndpoint
-};
-use crate::anthropic::utils::print_pre;
-use crate::anthropic::{
-    ANTHROPIC_VERSION, ANTHROPIC_BASE_URL, DEBUG_PRE, DEBUG_POST,
-    ANTHROPIC_EMBED_URL, ANTHROPIC_EMBEDMUL_URL, ANTHROPIC_EMBEDRANK_URL
-};
-use crate::llmerror::AnthropicError;
+use crate::openai::{OPENAI_BASE_URL, OPENAI_EMBED_URL};
+use crate::openai::{DEBUG_PRE, DEBUG_POST};
+use crate::llmerror::OpenAIError;
+use crate::openai::libs::{ChatRequest, EmbedRequest};
+use crate::openai::utils::print_pre;
 use std::time::Duration;
 
 pub async fn request_chat(
@@ -15,7 +11,7 @@ pub async fn request_chat(
     api_key: &str,
     timeout: u64,
     retry: i32,
-) -> Result<String, AnthropicError> {
+) -> Result<String, OpenAIError> {
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
@@ -24,10 +20,9 @@ pub async fn request_chat(
     print_pre(&request, DEBUG_PRE);
 
     response = client
-        .post(ANTHROPIC_BASE_URL)
+        .post(OPENAI_BASE_URL)
         .timeout(Duration::from_secs(timeout))
-        .header("x-api-key", api_key)
-        .header("anthropic-version", ANTHROPIC_VERSION)
+        .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .json(request)
         .send()
@@ -49,11 +44,11 @@ pub async fn request_chat(
             // Wait for 2 sec
             tokio::time::sleep(Duration::from_secs(2)).await;
             response = client
-                .post(ANTHROPIC_BASE_URL)
+                .post(OPENAI_BASE_URL)
                 .timeout(Duration::from_secs(timeout))
-                .header("anthropic-version", ANTHROPIC_VERSION)
+                .header("Authorization", format!("Bearer {}", api_key))
                 .header("Content-Type", "application/json")
-                .json(&request)
+                .json(request)
                 .send()
                 .await?
                 .json::<serde_json::Value>()
@@ -72,23 +67,16 @@ pub async fn request_chat(
 pub async fn request_embed(
     request: &EmbedRequest,
     api_key: &str,
-    endpoint: AnthropicEmbedEndpoint
-) -> Result<String, AnthropicError> {
+) -> Result<String, OpenAIError> {
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
     let response: serde_json::Value;
-
-    let request_url = match endpoint {
-        AnthropicEmbedEndpoint::Embed => ANTHROPIC_EMBED_URL,
-        AnthropicEmbedEndpoint::MultimodalEmbed => ANTHROPIC_EMBEDMUL_URL,
-        AnthropicEmbedEndpoint::Rerank => ANTHROPIC_EMBEDRANK_URL,
-    };
     
     print_pre(&request, DEBUG_PRE);
 
     response = client
-        .post(request_url)
+        .post(OPENAI_EMBED_URL)
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .json(request)

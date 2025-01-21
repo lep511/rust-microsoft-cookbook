@@ -3,16 +3,25 @@ use langchain::gemini::chat::ChatGemini;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
 
-    let file_path = "tests/files/breakfast.webp";
-    llm = llm.media_upload(file_path, "auto").await?;
-    println!("Media uploaded successfully...");
+    let file_path = Some("tests/files/breakfast.webp");
+    let upload_data = None;
+    let display_name = "breakfast.webp";
+    let mime_type = "image/webp";
 
     let prompt = "Write a short and engaging blog post based on this picture.";
 
-
-    let response = llm.invoke(prompt).await?;
+    let response = llm
+        .media_upload(
+            file_path,
+            upload_data,
+            display_name,
+            mime_type,
+        )
+        .await?
+        .invoke(prompt)
+        .await?;
 
     if let Some(candidates) = response.candidates {
         for candidate in candidates {

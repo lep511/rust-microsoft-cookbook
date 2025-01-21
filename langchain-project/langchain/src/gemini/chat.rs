@@ -2,13 +2,12 @@ use futures::pin_mut;
 use futures::StreamExt;
 use async_stream::stream;
 use crate::llmerror::GeminiError;
-use crate::gemini::gen_config::GenerationConfig;
 use crate::gemini::utils::{
     GetApiKey, get_mime_type, get_base64_bytes_length
 };
 use crate::gemini::libs::{
     ChatRequest, Content, Part, FileData, InlineData,
-    ChatResponse, FunctionResponse, SafetySetting,
+    ChatResponse, FunctionResponse, SafetySetting, GenerationConfig,
 };
 use crate::gemini::requests::{
     request_chat, upload_media, request_cache, 
@@ -43,35 +42,26 @@ impl ChatGemini {
         );
 
         let request = ChatRequest {
-            contents: vec![Content {
-                role: "user".to_string(),
-                parts: vec![Part {
-                    text: Some("Init message.".to_string()),
-                    function_call: None,
-                    function_response: None,
-                    inline_data: None,
-                    file_data: None,
-                }],
-            }],
+            contents: None,
             tools: None,
             tool_config: None,
             system_instruction: None,
             cached_content: None,
             safety_settings: None,
             generation_config: Some(GenerationConfig {
-                temperature: Some(0.9),
-                top_k: Some(40),
-                top_p: Some(0.95),
-                max_output_tokens: Some(2048),
-                response_mime_type: Some("text/plain".to_string()),
-                response_schema: None,
+                temperature: None,
+                top_k: None,
+                top_p: None,
+                candidate_count: None,
+                max_output_tokens: None,
                 stop_sequences: None,
-                candidate_count: Some(1),
-                presence_penalty: None,
-                frequency_penalty: None,
+                response_mime_type: None,
+                response_schema: None,
                 response_logprobs: None,
                 log_probs: None,
-            }),
+                presence_penalty: None,
+                frequency_penalty: None,
+            })  
         };
         
         Ok(Self {
@@ -87,21 +77,22 @@ impl ChatGemini {
         mut self, 
         prompt: &str
     ) -> Result<ChatResponse, GeminiError> {
+        
+        let content = Content {
+            role: "user".to_string(),
+            parts: vec![Part {
+                text: Some(prompt.to_string()),
+                function_call: None,
+                function_response: None,
+                inline_data: None,
+                file_data: None,
+            }]
+        };
 
-        if self.request.contents[0].parts[0].text == Some("Init message.".to_string()) {
-            self.request.contents[0].parts[0].text = Some(prompt.to_string());
+        if let Some(contents) = &mut self.request.contents {
+            contents.push(content);
         } else {
-            let content = Content {
-                role: "user".to_string(),
-                parts: vec![Part {
-                    text: Some(prompt.to_string()),
-                    function_call: None,
-                    function_response: None,
-                    inline_data: None,
-                    file_data: None,
-                }],
-            };
-            self.request.contents.push(content);
+            self.request.contents = Some(vec![content]);
         }
         
         let response = match request_chat(
@@ -133,7 +124,7 @@ impl ChatGemini {
                 candidates: chat_response.candidates,
                 model_version: chat_response.model_version,
                 usage_metadata: chat_response.usage_metadata,
-                chat_history: Some(self.request.contents.clone()),
+                chat_history: self.request.contents.clone(),
                 error: None,
             };
             Ok(format_response)
@@ -142,27 +133,28 @@ impl ChatGemini {
 
     pub fn stream_response(
         mut self,
-        prompt: String
+        prompt: String,  // Don't change for stream
     ) -> impl futures::Stream<Item = ChatResponse> {
         stream! {
             self.base_url = self.base_url
                 .replace("generateContent", "streamGenerateContent?alt=sse")
                 .replace("?key", "&key");
-
-            if self.request.contents[0].parts[0].text == Some("Init message.".to_string()) {
-                self.request.contents[0].parts[0].text = Some(prompt.to_string());
+            
+            let content = Content {
+                role: "user".to_string(),
+                parts: vec![Part {
+                    text: Some(prompt),
+                    function_call: None,
+                    function_response: None,
+                    inline_data: None,
+                    file_data: None,
+                }]
+            };
+            
+            if let Some(contents) = &mut self.request.contents {
+                contents.push(content);
             } else {
-                let content = Content {
-                    role: "user".to_string(),
-                    parts: vec![Part {
-                        text: Some(prompt.to_string()),
-                        function_call: None,
-                        function_response: None,
-                        inline_data: None,
-                        file_data: None,
-                    }],
-                };
-                self.request.contents.push(content);
+                self.request.contents = Some(vec![content]);
             }
 
             let stream = strem_chat(
@@ -283,7 +275,12 @@ impl ChatGemini {
                 }),
             }]
         };
-        self.request.contents.push(content);
+
+        if let Some(contents) = &mut self.request.contents {
+            contents.push(content);
+        } else {
+            self.request.contents = Some(vec![content]);
+        }
 
         Ok(
             Self{
@@ -329,52 +326,37 @@ impl ChatGemini {
     }
 
     pub fn with_temperature(mut self, temperature: f32) -> Self {
-        match &mut self.request.generation_config {
-            Some(config) => {
-                config.temperature = Some(temperature);
-            }
-            None => ()
-        };
+        if let Some(config) = &mut self.request.generation_config {
+            config.temperature = Some(temperature);
+        }
         self
     }
 
     pub fn with_top_k(mut self, top_k: u32) -> Self {
-        match &mut self.request.generation_config {
-            Some(config) => {
-                config.top_k = Some(top_k);
-            }
-            None => ()
-        };
+        if let Some(config) = &mut self.request.generation_config {
+            config.top_k = Some(top_k);
+        }
         self
     }
 
     pub fn with_top_p(mut self, top_p: f32) -> Self {
-        match &mut self.request.generation_config {
-            Some(config) => {
-                config.top_p = Some(top_p);
-            }
-            None => ()
-        };
+        if let Some(config) = &mut self.request.generation_config {
+            config.top_p = Some(top_p);
+        }
         self
     }
 
     pub fn with_candidate_count(mut self, candidate_count: u32) -> Self {
-        match &mut self.request.generation_config {
-            Some(config) => {
-                config.candidate_count = Some(candidate_count);
-            }
-            None => ()
-        };
+        if let Some(config) = &mut self.request.generation_config {
+            config.candidate_count = Some(candidate_count);
+        }
         self
     }
 
     pub fn with_stop_sequences(mut self, stop_sequences: Vec<String>) -> Self {
-        match &mut self.request.generation_config {
-            Some(config) => {
-                config.stop_sequences = Some(stop_sequences);
-            }
-            None => ()
-        };
+        if let Some(config) = &mut self.request.generation_config {
+            config.stop_sequences = Some(stop_sequences);
+        }
         self
     }
 
@@ -434,7 +416,12 @@ impl ChatGemini {
                 file_data: None,
             }],
         };
-        self.request.contents.push(content);
+
+        if let Some(contents) = &mut self.request.contents {
+            contents.push(content);
+        } else {
+            self.request.contents = Some(vec![content]);
+        }
         self
     }
 
@@ -443,7 +430,12 @@ impl ChatGemini {
             role: "model".to_string(),
             parts: assistant_response,
         };
-        self.request.contents.push(content);
+
+        if let Some(contents) = &mut self.request.contents {
+            contents.push(content);
+        } else {
+            self.request.contents = Some(vec![content]);
+        }
         self
     }
 
@@ -453,7 +445,13 @@ impl ChatGemini {
     }
 
     pub fn with_chat_history(mut self, history: Vec<Content>) -> Self {
-        self.request.contents = history;
+        if let Some(contents) = &mut self.request.contents {
+            for content in history {
+                contents.push(content);
+            }
+        } else {
+            self.request.contents = Some(history);
+        }
         self
     }
 
@@ -462,7 +460,12 @@ impl ChatGemini {
             role: "user".to_string(),
             parts: parts,
         };
-        self.request.contents.push(content);
+
+        if let Some(contents) = &mut self.request.contents {
+            contents.push(content);
+        } else {
+            self.request.contents = Some(vec![content]);
+        }
         self
     }
 
@@ -519,19 +522,23 @@ impl ChatGemini {
                 file_data: None,
             }],
         };
-        self.request.contents.push(content);
+
+        if let Some(contents) = &mut self.request.contents {
+            contents.push(content);
+        } else {
+            self.request.contents = Some(vec![content]);
+        }
         self
     }
 
     pub fn get_last_content(self) -> Option<Content> {
-        let last_content = match self.request.contents.last() {
-            Some(content) => content,
-            None => {
-                println!("[ERROR] No last content found");
-                return None
-            },
-        };
-        Some(last_content.clone())
+        if let Some(contents) = self.request.contents {
+            let last_content = contents.last().cloned();
+            return last_content;
+        } else {
+            println!("[ERROR] No contents found");
+            return None;
+        }
     }
 
     pub fn with_model(mut self, model: &str) -> Self {

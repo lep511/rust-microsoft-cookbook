@@ -126,8 +126,6 @@ pub async fn upload_media(
         .ok_or("Missing upload URL")?
         .to_str()?;
 
-    println!("Upload URL: {}", upload_url);
-
     // Upload file content
     let mut upload_headers = HeaderMap::new();
     upload_headers.insert("Content-Length", HeaderValue::from_str(content_length)?);

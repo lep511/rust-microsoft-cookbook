@@ -1,11 +1,15 @@
 #[allow(dead_code)]
-use langchain::openai::{ChatOpenAI, ChatResponse};
+use langchain::openai::chat::ChatOpenAI;
+use langchain::openai::libs::ChatResponse;
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatOpenAI::new("gpt-4o-mini")?;
-    let llm = llm.with_system_prompt("Don't make assumptions about what values to plug into functions. Ask for clarification if a user request is ambiguous.");
+
+    let prompt = "What is the weather like in Boston today?";
+
+    let system_promp = "Don't make assumptions about what values to plug into functions. Ask for clarification if a user request is ambiguous.";
 
     let weather_function = json!( {
         "type": "function",
@@ -29,15 +33,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     });
-
-    let llm = llm.with_tools(vec![weather_function]);
-
-    // let tool_choice = json!({"type": "function", "function": {"name": "get_current_weather"}});
-    // let llm = llm.with_tool_choice(tool_choice);
     
-    let prompt = "What is the weather like in Boston today?";
-    let response: ChatResponse = llm.invoke(prompt).await?;
+    let tool_choice = json!({"type": "function", "function": {"name": "get_current_weather"}});
 
+    let response: ChatResponse = llm
+        .with_system_prompt(system_promp)
+        .with_tools(vec![weather_function])
+        .with_tool_choice(tool_choice)
+        .invoke(prompt)
+        .await?;
 
     println!("\n#### Example OpenAI functions ####");
     match response.choices {

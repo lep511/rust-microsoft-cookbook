@@ -1,8 +1,8 @@
 use crate::openai::requests::request_chat;
 use crate::openai::utils::GetApiKey;
 use crate::openai::libs::{
-    ChatRequest, InputContent,
-    Message, Role, ChatResponse, 
+    ChatRequest, InputContent, ResponseFormat,
+    Message, Role, ChatResponse, ImageUrl,
 };
 use crate::llmerror::OpenAIError;
 
@@ -53,6 +53,7 @@ impl ChatOpenAI {
             content_type: "text".to_string(),
             text: Some(prompt.to_string()),
             source: None,
+            image_url: None,
         }];
 
         let new_message = Message {
@@ -157,6 +158,33 @@ impl ChatOpenAI {
         }
     }
 
+    pub fn with_image_url(mut self, image_url: &str) -> Self {
+        let url = ImageUrl {
+            url: image_url.to_string(),
+        };
+        
+        let content = vec![InputContent {
+            content_type: "image_url".to_string(),
+            text: None,
+            source: None,
+            image_url: Some(url),
+        }];
+
+        let new_message = Message {
+            role: Role::User,
+            content: content.clone(),
+            recipient: None,
+            end_turn: None,
+        };
+
+        if let Some(messages) = &mut self.request.messages {
+            messages.push(new_message);
+        } else {
+            self.request.messages = Some(vec![new_message]);
+        }
+        self
+    }
+
     pub fn with_top_p(mut self, top_p: f32) -> Self {
         if top_p < 0.0 || top_p > 1.0 {
             println!(
@@ -185,6 +213,7 @@ impl ChatOpenAI {
             content_type: "text".to_string(),
             text: Some(system_prompt.to_string()),
             source: None,
+            image_url: None,
         }];
 
         let new_message = Message {
@@ -208,6 +237,7 @@ impl ChatOpenAI {
             content_type: "text".to_string(),
             text: Some(assistant_response.to_string()),
             source: None,
+            image_url: None,
         }];
 
         let new_message = Message {
@@ -228,6 +258,16 @@ impl ChatOpenAI {
 
     pub fn with_chat_history(mut self, history: Vec<Message>) -> Self {
         self.request.messages = Some(history);
+        self
+    }
+
+    pub fn with_json_schema(mut self, json_schema: serde_json::Value) -> Self {
+        let response_format = ResponseFormat {
+            response_type: "json_schema".to_string(),
+            json_schema: Some(json_schema),
+        };
+
+        self.request.response_format = Some(response_format);
         self
     }
 

@@ -35,6 +35,8 @@ pub struct ChatRequest {
 pub struct ResponseFormat {
     #[serde(rename = "type")]
     pub response_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub json_schema: Option<serde_json::Value>,
 }
 
 #[allow(dead_code)]
@@ -95,6 +97,14 @@ pub struct InputContent {
     pub text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<Source>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<ImageUrl>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ImageUrl {
+    pub url: String,
 }
 
 #[allow(dead_code)]

@@ -6,3 +6,4 @@ pub mod xai;
 pub mod replicate;
 pub mod assembly;
 pub mod llmerror;
+pub mod langsmith;

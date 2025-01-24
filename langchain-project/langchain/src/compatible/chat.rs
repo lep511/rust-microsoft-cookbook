@@ -1,4 +1,4 @@
-use crate::compatible::requests::{request_chat, request_replicate};
+use crate::compatible::requests::request_chat;
 use crate::compatible::utils::GetApiKey;
 use crate::compatible::libs::{ChatRequest, Message, ChatResponse};
 use crate::llmerror::CompatibleChatError;
@@ -51,12 +51,13 @@ impl ChatCompatible {
             self.request.messages = Some(vec![new_message]);
         }
 
-        let response: String = match request_chat(
+        let response = match request_chat(
             &self.url,
             &self.request,
             &self.api_key,
             self.timeout,
             self.retry,
+            None,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -64,8 +65,10 @@ impl ChatCompatible {
                 return Err(CompatibleChatError::ResponseContentError);
             }
         };
+
+        let response_string = response.to_string();
         
-        let chat_response: ChatResponse = match serde_json::from_str(&response) {
+        let chat_response: ChatResponse = match serde_json::from_str(&response_string) {
             Ok(response_form) => response_form,
             Err(e) => {
                 println!("[ERROR] {:?}", e);
@@ -111,13 +114,13 @@ impl ChatCompatible {
 
         self.request = request;
     
-        let response: serde_json::Value = match request_replicate(
+        let response: serde_json::Value = match request_chat(
             &self.url,
             &self.request,
             &self.api_key,
             self.timeout,
             self.retry,
-            prefer,
+            Some(prefer),
         ).await {
             Ok(response) => response,
             Err(e) => {

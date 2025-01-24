@@ -82,3 +82,12 @@ pub struct ErrorDetails {
     #[serde(rename = "type")]
     pub error_type: String,
 }
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Errors ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ErrorResponse {
+    pub detail: String,
+}

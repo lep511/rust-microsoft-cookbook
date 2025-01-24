@@ -85,6 +85,11 @@ pub enum CompatibleChatError {
     EnvError(#[from] env::VarError),
     #[error("Failed to get response content")]
     ResponseContentError,
+    #[error("Response content error: {message}")]
+    GenericError {
+        message: String,
+        detail: String,
+    },
 }
 
 #[allow(dead_code)]

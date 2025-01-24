@@ -1,5 +1,6 @@
 #[allow(dead_code)]
-use langchain::compatible::{ChatCompatible, ChatResponse};
+use langchain::compatible::chat::ChatCompatible;
+use langchain::compatible::libs::ChatResponse;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

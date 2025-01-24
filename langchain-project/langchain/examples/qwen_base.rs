@@ -1,5 +1,6 @@
 #[allow(dead_code)]
-use langchain::compatible::{ChatCompatible, ChatResponse};
+use langchain::compatible::chat::ChatCompatible;
+use langchain::compatible::libs::ChatResponse;
 use std::time::Instant;
 
 #[tokio::main]

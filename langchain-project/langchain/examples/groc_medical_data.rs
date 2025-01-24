@@ -19,7 +19,8 @@
 // a database to be incorporated with the rest of our clinical data marts.
 
 #[allow(dead_code)]
-use langchain::compatible::{ChatCompatible, ChatResponse};
+use langchain::compatible::chat::ChatCompatible;
+use langchain::compatible::libs::ChatResponse;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;

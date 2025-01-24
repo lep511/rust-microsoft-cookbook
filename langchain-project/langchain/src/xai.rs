@@ -114,12 +114,12 @@ impl ChatXAI {
             content: content.clone(),
         });  
 
-        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
-        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //     }
-        // };
+        let _pretty_json = match serde_json::to_string_pretty(&self.request) {
+            Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+            }
+        };
 
         let response = self
             .client
@@ -133,12 +133,12 @@ impl ChatXAI {
             .json::<serde_json::Value>()
             .await?;
 
-        // let _pretty_json = match serde_json::to_string_pretty(&response) {
-        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
-        //     Err(e) => {
-        //         println!("[ERROR] {:?}", e);
-        //     }
-        // };
+        let _pretty_json = match serde_json::to_string_pretty(&response) {
+            Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+            }
+        };
        
         let response = response.to_string();
         let chat_response: ChatResponse = match serde_json::from_str(&response) {

@@ -76,8 +76,8 @@ pub enum AnthropicError {
 
 #[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
-pub enum ChatGrocChatError {
-    #[error("Groc API key not found in environment variables")]
+pub enum CompatibleChatError {
+    #[error("COMPATIBLE_API_KEY not found in environment variables")]
     ApiKeyNotFound,
     #[error("Request error: {0}")]
     RequestError(#[from] reqwest::Error),

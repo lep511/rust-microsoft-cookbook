@@ -1,10 +1,8 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use crate::llmerror::ChatGrocChatError;
+use crate::llmerror::CompatibleChatError;
 use std::env;
-
-pub static GROC_BASE_URL: &str = "https://api.groq.com/openai/v1/chat/completions";
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]
@@ -17,23 +15,24 @@ pub struct ChatRequest {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub struct ChatGroc {
+pub struct ChatCompatible {
     pub api_key: String,
     pub request: ChatRequest,
     pub timeout: u64,
     pub client: Client,
+    pub url: String,
 }
 
 #[allow(dead_code)]
-impl ChatGroc {
-    pub fn new(model: &str) -> Result<Self, ChatGrocChatError> {
-        let api_key = match env::var("GROC_API_KEY") {
+impl ChatCompatible {
+    pub fn new(url: &str, model: &str) -> Result<Self, CompatibleChatError> {
+        let api_key = match env::var("COMPATIBLE_API_KEY") {
             Ok(key) => key,
             Err(env::VarError::NotPresent) => {
-                return Err(ChatGrocChatError::ApiKeyNotFound);
+                return Err(CompatibleChatError::ApiKeyNotFound);
             }
             Err(e) => {
-                return Err(ChatGrocChatError::EnvError(e));
+                return Err(CompatibleChatError::EnvError(e));
             }
         };
 
@@ -58,22 +57,31 @@ impl ChatGroc {
             client: Client::builder()
                 .use_rustls_tls()
                 .build()?,
+            url: url.to_string(),
         })
     }
 
     pub async fn invoke(
         mut self,
         prompt: &str,
-    ) -> Result<ChatResponse, ChatGrocChatError> {
+    ) -> Result<ChatResponse, CompatibleChatError> {
         
         let message = Message {
             role: Some("user".to_string()),
             content: Some(prompt.to_string()),
         };
         self.request.messages.push(message);  
+
+        // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
+
         let response = self
             .client
-            .post(GROC_BASE_URL)
+            .post(&self.url)
             .timeout(Duration::from_secs(self.timeout))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
@@ -82,19 +90,26 @@ impl ChatGroc {
             .await?
             .json::<serde_json::Value>()
             .await?;
-       
+
+        // let _pretty_json = match serde_json::to_string_pretty(&response) {
+        //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
+        //     Err(e) => {
+        //         println!("[ERROR] {:?}", e);
+        //     }
+        // };
+    
         let response = response.to_string();
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
                 println!("[ERROR] {:?}", e);
-                return Err(ChatGrocChatError::ResponseContentError);
+                return Err(CompatibleChatError::ResponseContentError);
             }
         };
 
         if let Some(error) = chat_response.error {
             println!("[ERROR] {}", error.message);
-            return Err(ChatGrocChatError::ResponseContentError);
+            return Err(CompatibleChatError::ResponseContentError);
         } else {
             let format_response = ChatResponse {
                 choices: chat_response.choices,
@@ -104,7 +119,6 @@ impl ChatGroc {
                 object: chat_response.object,
                 system_fingerprint: chat_response.system_fingerprint,
                 usage: chat_response.usage,
-                x_groq: chat_response.x_groq,
                 chat_history: Some(self.request.messages),
                 error: None,
             };
@@ -163,7 +177,6 @@ pub struct ChatResponse {
     pub object: Option<String>,
     pub system_fingerprint: Option<String>,
     pub usage: Option<Usage>,
-    pub x_groq: Option<XGroq>,
     pub chat_history: Option<Vec<Message>>,
     pub error: Option<ErrorDetails>,
 }
@@ -188,20 +201,20 @@ pub struct ChatMessage {
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Usage {
-    pub completion_time: f64,
-    pub completion_tokens: u32,
-    pub prompt_time: f64,
-    pub prompt_tokens: u32,
-    pub queue_time: f64,
-    pub total_time: f64,
-    pub total_tokens: u32,
+    pub completion_time: Option<f64>,
+    pub completion_tokens: Option<u32>,
+    pub prompt_time: Option<f64>,
+    pub prompt_tokens: Option<u32>,
+    pub queue_time: Option<f64>,
+    pub total_time: Option<f64>,
+    pub total_tokens: Option<u32>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct PromptTokensDetails {
-    pub audio_tokens: u32,
-    pub cached_tokens: u32,
+    pub audio_tokens: Option<u32>,
+    pub cached_tokens: Option<u32>,
 }
 
 #[allow(dead_code)]
@@ -212,10 +225,4 @@ pub struct ErrorDetails {
     pub param: Option<String>,
     #[serde(rename = "type")]
     pub error_type: String,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct XGroq {
-    id: String,
 }

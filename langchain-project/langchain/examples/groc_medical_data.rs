@@ -19,7 +19,7 @@
 // a database to be incorporated with the rest of our clinical data marts.
 
 #[allow(dead_code)]
-use langchain::groc::{ChatGroc, ChatResponse};
+use langchain::compatible::{ChatCompatible, ChatResponse};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
@@ -65,7 +65,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ";   
     
     for i in 1..=5 {
-        let llm = ChatGroc::new("llama-3.3-70b-specdec")?;
+        let base_url = "https://api.groq.com/openai/v1/chat/completions";
+        let model = "llama-3.3-70b-specdec";
+        let llm = ChatCompatible::new(base_url, model)?;
         let file_txt = format!("tests/files/note_medical{}.txt", i);
         let file_json = format!("tests/files/note_medical{}.json", i);
         let contents = fs::read_to_string(file_txt)?;

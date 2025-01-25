@@ -261,27 +261,9 @@ impl ChatGemini {
                 return Err(GeminiError::RequestUploadError);
             }
         };
-        
-        let content = Content {
-            role: "user".to_string(),
-            parts: vec![Part {
-                text: None,
-                function_call: None,
-                function_response: None,
-                inline_data: None,
-                file_data: Some(FileData {
-                    mime_type: mime_type.to_string(),
-                    file_uri: file_uri,
-                }),
-            }]
-        };
 
-        if let Some(contents) = &mut self.request.contents {
-            contents.push(content);
-        } else {
-            self.request.contents = Some(vec![content]);
-        }
-
+        self = self.with_file_uri(&file_uri, mime_type);
+       
         Ok(
             Self{
                 base_url: self.base_url, 
@@ -323,6 +305,40 @@ impl ChatGemini {
         }; 
 
         Ok(cache_name)
+    }
+
+    pub fn with_file_uri(
+        mut self, 
+        file_uri: &str, 
+        mut mime_type: &str
+    ) -> Self {
+        if mime_type == "auto" {
+            if let Some(exetension) = file_uri.split('.').last() {
+                mime_type = get_mime_type(exetension);
+            }
+        }
+
+        let content = Content {
+            role: "user".to_string(),
+            parts: vec![Part {
+                text: None,
+                function_call: None,
+                function_response: None,
+                inline_data: None,
+                file_data: Some(FileData {
+                    mime_type: mime_type.to_string(),
+                    file_uri: file_uri.to_string(),
+                }),
+            }]
+        };
+
+        if let Some(contents) = &mut self.request.contents {
+            contents.push(content);
+        } else {
+            self.request.contents = Some(vec![content]);
+        }
+
+        self
     }
 
     pub fn with_temperature(mut self, temperature: f32) -> Self {

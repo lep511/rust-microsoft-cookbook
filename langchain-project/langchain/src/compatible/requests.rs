@@ -18,9 +18,7 @@ pub async fn request_chat(
         .use_rustls_tls()
         .build()?;
     
-    let api_key_format = format!("Bearer {}", api_key);
-
-    let api_key_header: HeaderValue = match HeaderValue::from_str(&api_key_format) {
+    let api_key_header: HeaderValue = match HeaderValue::from_str(&api_key) {
         Ok(value) => value,
         Err(_) => return Err(CompatibleChatError::GenericError {
             message: "Invalid API key".to_string(),

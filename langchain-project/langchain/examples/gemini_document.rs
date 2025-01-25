@@ -100,12 +100,11 @@ async fn large_documents() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
     
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    // small_documents().await?;
-    large_documents().await?;    
+    small_documents().await?;
+    // large_documents().await?;    
     
     Ok(())
 }

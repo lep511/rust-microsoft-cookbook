@@ -11,6 +11,7 @@ pub struct ChatCompatible {
     pub timeout: u64,
     pub retry: i32,
     pub url: String,
+    pub model: String,
 }
 
 #[allow(dead_code)]
@@ -19,11 +20,12 @@ impl ChatCompatible {
         let api_key = Self::get_api_key()?;
 
         let request = ChatRequest {
-            model: Some(model.to_string()),
+            model: None,
             messages: None,
             input: None,
             temperature: None,
             max_tokens: None,
+            stream: None,
         };
         
         Ok(Self {
@@ -32,6 +34,7 @@ impl ChatCompatible {
             timeout: 15 * 60, // default: 15 minutes
             retry: 3,         // default: 3 times
             url: url.to_string(),
+            model: model.to_string(),
         })
     }
 
@@ -51,10 +54,14 @@ impl ChatCompatible {
             self.request.messages = Some(vec![new_message]);
         }
 
+        self.request.model = Some(self.model.clone());
+
+        let api_key_format = format!("Bearer {}", self.api_key);
+
         let response = match request_chat(
             &self.url,
             &self.request,
-            &self.api_key,
+            &api_key_format,
             self.timeout,
             self.retry,
             None,
@@ -110,17 +117,56 @@ impl ChatCompatible {
             input: Some(input),
             temperature: None,
             max_tokens: None,
+            stream: None,
         };
 
         self.request = request;
+
+        let api_key_format = format!("Bearer {}", self.api_key);
     
         let response: serde_json::Value = match request_chat(
             &self.url,
             &self.request,
-            &self.api_key,
+            &api_key_format,
             self.timeout,
             self.retry,
             Some(prefer),
+        ).await {
+            Ok(response) => response,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(CompatibleChatError::ResponseContentError);
+            }
+        };
+        
+        Ok(response)
+    }
+
+    pub async fn baseten_invoke(
+        mut self, 
+        prompt: &str,
+    ) -> Result<serde_json::Value, CompatibleChatError> {
+        let new_message = Message {
+            role: Some("user".to_string()),
+            content: Some(prompt.to_string()),
+        };
+
+        if let Some(messages) = &mut self.request.messages {
+            messages.push(new_message);
+        } else {
+            self.request.messages = Some(vec![new_message]);
+        }
+        
+        self.request.stream = Some(false);
+        let api_key_format = format!("Api-Key {}", self.api_key);
+           
+        let response: serde_json::Value = match request_chat(
+            &self.url,
+            &self.request,
+            &api_key_format,
+            self.timeout,
+            self.retry,
+            None,
         ).await {
             Ok(response) => response,
             Err(e) => {

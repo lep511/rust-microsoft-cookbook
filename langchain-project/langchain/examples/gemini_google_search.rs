@@ -1,6 +1,6 @@
 use langchain::gemini::chat::ChatGemini;
-use serde_json::{json, Value};
-use std::collections::HashMap;
+use langchain::gemini::utils::get_grounding_response;
+use serde_json::json;
 
 async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
 
@@ -14,10 +14,11 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     let mut response_string = String::from("");
-    let mut links_map: HashMap<String, String> = HashMap::new(); 
+    let mut metadata_string = String::from("");
 
     if let Some(candidates) = response.candidates {
         for candidate in candidates {
+            metadata_string = get_grounding_response(&candidate);
             if let Some(content) = candidate.content {
                 for part in content.parts {
                     if let Some(text) = part.text {
@@ -26,23 +27,10 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
-
-            if let Some(ground) = candidate.grounding_metadata {
-                if let Some(chunks) = ground.grounding_chunks {
-                    for chunk in chunks {
-                        if let Some(web) = chunk.web {
-                            links_map.insert(
-                                web.title.clone(), 
-                                web.uri.clone()
-                            );
-                        }
-                    }
-                }
-            }
         }
     };
 
-    println!("Links: {:?}", links_map);
+    println!("Metadata: {}", metadata_string);
 
     let function_climate = json!({
         "name":"set_climate",
@@ -91,19 +79,13 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
         .invoke(&response_string)
         .await?;
     
-    let mut function_name = String::new();
-    let mut function_args = Value::Null;
-
-    println!("Question: {}", question);
     if let Some(candidates) = &response.candidates {
         for candidate in candidates {
             if let Some(content) = &candidate.content {
                 for part in &content.parts {
                     if let Some(function_call) = &part.function_call {
-                        function_name = function_call.name.clone();
-                        function_args = function_call.args.clone();
-                        println!("Function name: {}", function_name);
-                        println!("Functions args: {:?}", function_args);
+                        println!("Function name: {}", function_call.name);
+                        println!("Functions args: {:?}", function_call.args);
                     }
                 }
             }

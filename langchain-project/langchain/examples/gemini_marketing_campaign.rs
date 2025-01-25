@@ -1,7 +1,8 @@
 use langchain::gemini::chat::ChatGemini;
+use langchain::gemini::utils::{
+    generate_schema, get_grounding_response,
+};
 use schemars::JsonSchema;
-use schemars::schema::RootSchema;
-use serde_json::{json, Value};
 use serde::{Deserialize, Serialize};
 
 #[allow(dead_code)]
@@ -16,51 +17,7 @@ pub struct MarketingCampaignBrief {
     performance_metrics: Vec<String>,
 }
 
-/// Transforms a JSON schema into a simplified representation
-///
-/// # Arguments
-///
-/// * `schema` - A RootSchema instance containing the JSON schema to transform
-/// * `sub_struct` - A boolean flag indicating whether to wrap the schema in an array structure
-///
-/// # Returns
-///
-/// Returns a Result containing either:
-/// * Ok(Value) - A serde_json::Value containing the transformed schema 
-/// * Err(Box<dyn Error>) - An error if:
-///   - The schema cannot be serialized to JSON
-///   - The serialized JSON is not an object
-///
-pub fn generate_schema(
-    schema: RootSchema, 
-    sub_struct: bool
-) -> Result<Value, Box<dyn std::error::Error>> {
-    let response_json = match serde_json::to_value(schema) {
-        Ok(value) => value,
-        Err(e) => return Err(Box::new(e)),
-    };
-
-    let mut response = match response_json.as_object() {
-        Some(obj) => obj.clone(),
-        None => return Err("Serialized JSON is not an object".into()),
-    };
-
-    response.remove("$schema");
-    response.remove("title");
-    response.remove("definitions");
-
-    if sub_struct {
-        response.remove("required");
-        return Ok(json!({
-            "type": "array",
-            "items": response
-        }))
-    }
-
-    Ok(Value::Object(response))
-}
-
-async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
+async fn marketing_brief() -> Result<String, Box<dyn std::error::Error>> {
 
     let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
     let file_path = Some("tests/files/sample_marketing_campaign.pdf");
@@ -85,7 +42,109 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .invoke(prompt)
         .await?;
+
+    let mut response_string = String::from("");
     
+    if let Some(candidates) = response.candidates {
+        for candidate in candidates {
+            if let Some(content) = candidate.content {
+                for part in content.parts {
+                    if let Some(text) = part.text {
+                        println!("{}", text);
+                        response_string.push_str(&text);
+                    }
+                }
+            }
+        }
+    };
+
+    Ok(response_string)
+}
+
+async fn market_research() -> Result<String, Box<dyn std::error::Error>> {
+    // Use Grounding with Google Search to do market research
+    let market_prompt = "I am planning to launch a mobile phone campaign and I want \
+                        to understand the latest trends in the phone industry. Please answer \
+                        the following questions: \
+                        - What are the latest phone models and their selling point from the top 2 phone makers?
+                        - What is the general public sentiment about mobile phones?";
+
+    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+
+    let response = llm
+        .with_google_search()
+        .invoke(market_prompt)
+        .await?;
+
+    let mut response_string = String::from("");
+    let mut metadata_string = String::from("");
+
+    if let Some(candidates) = response.candidates {
+        for candidate in candidates {
+            metadata_string = get_grounding_response(&candidate);
+            if let Some(content) = candidate.content {
+                for part in content.parts {
+                    if let Some(text) = part.text {
+                        println!("{}", text);
+                        response_string.push_str(&text);
+                    }
+                }
+            }
+        }
+    };
+
+    println!("Metadata: {}", metadata_string);
+
+    Ok(response_string)
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let marketing_brief_content: String = marketing_brief().await?;
+    let market_research_content: String = market_research().await?;
+
+    let new_phone_details = "Phone Name: Pix Phone 10 \
+                    Short description: Pix Phone 10 is the flagship phone with a \
+                    focus on AI-powered features and a completely redesigned form factor.\
+                    \
+                    Tech Specs: \
+                        - Camera: 50MP main sensor with 48MP ultrawide lens with autofocus for macro shots \
+                        - Performance: P5 processor for fast performance and AI capabilities \
+                        - Battery: 4700mAh battery for all-day usage \
+                    \
+                    Key Highlights: \
+                        - Powerful camera system \
+                        - Redesigned software user experience to introduce more fun \
+                        - Compact form factor \
+                    Launch timeline: Jan 2025 \
+                    Target countries: US, France and Japan";
+
+    let brief_prompt = format!(
+        "Given the following details, create a marketing campaign brief for the new phone launch: \
+        Sample campaign brief: \
+        {} \
+        \
+        Market research: \
+        {} \
+        \
+        New phone details: \
+        {}",
+         marketing_brief_content, 
+         market_research_content, 
+         new_phone_details
+    );
+
+    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+
+    // Generate schema
+    let schema = schemars::schema_for!(MarketingCampaignBrief);
+    let json_schema = generate_schema(schema ,false)?;
+
+    let response = llm
+        .with_json_schema(json_schema)
+        .invoke(&brief_prompt)
+        .await?;
+
     if let Some(candidates) = response.candidates {
         for candidate in candidates {
             if let Some(content) = candidate.content {
@@ -98,11 +157,5 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    Ok(())
-}
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    example_tools().await?;
     Ok(())
 }

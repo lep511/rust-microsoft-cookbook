@@ -1,9 +1,8 @@
 #[allow(dead_code)]
 use langchain::gemini::chat::ChatGemini;
 use serde::{Deserialize, Serialize};
+use langchain::gemini::utils::generate_schema;
 use schemars::JsonSchema;
-use schemars::schema::RootSchema;
-use serde_json::{Value, json};
 
 #[derive(Debug, JsonSchema, Serialize, Deserialize)]
 pub struct Recipe {
@@ -17,50 +16,6 @@ pub struct Recipe {
 pub struct Ingredient {
     pub name: String,
     pub quantity: String,
-}
-
-/// Transforms a JSON schema into a simplified representation
-///
-/// # Arguments
-///
-/// * `schema` - A RootSchema instance containing the JSON schema to transform
-/// * `sub_struct` - A boolean flag indicating whether to wrap the schema in an array structure
-///
-/// # Returns
-///
-/// Returns a Result containing either:
-/// * Ok(Value) - A serde_json::Value containing the transformed schema 
-/// * Err(Box<dyn Error>) - An error if:
-///   - The schema cannot be serialized to JSON
-///   - The serialized JSON is not an object
-///
-pub fn generate_schema(
-    schema: RootSchema, 
-    sub_struct: bool
-) -> Result<Value, Box<dyn std::error::Error>> {
-    let response_json = match serde_json::to_value(schema) {
-        Ok(value) => value,
-        Err(e) => return Err(Box::new(e)),
-    };
-
-    let mut response = match response_json.as_object() {
-        Some(obj) => obj.clone(),
-        None => return Err("Serialized JSON is not an object".into()),
-    };
-
-    response.remove("$schema");
-    response.remove("title");
-    response.remove("definitions");
-
-    if sub_struct {
-        response.remove("required");
-        return Ok(json!({
-            "type": "array",
-            "items": response
-        }))
-    }
-
-    Ok(Value::Object(response))
 }
 
 #[tokio::main]

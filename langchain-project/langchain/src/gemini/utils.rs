@@ -1,5 +1,8 @@
 use std::env;
 use crate::llmerror::GeminiError;
+use crate::gemini::libs::Candidate;
+use serde_json::{json, Value};
+use schemars::schema::RootSchema;
 
 /// Gets the API key from the environment variables
 ///
@@ -100,4 +103,113 @@ pub fn get_mime_type(extension: &str) -> &'static str {
 pub fn get_base64_bytes_length(base64_str: &str) -> usize {
     let padding_count = base64_str.chars().filter(|&c| c == '=').count();
     (base64_str.len() * 3 / 4) - padding_count
+}
+
+pub fn get_grounding_response(candidate: &Candidate) -> String {
+    if let Some(grounding_metadata) = &candidate.grounding_metadata {
+        let mut markdown_text = String::new();
+
+        if let Some(supports) = &grounding_metadata.grounding_supports {
+            for support in supports {
+                if let (Some(segment), Some(chunk_indices)) = (&support.segment, &support.grounding_chunk_indices) {
+                    if let Some(_end_index) = segment.end_index {
+                        if let Some(text) = &segment.text {
+                            markdown_text.push_str(text);
+
+                            // Add footnotes
+                            for &chunk_index in chunk_indices {
+                                if let Some(chunks) = &grounding_metadata.grounding_chunks {
+                                    if let Some(chunk) = chunks.get(chunk_index as usize) {
+                                        if let Some(web_info) = &chunk.web {
+                                            markdown_text.push_str(&format!("[[{}]]({}))\n", 
+                                                chunk_index + 1, 
+                                                web_info.uri
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                            markdown_text.push('\n');
+                        }
+                    }
+                }
+            }
+        }
+
+        markdown_text.push_str("\n----\n## Grounding Sources\n");
+
+        // Add web search queries if present
+        if let Some(web_queries) = &grounding_metadata.web_search_queries {
+            markdown_text.push_str(&format!("\n**Web Search Queries:** {:?}\n", web_queries));
+            
+            if let Some(entry_point) = &grounding_metadata.search_entry_point {
+                if let Some(content) = &entry_point.rendered_content {
+                    markdown_text.push_str(&format!("\n**Search Entry Point:**\n {}\n", content));
+                }
+            }
+        }
+
+        markdown_text.push_str("### Grounding Chunks\n");
+
+        // Add grounding chunks
+        if let Some(chunks) = &grounding_metadata.grounding_chunks {
+            for (index, chunk) in chunks.iter().enumerate() {
+                if let Some(web_info) = &chunk.web {
+                    markdown_text.push_str(&format!("{}. [{}]({})\n", 
+                        index + 1,
+                        web_info.title,
+                        web_info.uri
+                    ));
+                }
+            }
+        }
+
+        markdown_text
+    } else {
+        String::from("No grounding metadata available")
+    }
+}
+
+/// Transforms a JSON schema into a simplified representation
+///
+/// # Arguments
+///
+/// * `schema` - A RootSchema instance containing the JSON schema to transform
+/// * `sub_struct` - A boolean flag indicating whether to wrap the schema in an array structure
+///
+/// # Returns
+///
+/// Returns a Result containing either:
+/// * Ok(Value) - A serde_json::Value containing the transformed schema 
+/// * Err(Box<dyn Error>) - An error if:
+///   - The schema cannot be serialized to JSON
+///   - The serialized JSON is not an object
+///
+pub fn generate_schema(
+    schema: RootSchema, 
+    sub_struct: bool
+) -> Result<Value, Box<dyn std::error::Error>> {
+    let response_json = match serde_json::to_value(schema) {
+        Ok(value) => value,
+        Err(e) => return Err(Box::new(e)),
+    };
+
+    let mut response = match response_json.as_object() {
+        Some(obj) => obj.clone(),
+        None => return Err("Serialized JSON is not an object".into()),
+    };
+
+    response.remove("$schema");
+    response.remove("title");
+    response.remove("definitions");
+
+    if sub_struct {
+        response.remove("required");
+        return Ok(json!({
+            "type": "array",
+            "items": response
+        }))
+    }
+
+    Ok(Value::Object(response))
 }

@@ -163,15 +163,65 @@ pub struct Candidate {
     #[serde(rename = "finishReason")]
     pub finish_reason: Option<FinishReason>,
     #[serde(rename = "safetyRatings")]
-    safety_ratings: Option<Vec<SafetyRating>>,
+    pub safety_ratings: Option<Vec<SafetyRating>>,
+    #[serde(rename = "groundingMetadata")]
+    pub grounding_metadata: Option<GroundingMetadata>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SafetyRating {
-    category: HarmCategory,
-    probability: HarmProbability,
-    blocked: Option<bool>,
+    pub category: Option<HarmCategory>,
+    pub probability: Option<HarmProbability>,
+    pub blocked: Option<bool>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GroundingMetadata {
+    #[serde(rename = "groundingChunks")]
+    pub grounding_chunks: Option<Vec<GroundingChunk>>,
+    #[serde(rename = "groundingSupports")]
+    pub grounding_supports: Option<Vec<GroundingSupport>>,
+    #[serde(rename = "searchEntryPoint")]
+    pub search_entry_point: Option<SearchEntryPoint>,
+    #[serde(rename = "webSearchQueries")]
+    pub web_search_queries: Option<Vec<String>>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GroundingChunk {
+    pub web: Option<WebInfo>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WebInfo {
+    pub title: String,
+    pub uri: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GroundingSupport {
+    pub confidence_scores: Option<Vec<f64>>,
+    pub grounding_chunk_indices: Option<Vec<i32>>,
+    pub segment: Option<Segment>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Segment {
+    pub end_index: Option<i32>,
+    pub start_index: Option<i32>,
+    pub text: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SearchEntryPoint {
+    pub rendered_content: Option<String>,
 }
 
 #[allow(dead_code)]

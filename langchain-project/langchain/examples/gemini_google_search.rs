@@ -1,5 +1,6 @@
 use langchain::gemini::chat::ChatGemini;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 
 async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
 
@@ -13,6 +14,7 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     let mut response_string = String::from("");
+    let mut links_map: HashMap<String, String> = HashMap::new(); 
 
     if let Some(candidates) = response.candidates {
         for candidate in candidates {
@@ -24,8 +26,23 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
+
+            if let Some(ground) = candidate.grounding_metadata {
+                if let Some(chunks) = ground.grounding_chunks {
+                    for chunk in chunks {
+                        if let Some(web) = chunk.web {
+                            links_map.insert(
+                                web.title.clone(), 
+                                web.uri.clone()
+                            );
+                        }
+                    }
+                }
+            }
         }
     };
+
+    println!("Links: {:?}", links_map);
 
     let function_climate = json!({
         "name":"set_climate",

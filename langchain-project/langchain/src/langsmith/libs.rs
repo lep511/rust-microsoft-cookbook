@@ -7,15 +7,9 @@ pub enum LangsmithRequest {
     GetDataset(String),
     CreateDataset(RequestCreateDataset),
     CreateExample(RequestCreateExample),
-    Unknown,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum LangsmithResponse {
-    CreateDataset(CreateDatasetResponse),
-    CreateExample(CreateExampleResponse),
-    Empty,
+    CreateModelPrice(RequestModel),
+    GetRepo(RequestRepo),
+    GetCommit(RequestCommit),
     Unknown,
 }
 
@@ -86,6 +80,36 @@ pub struct RequestCreateExample {
     pub attachment_urls: Option<Value>,
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RequestModel {
+    pub name: String,
+    pub prompt_cost: f64,
+    pub completion_cost: f64,
+    pub match_pattern: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub match_path: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RequestRepo {
+    pub owner: String,
+    pub repo: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RequestCommit {
+    pub owner: String,
+    pub repo: String,
+    pub commit: String,
+}
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Responses ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[allow(dead_code)]
@@ -125,6 +149,112 @@ pub struct CreateExampleResponse {
     pub metadata: Option<Value>,
     pub name: Option<String>,
     pub attachment_urls: Option<Vec<String>>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ModelResponse {
+    pub id: String,
+    pub name: String,
+    pub start_time: Option<String>,
+    pub tenant_id: Option<String>,
+    pub match_path: Vec<String>,
+    pub match_pattern: String,
+    pub prompt_cost: f64,
+    pub completion_cost: f64,
+    pub provider: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RepoResponse {
+    pub repo: Repository,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Repository {
+    pub repo_handle: Option<String>,
+    pub description: Option<String>,
+    pub readme: Option<String>,
+    pub id: Option<String>,
+    pub tenant_id: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub is_public: Option<bool>,
+    pub is_archived: Option<bool>,
+    pub tags: Option<Vec<String>>,
+    pub original_repo_id: Option<String>,
+    pub upstream_repo_id: Option<String>,
+    pub owner: Option<String>,
+    pub full_name: Option<String>,
+    pub num_likes: Option<i64>,
+    pub num_downloads: Option<i64>,
+    pub num_views: Option<i64>,
+    pub last_commit_hash: Option<String>,
+    pub num_commits: Option<i64>,
+    pub original_repo_full_name: Option<String>,
+    pub upstream_repo_full_name: Option<String>,
+    pub latest_commit_manifest: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CommitResponse {
+    pub commit_hash: String,
+    pub manifest: Manifest,
+    pub examples: Option<Vec<String>>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Manifest {
+    pub id: Vec<String>,
+    pub lc: i32,
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub kwargs: ManifestKwargs,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ManifestKwargs {
+    pub messages: Vec<Message>,
+    pub input_variables: Vec<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Message {
+    pub id: Vec<String>,
+    pub lc: i32,
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub kwargs: MessageKwargs,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MessageKwargs {
+    pub prompt: Prompt,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Prompt {
+    pub id: Vec<String>,
+    pub lc: i32,
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub kwargs: PromptKwargs,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PromptKwargs {
+    pub template: String,
+    pub input_variables: Vec<String>,
+    pub template_format: String,
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Errors ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

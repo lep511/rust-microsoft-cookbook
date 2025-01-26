@@ -1,10 +1,11 @@
 use crate::langsmith::libs::{
     LangsmithRequest, RequestCreateDataset, RequestCreateExample,
-    LangsmithResponse
+    RequestModel, RequestRepo, RequestCommit,
 };
 use crate::langsmith::utils::GetApiKey;
 use crate::langsmith::requests::request_langsmith;
 use crate::llmerror::LangsmithError;
+use serde_json::Value;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -24,9 +25,9 @@ impl LangsmithClient {
         })
     }
 
-    pub async fn invoke(self) -> Result<LangsmithResponse, LangsmithError> {
+    pub async fn invoke(self) -> Result<Value, LangsmithError> {
         
-        let response: LangsmithResponse = match request_langsmith(
+        let response: Value = match request_langsmith(
             &self.request,
             &self.api_key,
         ).await {
@@ -90,6 +91,66 @@ impl LangsmithClient {
         self
     }
 
+    pub fn create_model_price(
+        mut self,
+        model_name: &str,
+        prompt_cost: f64,
+        completion_cost: f64,
+        match_pattern: &str,
+        start_time: Option<&str>,
+        match_path: Option<Vec<String>>,
+        provider: Option<&str>,
+    ) -> Self {
+
+        let request_model_price = RequestModel {
+            name: model_name.to_string(),
+            prompt_cost: prompt_cost,
+            completion_cost: completion_cost,
+            match_pattern: match_pattern.to_string(),
+            start_time: start_time.map(|s| s.to_string()),
+            match_path: match_path,
+            provider: provider.map(|s| s.to_string()),
+        };
+
+        self.request = LangsmithRequest::CreateModelPrice(request_model_price);
+
+        self
+    }
+
+    pub fn get_repo(
+        mut self,
+        owner: &str,
+        repo: &str,
+    ) -> Self {
+
+        let request_repo = RequestRepo {
+            owner: owner.to_string(),
+            repo: repo.to_string(),
+        };
+
+        self.request = LangsmithRequest::GetRepo(request_repo);
+
+        self
+    }
+
+    pub fn get_commit(
+        mut self,
+        owner: &str,
+        repo: &str,
+        commit: &str,
+    ) -> Self {
+
+        let request_commit = RequestCommit {
+            owner: owner.to_string(),
+            repo: repo.to_string(),
+            commit: commit.to_string(),
+        };
+
+        self.request = LangsmithRequest::GetCommit(request_commit);
+
+        self
+    }
+        
     // pub fn create_examples(
     //     mut self,
     //     dataset_id: &str,

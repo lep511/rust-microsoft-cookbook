@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[allow(dead_code)]
-#[derive(JsonSchema, Serialize, Deserialize)]
+#[derive(Debug, JsonSchema, Serialize, Deserialize)]
 pub struct MarketingCampaignBrief {
     campaign_name: String,
     campaign_objectives: Vec<String>,
@@ -15,6 +15,14 @@ pub struct MarketingCampaignBrief {
     timeline: String,
     target_countries: Vec<String>,
     performance_metrics: Vec<String>,
+}
+
+#[allow(dead_code)]
+#[derive(JsonSchema, Serialize, Deserialize)]
+pub struct AdCopy {
+    ad_copy_options: Vec<String>,
+    localization_notes: Vec<String>,
+    visual_description: Vec<String>,
 }
 
 async fn marketing_brief() -> Result<String, Box<dyn std::error::Error>> {
@@ -98,26 +106,26 @@ async fn market_research() -> Result<String, Box<dyn std::error::Error>> {
     Ok(response_string)
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let marketing_brief_content: String = marketing_brief().await?;
-    let market_research_content: String = market_research().await?;
+async fn creative_brief(
+    marketing_brief: &str, 
+    market_research: &str
+) -> Result<String, Box<dyn std::error::Error>> {
 
     let new_phone_details = "Phone Name: Pix Phone 10 \
-                    Short description: Pix Phone 10 is the flagship phone with a \
-                    focus on AI-powered features and a completely redesigned form factor.\
-                    \
-                    Tech Specs: \
-                        - Camera: 50MP main sensor with 48MP ultrawide lens with autofocus for macro shots \
-                        - Performance: P5 processor for fast performance and AI capabilities \
-                        - Battery: 4700mAh battery for all-day usage \
-                    \
-                    Key Highlights: \
-                        - Powerful camera system \
-                        - Redesigned software user experience to introduce more fun \
-                        - Compact form factor \
-                    Launch timeline: Jan 2025 \
-                    Target countries: US, France and Japan";
+                Short description: Pix Phone 10 is the flagship phone with a \
+                focus on AI-powered features and a completely redesigned form factor.\
+                \
+                Tech Specs: \
+                    - Camera: 50MP main sensor with 48MP ultrawide lens with autofocus for macro shots \
+                    - Performance: P5 processor for fast performance and AI capabilities \
+                    - Battery: 4700mAh battery for all-day usage \
+                \
+                Key Highlights: \
+                    - Powerful camera system \
+                    - Redesigned software user experience to introduce more fun \
+                    - Compact form factor \
+                Launch timeline: Jan 2025 \
+                Target countries: US, France and Japan";
 
     let brief_prompt = format!(
         "Given the following details, create a marketing campaign brief for the new phone launch: \
@@ -129,9 +137,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         \
         New phone details: \
         {}",
-         marketing_brief_content, 
-         market_research_content, 
-         new_phone_details
+            marketing_brief, 
+            market_research, 
+            new_phone_details
     );
 
     let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
@@ -145,6 +153,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .invoke(&brief_prompt)
         .await?;
 
+    let mut creative_brief_content = String::from("");
+
+    if let Some(candidates) = response.candidates {
+        for candidate in candidates {
+            if let Some(content) = candidate.content {
+                for part in content.parts {
+                    if let Some(text) = part.text {
+                        println!("{}", text);
+                        creative_brief_content.push_str(&text);
+                    }
+                }
+            }
+        }
+    };
+
+    Ok(creative_brief_content)
+}
+
+async fn create_assets(
+    countries: &str, 
+    creative_brief_content: &str
+) -> Result<(), Box<dyn std::error::Error>> {
+    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    
+    let ad_prompt = format!("Given the marketing campaign brief, create an Instagram ad-copy \
+                        for each target market: {} \
+                        Please localize the ad-copy and the visuals to the target markets \
+                        for better relevancy to the target audience. \
+                        Marketing Campaign Brief: {}",
+                        countries,
+                        creative_brief_content,
+    );
+
+    // Generate schema for an ad copy
+    let schema = schemars::schema_for!(AdCopy);
+    let json_schema = generate_schema(schema ,false)?;
+
+    let response = llm
+        .with_json_schema(json_schema)
+        .invoke(&ad_prompt)
+        .await?;
+
     if let Some(candidates) = response.candidates {
         for candidate in candidates {
             if let Some(content) = candidate.content {
@@ -156,6 +206,63 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     };
+
+    Ok(())
+}
+
+async fn create_storyboard(
+    countries: &str, 
+    creative_brief_content: &str
+) -> Result<(), Box<dyn std::error::Error>> {
+    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    
+    let short_video_prompt = format!("Given the marketing campaign brief, create a storyboard \
+                        for a YouTube Shorts video for target markets: {}. Please localize the \
+                        content to the target markets for better relevancy to the target audience. \
+                        Marketing Campaign Brief: {}",
+                        countries,
+                        creative_brief_content,
+    );
+
+    let response = llm
+        .invoke(&short_video_prompt)
+        .await?;
+
+    if let Some(candidates) = response.candidates {
+        for candidate in candidates {
+            if let Some(content) = candidate.content {
+                for part in content.parts {
+                    if let Some(text) = part.text {
+                        println!("{}", text);
+                    }
+                }
+            }
+        }
+    };
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let marketing_brief_content: String = marketing_brief().await?;
+    let market_research_content: String = market_research().await?;
+
+    let creative_brief_content: String = creative_brief(
+        &marketing_brief_content,
+        &market_research_content
+    ).await?;
+
+    // ~~~~~~~~~~~~~~~~~~~ Creating Assets for the Marketing Campaign ~~~~~~~~~~~~~~~~~~~
+
+    let campaign_brief: MarketingCampaignBrief = serde_json::from_str(&creative_brief_content)
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+
+    let countries = campaign_brief.target_countries.join(", ");
+
+    create_assets(&countries, &creative_brief_content).await?;
+
+    create_storyboard(&countries, &creative_brief_content).await?;
 
     Ok(())
 }

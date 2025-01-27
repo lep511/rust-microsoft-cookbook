@@ -203,9 +203,9 @@ impl ChatAnthropic {
         self
     }
 
-    pub fn with_tools(mut self, tools: Option<Vec<Value>>, tool_choice: Option<Value>) -> Self {
+    pub fn with_tools(mut self, tools: Vec<Value>, tool_choice: Option<Value>) -> Self {
         // https://docs.anthropic.com/en/docs/build-with-claude/tool-use#controlling-claudes-output
-        self.request.tools = tools;
+        self.request.tools = Some(tools);
         self.request.tool_choice = tool_choice;
         self
     }

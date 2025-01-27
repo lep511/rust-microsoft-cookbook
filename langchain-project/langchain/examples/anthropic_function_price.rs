@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let tools = vec![tool_data];
-    let tool_choice = json!({"type": "auto"});
+    let tool_choice = Some(json!({"type": "auto"}));
     let llm = llm.with_tools(tools, tool_choice);
 
     let prompt = "How much is Tesla stock trading for? Before answering, explain your reasoning step-by-step in tags.";

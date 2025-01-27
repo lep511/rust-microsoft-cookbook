@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let tools = vec![tool_data];
+    let tools = Some(vec![tool_data]);
     let tool_choice = Some(json!({"type": "tool", "name": "get_weather"}));
     let prompt = "What is the weather like in San Francisco?";
 
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         panic!("No content found");
     });
 
-    println!("Content: {:?}", contents);
+    println!("Content: {:?}", history);
 
     // Sample response from the function get_weather
     let response_function = "15 degrees C°";

@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let tools = vec![tool_data];
-    let tool_choice = json!({"type": "tool", "name": "record_summary"});
+    let tool_choice = Some(json!({"type": "tool", "name": "record_summary"}));
     let file_path = "tests/files/image01.jpg";
     let mime_type = "image/jpeg";
     let prompt = "Describe this image.";

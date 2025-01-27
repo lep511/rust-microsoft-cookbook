@@ -67,7 +67,7 @@ pub enum AnthropicEmbedEndpoint {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EmbedContent {
-    pub content: Vec<InputContent>,
+    pub content: Vec<Content>,
 }
 
 #[allow(dead_code)]
@@ -94,12 +94,12 @@ pub struct EmbeddingData {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
     pub role: String,
-    pub content: Vec<InputContent>,
+    pub content: Vec<Content>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct InputContent {
+pub struct Content {
     #[serde(rename = "type")]
     pub content_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -113,9 +113,13 @@ pub struct InputContent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_use_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -141,17 +145,6 @@ pub struct ChatResponse {
     pub usage: Option<Usage>,
     pub chat_history: Option<Vec<Message>>,
     pub error: Option<ErrorDetails>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-pub struct Content {
-    pub id: Option<String>,
-    pub input: Option<Value>,
-    pub name: Option<String>,
-    pub text: Option<String>,
-    #[serde(rename = "type")]
-    pub content_type: Option<String>,
 }
 
 #[allow(dead_code)]

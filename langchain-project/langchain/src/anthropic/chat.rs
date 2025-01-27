@@ -1,5 +1,5 @@
 use crate::anthropic::libs::{
-    ChatRequest, InputContent, Message, ChatResponse,
+    ChatRequest, Content, Message, ChatResponse,
     Source,
 };
 use crate::anthropic::MIME_TYPE_SUPPORTED;
@@ -27,7 +27,7 @@ impl ChatAnthropic {
             messages: None,
             system: None,
             temperature: None,
-            max_tokens: None,
+            max_tokens: Some(1024),
             tools: None,
             tool_choice: None,
             stream: false,
@@ -46,7 +46,7 @@ impl ChatAnthropic {
         prompt: &str,
     ) -> Result<ChatResponse, AnthropicError> {
 
-        let content = vec![InputContent {
+        let content = vec![Content {
             content_type: "text".to_string(),
             text: Some(prompt.to_string()),
             source: None,
@@ -55,6 +55,8 @@ impl ChatAnthropic {
             id: None,
             name: None,
             input: None,
+            content: None,
+            tool_use_id: None,
         }];
 
         let new_message = Message {
@@ -62,6 +64,77 @@ impl ChatAnthropic {
             content: content,
         };
 
+        if let Some(messages) = &mut self.request.messages {
+            messages.push(new_message);
+        } else {
+            self.request.messages = Some(vec![new_message]);
+        }
+
+        let response: String = match request_chat(
+            &self.request,
+            &self.api_key,
+            self.timeout,
+            self.retry,
+        ).await {
+            Ok(response) => response,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(AnthropicError::ResponseContentError);
+            }
+        };
+
+        let chat_response: ChatResponse = match serde_json::from_str(&response) {
+            Ok(response_form) => response_form,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(AnthropicError::ResponseContentError);
+            }
+        };
+
+        if let Some(error) = chat_response.error {
+            println!("[ERROR] {}", error.message);
+            return Err(AnthropicError::ResponseContentError);
+        } else {
+            let format_response: ChatResponse = ChatResponse {
+                id: chat_response.id,
+                content: chat_response.content,
+                model: chat_response.model,
+                role: chat_response.role,
+                stop_reason: chat_response.stop_reason,
+                stop_sequence: chat_response.stop_sequence,
+                response_type: chat_response.response_type,
+                chat_history: self.request.messages.clone(),
+                usage: chat_response.usage,
+                error: None,
+            };
+
+            Ok(format_response)
+        }
+    }
+
+    pub async fn with_tool_result(
+        mut self, 
+        tool_id: &str, 
+        content: &str
+    ) -> Result<ChatResponse, AnthropicError> {
+        let content = vec![Content {
+            content_type: "tool_result".to_string(),
+            text: None,
+            source: None,
+            image_url: None,
+            image_base64: None,
+            id: None,
+            name: None,
+            input: None,
+            content: Some(content.to_string()),
+            tool_use_id: Some(tool_id.to_string()),
+        }];
+
+        let new_message = Message {
+            role: "user".to_string(),
+            content: content,
+        };
+        
         if let Some(messages) = &mut self.request.messages {
             messages.push(new_message);
         } else {
@@ -130,30 +203,12 @@ impl ChatAnthropic {
         self
     }
 
-    pub fn with_tools(mut self, tools: Vec<Value>, tool_choice: Value) -> Self {
+    pub fn with_tools(mut self, tools: Option<Vec<Value>>, tool_choice: Option<Value>) -> Self {
         // https://docs.anthropic.com/en/docs/build-with-claude/tool-use#controlling-claudes-output
-        self.request.tools = Some(tools);
-        self.request.tool_choice = Some(tool_choice);
+        self.request.tools = tools;
+        self.request.tool_choice = tool_choice;
         self
     }
-
-    // pub fn with_tool_use(mut self, tool_id: &str, name: &str, input: Value) -> Self {
-    //     let content = vec![InputContent {
-    //         content_type: "tool_use".to_string(),
-    //         text: None,
-    //         source: None,
-    //         image_url: None,
-    //         image_base64: None,
-    //         id: None,
-    //         name: None,
-    //         input: None,
-    //     }];
-
-    //     if let Some(ref mut tools) = self.request.tools {
-    //         tools.push(tool_use);
-    //     }
-    //     self
-    // }
 
     pub fn with_system_prompt(mut self, system_prompt: &str) -> Self {
         self.request.system = Some(system_prompt.to_string());
@@ -165,8 +220,23 @@ impl ChatAnthropic {
         self
     }
 
+    pub fn with_assistant_content(mut self,  assistant_content: Vec<Content>) -> Self {
+        let new_message = Message {
+            role: "assistant".to_string(),
+            content: assistant_content,
+        };
+        
+        if let Some(messages) = &mut self.request.messages {
+            messages.push(new_message);
+        } else {
+            self.request.messages = Some(vec![new_message]);
+        }
+
+        self
+    }
+
     pub fn with_assistant_response(mut self,  assistant_response: &str) -> Self {
-        let content = vec![InputContent {
+        let content = vec![Content {
             content_type: "text".to_string(),
             text: Some(assistant_response.to_string()),
             source: None,
@@ -175,6 +245,8 @@ impl ChatAnthropic {
             id: None,
             name: None,
             input: None,
+            content: None,
+            tool_use_id: None,
         }];
 
         let new_message = Message {
@@ -211,7 +283,7 @@ impl ChatAnthropic {
             return self;
         }
 
-        let content = vec![InputContent {
+        let content = vec![Content {
             content_type: "image".to_string(),
             text: None,
             source: Some(Source {
@@ -224,6 +296,8 @@ impl ChatAnthropic {
             id: None,
             name: None,
             input: None,
+            content: None,
+            tool_use_id: None,
         }];
 
         let new_message = Message {
@@ -263,7 +337,7 @@ impl ChatAnthropic {
             }
         };
         
-        let content = vec![InputContent {
+        let content = vec![Content {
             content_type: "image".to_string(),
             text: None,
             source: Some(Source {
@@ -276,6 +350,8 @@ impl ChatAnthropic {
             id: None,
             name: None,
             input: None,
+            content: None,
+            tool_use_id: None,
         }];
 
         let new_message = Message {

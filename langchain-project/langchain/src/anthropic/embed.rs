@@ -3,7 +3,7 @@ use crate::anthropic::requests::request_embed;
 use crate::anthropic::utils::GetApiKeyVoyage;
 use crate::llmerror::AnthropicError;
 use crate::anthropic::libs::{
-    EmbedRequest, InputContent, InputEmbed, EmbedContent,
+    EmbedRequest, Content, InputEmbed, EmbedContent,
     EmbedResponse, AnthropicEmbedEndpoint
 };
 
@@ -122,7 +122,7 @@ impl EmbedMultiVoyage {
         mut self, 
         input_str: &str
     ) -> Result<EmbedResponse, AnthropicError> {
-        let content = InputContent {
+        let content = Content {
             content_type: "text".to_string(),
             text: Some(input_str.to_string()),
             source: None,
@@ -131,6 +131,8 @@ impl EmbedMultiVoyage {
             id: None,
             name: None,
             input: None,
+            content: None,
+            tool_use_id: None,
         };
 
         let embed_content = EmbedContent {
@@ -173,7 +175,7 @@ impl EmbedMultiVoyage {
     }
 
     pub fn with_image_url(mut self, image_url: &str) -> Self {
-        let content = InputContent {
+        let content = Content {
             content_type: "image_url".to_string(),
             text: None,
             source: None,
@@ -182,6 +184,8 @@ impl EmbedMultiVoyage {
             id: None,
             name: None,
             input: None,
+            content: None,
+            tool_use_id: None,
         };
 
         let embed_content = EmbedContent {
@@ -213,7 +217,7 @@ impl EmbedMultiVoyage {
         }
 
         let format_base64 = format!("data:{};base64,{}", media_type, image_base64);
-        let content = InputContent {
+        let content = Content {
             content_type: "image_base64".to_string(),
             text: None,
             source: None,
@@ -222,6 +226,8 @@ impl EmbedMultiVoyage {
             id: None,
             name: None,
             input: None,
+            content: None,
+            tool_use_id: None,
         };
 
         let embed_content = EmbedContent {

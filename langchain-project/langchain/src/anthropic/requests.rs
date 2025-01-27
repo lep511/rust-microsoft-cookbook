@@ -51,6 +51,7 @@ pub async fn request_chat(
             response = client
                 .post(ANTHROPIC_BASE_URL)
                 .timeout(Duration::from_secs(timeout))
+                .header("x-api-key", api_key)
                 .header("anthropic-version", ANTHROPIC_VERSION)
                 .header("Content-Type", "application/json")
                 .json(&request)

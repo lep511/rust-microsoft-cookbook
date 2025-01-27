@@ -70,45 +70,9 @@ impl ChatAnthropic {
             self.request.messages = Some(vec![new_message]);
         }
 
-        let response: String = match request_chat(
-            &self.request,
-            &self.api_key,
-            self.timeout,
-            self.retry,
-        ).await {
-            Ok(response) => response,
-            Err(e) => {
-                println!("[ERROR] {:?}", e);
-                return Err(AnthropicError::ResponseContentError);
-            }
-        };
-
-        let chat_response: ChatResponse = match serde_json::from_str(&response) {
-            Ok(response_form) => response_form,
-            Err(e) => {
-                println!("[ERROR] {:?}", e);
-                return Err(AnthropicError::ResponseContentError);
-            }
-        };
-
-        if let Some(error) = chat_response.error {
-            println!("[ERROR] {}", error.message);
-            return Err(AnthropicError::ResponseContentError);
-        } else {
-            let format_response: ChatResponse = ChatResponse {
-                id: chat_response.id,
-                content: chat_response.content,
-                model: chat_response.model,
-                role: chat_response.role,
-                stop_reason: chat_response.stop_reason,
-                stop_sequence: chat_response.stop_sequence,
-                response_type: chat_response.response_type,
-                chat_history: self.request.messages.clone(),
-                usage: chat_response.usage,
-                error: None,
-            };
-
-            Ok(format_response)
+        match self.send_request().await {
+            Ok(response) => Ok(response),
+            Err(e) => Err(e),
         }
     }
 
@@ -141,6 +105,13 @@ impl ChatAnthropic {
             self.request.messages = Some(vec![new_message]);
         }
 
+        match self.send_request().await {
+            Ok(response) => Ok(response),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub async fn send_request(self) -> Result<ChatResponse, AnthropicError> {
         let response: String = match request_chat(
             &self.request,
             &self.api_key,

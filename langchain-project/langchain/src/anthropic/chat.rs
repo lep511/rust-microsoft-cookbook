@@ -3,7 +3,7 @@ use crate::anthropic::libs::{
     Source,
 };
 use crate::anthropic::MIME_TYPE_SUPPORTED;
-use crate::anthropic::utils::GetApiKey;
+use crate::anthropic::utils::{GetApiKey, read_file_data};
 use crate::anthropic::requests::request_chat;
 use crate::llmerror::AnthropicError;
 use serde_json::Value;
@@ -22,25 +22,12 @@ impl ChatAnthropic {
     pub fn new(model: &str) -> Result<Self, AnthropicError> {
         let api_key = Self::get_api_key()?;
 
-        let content = vec![InputContent {
-            content_type: "text".to_string(),
-            text: Some("Init message.".to_string()),
-            source: None,
-            image_url: None,
-            image_base64: None,
-        }];
-
-        let messages = vec![Message {
-            role: Some("user".to_string()),
-            content: Some(content.clone()),
-        }];
-
         let request = ChatRequest {
             model: model.to_string(),
-            messages: messages.clone(),
+            messages: None,
             system: None,
-            temperature: Some(0.9),
-            max_tokens: Some(1024),
+            temperature: None,
+            max_tokens: None,
             tools: None,
             tool_choice: None,
             stream: false,
@@ -58,23 +45,28 @@ impl ChatAnthropic {
         mut self,
         prompt: &str,
     ) -> Result<ChatResponse, AnthropicError> {
-        if let Some(content) = &mut self.request.messages[0].content {
-            if content[0].text == Some("Init message.".to_string()) {
-                content[0].text = Some(prompt.to_string());
-            } else {
-                let content = vec![InputContent {
-                    content_type: "text".to_string(),
-                    text: Some(prompt.to_string()),
-                    source: None,
-                    image_url: None,
-                    image_base64: None,
-                }];
-                self.request.messages.push(Message {
-                    role: Some("user".to_string()),
-                    content: Some(content.clone()),
-                });
-            }
+
+        let content = vec![InputContent {
+            content_type: "text".to_string(),
+            text: Some(prompt.to_string()),
+            source: None,
+            image_url: None,
+            image_base64: None,
+            id: None,
+            name: None,
+            input: None,
+        }];
+
+        let new_message = Message {
+            role: "user".to_string(),
+            content: content,
         };
+
+        if let Some(messages) = &mut self.request.messages {
+            messages.push(new_message);
+        } else {
+            self.request.messages = Some(vec![new_message]);
+        }
 
         let response: String = match request_chat(
             &self.request,
@@ -109,7 +101,7 @@ impl ChatAnthropic {
                 stop_reason: chat_response.stop_reason,
                 stop_sequence: chat_response.stop_sequence,
                 response_type: chat_response.response_type,
-                chat_history: Some(self.request.messages.clone()),
+                chat_history: self.request.messages.clone(),
                 usage: chat_response.usage,
                 error: None,
             };
@@ -145,6 +137,24 @@ impl ChatAnthropic {
         self
     }
 
+    // pub fn with_tool_use(mut self, tool_id: &str, name: &str, input: Value) -> Self {
+    //     let content = vec![InputContent {
+    //         content_type: "tool_use".to_string(),
+    //         text: None,
+    //         source: None,
+    //         image_url: None,
+    //         image_base64: None,
+    //         id: None,
+    //         name: None,
+    //         input: None,
+    //     }];
+
+    //     if let Some(ref mut tools) = self.request.tools {
+    //         tools.push(tool_use);
+    //     }
+    //     self
+    // }
+
     pub fn with_system_prompt(mut self, system_prompt: &str) -> Self {
         self.request.system = Some(system_prompt.to_string());
         self
@@ -162,23 +172,31 @@ impl ChatAnthropic {
             source: None,
             image_url: None,
             image_base64: None,
+            id: None,
+            name: None,
+            input: None,
         }];
 
-        self.request.messages.push(
-            Message {
-                role: Some("assistant".to_string()),
-                content: Some(content),
-            }
-        );
+        let new_message = Message {
+            role: "assistant".to_string(),
+            content: content,
+        };
+        
+        if let Some(messages) = &mut self.request.messages {
+            messages.push(new_message);
+        } else {
+            self.request.messages = Some(vec![new_message]);
+        }
+
         self
     }
 
     pub fn with_chat_history(mut self, history: Vec<Message>) -> Self {
-        self.request.messages = history;
+        self.request.messages = Some(history);
         self
     }
 
-    pub fn with_image(
+    pub fn with_image_base64(
         mut self, 
         image_base64: &str, 
         mime_type: &str
@@ -203,14 +221,73 @@ impl ChatAnthropic {
             }),
             image_url: None,
             image_base64: None,
+            id: None,
+            name: None,
+            input: None,
         }];
 
-        self.request.messages.push(
-            Message {
-                role: Some("user".to_string()),
-                content: Some(content),
+        let new_message = Message {
+            role: "user".to_string(),
+            content: content,
+        };
+
+        if let Some(messages) = &mut self.request.messages {
+            messages.push(new_message);
+        } else {
+            self.request.messages = Some(vec![new_message]);
+        }
+
+        self
+    }
+
+    pub fn with_image_file(
+        mut self, 
+        image_file: &str, 
+        mime_type: &str
+    ) -> Self {
+
+        if !MIME_TYPE_SUPPORTED.contains(&mime_type) {
+            println!(
+                "[ERROR] Unsupported media type: {}. Supported: {}", 
+                mime_type,
+                MIME_TYPE_SUPPORTED.join(", ")
+            );
+            return self;
+        }
+
+        let image_base64 = match read_file_data(image_file) {
+            Ok(data) => data,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return self;
             }
-        );
+        };
+        
+        let content = vec![InputContent {
+            content_type: "image".to_string(),
+            text: None,
+            source: Some(Source {
+                source_type: "base64".to_string(),
+                media_type: mime_type.to_string(),
+                data: image_base64,
+            }),
+            image_url: None,
+            image_base64: None,
+            id: None,
+            name: None,
+            input: None,
+        }];
+
+        let new_message = Message {
+            role: "user".to_string(),
+            content: content,
+        };
+
+        if let Some(messages) = &mut self.request.messages {
+            messages.push(new_message);
+        } else {
+            self.request.messages = Some(vec![new_message]);
+        }
 
         self
     }

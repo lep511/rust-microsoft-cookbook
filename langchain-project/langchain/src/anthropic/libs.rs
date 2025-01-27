@@ -5,10 +5,13 @@ use serde_json::Value;
 #[derive(Debug, Serialize, Clone)]
 pub struct ChatRequest {
     pub model: String,
-    pub messages: Vec<Message>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub messages: Option<Vec<Message>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<Value>>,
@@ -90,8 +93,8 @@ pub struct EmbeddingData {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
-    pub role: Option<String>,
-    pub content: Option<Vec<InputContent>>,
+    pub role: String,
+    pub content: Vec<InputContent>,
 }
 
 #[allow(dead_code)]
@@ -107,6 +110,12 @@ pub struct InputContent {
     pub image_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image_base64: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input: Option<Value>,
 }
 
 #[allow(dead_code)]

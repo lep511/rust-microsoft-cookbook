@@ -72,6 +72,8 @@ pub enum AnthropicError {
     ResponseContentError,
     #[error("Unsupported media type")]
     MediaTypeError,
+    #[error("Failed to open file: {0}")]
+    FileError(String),
 }
 
 #[allow(dead_code)]

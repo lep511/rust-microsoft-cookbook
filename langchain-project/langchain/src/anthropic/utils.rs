@@ -1,4 +1,8 @@
 use crate::llmerror::AnthropicError;
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+use std::fs::File;
+use std::io::Read;
+
 use std::env;
 
 /// Gets the ANTHROPIC_API_KEY from the environment variables
@@ -49,4 +53,23 @@ pub fn print_pre(request: &impl serde::Serialize, active: bool) {
             Err(e) => println!("[ERROR] {:?}", e)
         }
     }
+}
+
+pub fn read_file_data(file_path: &str) -> Result<String, AnthropicError> {
+    // Attempt to open the file at file_path
+    let mut file = File::open(file_path)
+        .map_err(|e| AnthropicError::FileError(e.to_string()))?;
+
+    // Create a new empty, mutable vector that can grow dynamically to store the file contents
+    let mut buffer = Vec::new();
+    
+    // Read the entire contents of the file into the buffer
+    // read_to_end will read from the current position until EOF
+    Read::read_to_end(&mut file, &mut buffer)
+        .map_err(|e| AnthropicError::FileError(e.to_string()))?;
+
+    // Encode the contents of the buffer into a base64 string using the STANDARD base64 alphabet
+    let base64_encoded = STANDARD.encode(&buffer);
+    
+    Ok(base64_encoded)
 }

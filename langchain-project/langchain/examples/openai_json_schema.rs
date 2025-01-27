@@ -1,8 +1,15 @@
 #[allow(dead_code)]
 use langchain::openai::chat::ChatOpenAI;
 use langchain::openai::libs::ChatResponse;
-use serde_json::json;
+use langchain::openai::utils::generate_schema;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::time::Instant;
+
+#[derive(Debug, JsonSchema, Serialize, Deserialize)]
+struct EmailSchema {
+    email: String,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,19 +21,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let start = Instant::now();
 
-    let json_schema = json!({
-        "name":"email_schema",
-        "schema":{
-            "type":"object",
-            "properties":{
-                "email":{
-                    "description":"The email address that appears in the input",
-                    "type":"string"
-                }
-            },
-            "additionalProperties": false
-        }
-    });
+    let name_schema = "email_schema";
+    let is_strict = true;
+    let is_additional_properties = false;
+    let is_sub_struct = false;
+
+    // Generate schema for EmailSchema
+    let schema_data = schemars::schema_for!(EmailSchema);
+    let json_schema = generate_schema(
+        schema_data,
+        name_schema,
+        is_strict,
+        is_additional_properties,
+        is_sub_struct,
+    )?;
 
     let response: ChatResponse = llm
         .with_system_prompt(system_prompt)

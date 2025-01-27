@@ -128,6 +128,9 @@ impl EmbedMultiVoyage {
             source: None,
             image_url: None,
             image_base64: None,
+            id: None,
+            name: None,
+            input: None,
         };
 
         let embed_content = EmbedContent {
@@ -176,6 +179,9 @@ impl EmbedMultiVoyage {
             source: None,
             image_url: Some(image_url.to_string()),
             image_base64: None,
+            id: None,
+            name: None,
+            input: None,
         };
 
         let embed_content = EmbedContent {
@@ -213,6 +219,9 @@ impl EmbedMultiVoyage {
             source: None,
             image_url: None,
             image_base64: Some(format_base64.to_string()),
+            id: None,
+            name: None,
+            input: None,
         };
 
         let embed_content = EmbedContent {

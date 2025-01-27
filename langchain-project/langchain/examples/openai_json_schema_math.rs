@@ -49,18 +49,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     json_schema["schema"]["properties"]["steps"] = json_schema_step;
 
-    let prompt = "You are a helpful math tutor. You will be provided with a math problem, \
-                and your goal will be to output a step by step solution, along with \
-                a final answer. \
+    let system_prompt = "You are a helpful math tutor. You will be provided with \
+                a math problem, and your goal will be to output a step by step \
+                solution, along with a final answer. \
                 For each step, just provide the output as an equation use the explanation \
                 field to detail the reasoning.";
 
+    let prompt = "How can I solve 8x + 7 = -23";
+
     let response: ChatResponse = llm
+        .with_system_prompt(system_prompt)    
         .with_json_schema(json_schema)
         .with_retry(0)
         .invoke(prompt)
         .await?;
-
 
     match response.choices {
         Some(candidates) => {

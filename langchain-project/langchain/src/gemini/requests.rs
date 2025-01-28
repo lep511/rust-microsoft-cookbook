@@ -383,6 +383,10 @@ pub fn strem_chat(
                         let str_chunk = String::from_utf8_lossy(&bytes);
                         let parts: Vec<&str> = str_chunk.split("\n\n").collect();
                         for part in parts {
+                            if !part.is_empty() && part.ends_with("[DONE]") {
+                                break;
+                            }
+                            
                             if !part.is_empty() && part.starts_with("data:") {
                                 let json_part = part.trim_start_matches("data:");
                             

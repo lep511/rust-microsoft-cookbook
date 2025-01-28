@@ -1,4 +1,7 @@
-use crate::compatible::requests::request_chat;
+use futures::pin_mut;
+use futures::StreamExt;
+use async_stream::stream;
+use crate::compatible::requests::{request_chat, strem_chat};
 use crate::compatible::utils::GetApiKey;
 use crate::compatible::libs::{ChatRequest, Message, ChatResponse};
 use crate::llmerror::CompatibleChatError;
@@ -30,9 +33,11 @@ impl ChatCompatible {
             frequency_penalty: None,
             presence_penalty: None,
             top_p: None,
+            min_p: None,
             top_k: None,
             stop: None,
             n_completion: None,
+            response_format: None,
             stream: Some(false),
         };
         
@@ -127,9 +132,11 @@ impl ChatCompatible {
             frequency_penalty: None,
             presence_penalty: None,
             top_p: None,
+            min_p: None,
             top_k: None,
             stop: None,
             n_completion: None,
+            response_format: None,
             stream: None,
         };
 
@@ -190,6 +197,40 @@ impl ChatCompatible {
         Ok(response)
     }
 
+    pub fn stream_response(
+        mut self,
+        prompt: String,  // Don't change type for stream
+    ) -> impl futures::Stream<Item = ChatResponse> {
+        stream! {            
+            let new_message = Message {
+                role: Some("user".to_string()),
+                content: Some(prompt),
+                tool_calls: None,
+            };
+    
+            if let Some(messages) = &mut self.request.messages {
+                messages.push(new_message);
+            } else {
+                self.request.messages = Some(vec![new_message]);
+            }
+
+            self.request.model = Some(self.model.clone());
+            self.request.stream = Some(true);
+
+            let stream = strem_chat(
+                self.url.clone(),
+                self.api_key.clone(),
+                self.request.clone(),
+            );
+
+            pin_mut!(stream);
+
+            while let Some(chat_response) = stream.next().await {
+                yield chat_response;
+            }
+        }
+    }
+
     pub fn with_temperature(mut self, temperature: f32) -> Self {
         self.request.temperature = Some(temperature);
         self
@@ -217,7 +258,11 @@ impl ChatCompatible {
 
     pub fn with_top_p(mut self, top_p: f32) -> Self {
         self.request.top_p = Some(top_p);
-        self.request.temperature = None;
+        self
+    }
+
+    pub fn with_min_p(mut self, min_p: f32) -> Self {
+        self.request.min_p = Some(min_p);
         self
     }
 

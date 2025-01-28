@@ -1,7 +1,9 @@
-use reqwest::Client;
+use reqwest::{Client, Response};
+use async_stream::stream;
+use futures::StreamExt;
 use crate::compatible::{DEBUG_PRE, DEBUG_POST};
 use crate::llmerror::CompatibleChatError;
-use crate::compatible::libs::{ChatRequest, ErrorResponse};
+use crate::compatible::libs::{ChatRequest, ErrorResponse, ChatResponse};
 use crate::compatible::utils::print_pre;
 use std::time::Duration;
 
@@ -76,4 +78,62 @@ pub async fn request_chat(
     print_pre(&response_data, DEBUG_POST);
 
     Ok(response_data)
+}
+
+pub fn strem_chat(
+    url: String,
+    api_key: String,
+    request: ChatRequest,
+) -> impl futures::Stream<Item = ChatResponse> {
+    stream! {
+        let client = Client::new();
+
+        let response: Response = match client
+            .post(url)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .header("Content-Type", "application/json")
+            .json(&request)
+            .send()
+            .await {
+                Ok(response) => response,
+                Err(e) => {
+                    println!("Error sending request: {}", e);
+                    return
+                }
+            };
+
+        if response.status().is_success() {
+            let mut stream = response.bytes_stream();
+
+            while let Some(chunk) = stream.next().await {
+                match chunk {
+                    Ok(bytes) => {
+                        let str_chunk = String::from_utf8_lossy(&bytes);
+                        let parts: Vec<&str> = str_chunk.split("\n\n").collect();
+                        for part in parts {
+                            if !part.is_empty() && part.ends_with("[DONE]") {
+                                break;
+                            }
+
+                            if !part.is_empty() && part.starts_with("data:") {
+                                let json_part = part.trim_start_matches("data:");
+                            
+                                match serde_json::from_str::<ChatResponse>(json_part) {
+                                    Ok(stream_response) => {
+                                        yield stream_response;
+                                    },
+                                    Err(e) => {
+                                        println!("Error parsing chunk: {}", e);
+                                    }
+                                }    
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        println!("Error reading chunk: {}", e);
+                    }
+                }
+            }
+        }
+    }
 }

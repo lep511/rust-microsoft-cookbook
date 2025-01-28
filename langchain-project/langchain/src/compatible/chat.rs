@@ -54,6 +54,7 @@ impl ChatCompatible {
         let new_message = Message {
             role: Some("user".to_string()),
             content: Some(prompt.to_string()),
+            tool_calls: None,
         };
 
         if let Some(messages) = &mut self.request.messages {
@@ -160,6 +161,7 @@ impl ChatCompatible {
         let new_message = Message {
             role: Some("user".to_string()),
             content: Some(prompt.to_string()),
+            tool_calls: None,
         };
 
         if let Some(messages) = &mut self.request.messages {
@@ -238,6 +240,7 @@ impl ChatCompatible {
         let new_message = Message {
             role: Some("system".to_string()),
             content: Some(system_prompt.to_string()),
+            tool_calls: None,
         };
 
         if let Some(messages) = &mut self.request.messages {
@@ -253,6 +256,7 @@ impl ChatCompatible {
         let new_message = Message {
             role: Some("assistant".to_string()),
             content: Some(assistant_response.to_string()),
+            tool_calls: None,
         };
 
         if let Some(messages) = &mut self.request.messages {

@@ -40,14 +40,16 @@ pub struct ChatRequest {
 pub struct Message {
     pub role: Option<String>,
     pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<Value>>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct ChatResponse {
     pub choices: Option<Vec<Choice>>,
-    pub created: Option<u64>,
     pub id: Option<String>,
+    pub created: Option<u64>,
     pub model: Option<String>,
     pub object: Option<String>,
     pub system_fingerprint: Option<String>,
@@ -62,15 +64,7 @@ pub struct Choice {
     pub finish_reason: String,
     pub index: u32,
     pub logprobs: Option<serde_json::Value>,
-    pub message: ChatMessage,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-pub struct ChatMessage {
-    pub content: String,
-    pub refusal: Option<String>,
-    pub role: String,
+    pub message: Message,
 }
 
 #[allow(dead_code)]
@@ -83,12 +77,15 @@ pub struct Usage {
     pub queue_time: Option<f64>,
     pub total_time: Option<f64>,
     pub total_tokens: Option<u32>,
+    pub prompt_tokens_details: Option<PromptTokensDetails>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct PromptTokensDetails {
+    pub text_tokens: Option<u32>,
     pub audio_tokens: Option<u32>,
+    pub image_tokens: Option<u32>,
     pub cached_tokens: Option<u32>,
 }
 

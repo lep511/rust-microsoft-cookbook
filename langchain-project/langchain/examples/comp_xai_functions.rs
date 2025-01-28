@@ -47,7 +47,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .invoke(prompt)
         .await?;
 
-    println!("Response: {:?}", response);
+    let mut location = "";
+    
+    if let Some(choices) = &response.choices {
+        for choice in choices {
+            if choice.finish_reason == "tool_calls" {
+                println!("Tool use: {:?}", choice.message.tool_calls);
+            }
+        }
+    };
+    // println!("Response: {:?}", response);
     
     Ok(())
 }

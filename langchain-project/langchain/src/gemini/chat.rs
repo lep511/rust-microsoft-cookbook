@@ -133,7 +133,7 @@ impl ChatGemini {
 
     pub fn stream_response(
         mut self,
-        prompt: String,  // Don't change for stream
+        prompt: String,  // Don't change type for stream
     ) -> impl futures::Stream<Item = ChatResponse> {
         stream! {
             self.base_url = self.base_url

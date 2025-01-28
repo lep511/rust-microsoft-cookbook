@@ -25,7 +25,15 @@ impl ChatCompatible {
             input: None,
             temperature: None,
             max_tokens: None,
-            stream: None,
+            tools: None,
+            tool_choice: None,
+            frequency_penalty: None,
+            presence_penalty: None,
+            top_p: None,
+            top_k: None,
+            stop: None,
+            n_completion: None,
+            stream: Some(false),
         };
         
         Ok(Self {
@@ -56,15 +64,12 @@ impl ChatCompatible {
 
         self.request.model = Some(self.model.clone());
 
-        let api_key_format = format!("Bearer {}", self.api_key);
-
         let response = match request_chat(
             &self.url,
             &self.request,
-            &api_key_format,
+            &self.api_key,
             self.timeout,
             self.retry,
-            None,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -105,7 +110,6 @@ impl ChatCompatible {
     pub async fn with_input_replicate(
         mut self, 
         input: serde_json::Value,
-        prefer: &str,
     ) -> Result<serde_json::Value, CompatibleChatError> {
         let model = self.request.model.unwrap_or("".to_string());
         let url_format = format!("{}/{}", self.url, model);
@@ -117,6 +121,14 @@ impl ChatCompatible {
             input: Some(input),
             temperature: None,
             max_tokens: None,
+            tools: None,
+            tool_choice: None,
+            frequency_penalty: None,
+            presence_penalty: None,
+            top_p: None,
+            top_k: None,
+            stop: None,
+            n_completion: None,
             stream: None,
         };
 
@@ -130,7 +142,6 @@ impl ChatCompatible {
             &api_key_format,
             self.timeout,
             self.retry,
-            Some(prefer),
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -166,7 +177,6 @@ impl ChatCompatible {
             &api_key_format,
             self.timeout,
             self.retry,
-            None,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -188,8 +198,34 @@ impl ChatCompatible {
         self
     }
 
+    pub fn with_frequency_penalty(mut self, frequency_penalty: f32) -> Self {
+        self.request.frequency_penalty = Some(frequency_penalty);
+        self
+    }
+
     pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
         self.timeout = timeout;
+        self
+    }
+
+    pub fn with_presence_penalty(mut self, presence_penalty: f32) -> Self {
+        self.request.presence_penalty = Some(presence_penalty);
+        self
+    }
+
+    pub fn with_top_p(mut self, top_p: f32) -> Self {
+        self.request.top_p = Some(top_p);
+        self.request.temperature = None;
+        self
+    }
+
+    pub fn with_n_completion(mut self, n_completion: u32) -> Self {
+        self.request.n_completion = Some(n_completion);
+        self
+    }
+
+    pub fn with_stop(mut self, stop: Vec<String>) -> Self {
+        self.request.stop = Some(stop);
         self
     }
 
@@ -230,6 +266,16 @@ impl ChatCompatible {
 
     pub fn with_chat_history(mut self, history: Vec<Message>) -> Self {
         self.request.messages = Some(history);
+        self
+    }
+
+    pub fn with_tools(mut self, tools_data: Vec<serde_json::Value>) -> Self {
+        self.request.tools = Some(tools_data);
+        self
+    }
+    
+    pub fn with_tool_choice(mut self, tool_choice: serde_json::Value) -> Self {
+        self.request.tool_choice = Some(tool_choice);
         self
     }
 }

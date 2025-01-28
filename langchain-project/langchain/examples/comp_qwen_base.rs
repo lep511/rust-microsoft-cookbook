@@ -21,7 +21,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let elapsed = start.elapsed().as_secs_f64();
     println!("[Task took {:.2} seconds]", elapsed);
 
-    println!("\n#### Example Groc simple shot ####");
     match response.choices {
         Some(candidates) => {
             for candidate in candidates {

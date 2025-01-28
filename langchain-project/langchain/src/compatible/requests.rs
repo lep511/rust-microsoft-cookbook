@@ -1,5 +1,4 @@
 use reqwest::Client;
-use reqwest::{self, header::{HeaderMap, HeaderValue}};
 use crate::compatible::{DEBUG_PRE, DEBUG_POST};
 use crate::llmerror::CompatibleChatError;
 use crate::compatible::libs::{ChatRequest, ErrorResponse};
@@ -12,45 +11,22 @@ pub async fn request_chat(
     api_key: &str,
     timeout: u64,
     retry: i32,
-    prefer: Option<&str>,
 ) -> Result<serde_json::Value, CompatibleChatError> {
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
     
-    let api_key_header: HeaderValue = match HeaderValue::from_str(&api_key) {
-        Ok(value) => value,
-        Err(_) => return Err(CompatibleChatError::GenericError {
-            message: "Invalid API key".to_string(),
-            detail: "ERROR-req-9876".to_string(),
-        }),
-    };
-
-    let mut headers = HeaderMap::new();
-    headers.insert("Authorization", api_key_header);
-    headers.insert("Content-Type", HeaderValue::from_static("application/json"));
-
-    if let Some(prefer_value) = prefer {
-        let prefer_header: HeaderValue = match HeaderValue::from_str(prefer_value) {
-            Ok(value) => value,
-            Err(_) => return Err(CompatibleChatError::GenericError {
-                message: "Invalid prefer header value".to_string(),
-                detail: "ERROR-req-9875".to_string(),
-            }),
-        };
-        headers.insert("Prefer", prefer_header);
-    }
-
     print_pre(&request, DEBUG_PRE);
-
+    
     let response = client
         .post(url)
         .timeout(Duration::from_secs(timeout))
-        .headers(headers)
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
         .json(request)
         .send()
         .await?;
-
+    
     if !response.status().is_success() {
         if retry > 0 {
             let mut n_count = 0;
@@ -79,11 +55,21 @@ pub async fn request_chat(
                 }
             }
         }
-        let error_response = response.json::<ErrorResponse>().await?;
-        return Err(CompatibleChatError::GenericError {
-            message: error_response.detail,
-            detail: "ERROR-req-9877".to_string(),
-        });
+        println!("Response code: {}", response.status());
+        match response.json::<ErrorResponse>().await {
+            Ok(error) => {
+                return Err(CompatibleChatError::GenericError {
+                    message: error.detail,
+                    detail: "ERROR-req-9877".to_string(),
+                });
+            }
+            Err(e) => {
+                return Err(CompatibleChatError::GenericError {
+                    message: format!("Error: {}", e),
+                    detail: "ERROR-req-9876".to_string(),
+                });
+            }
+        }
     }
 
     let response_data = response.json::<serde_json::Value>().await?;

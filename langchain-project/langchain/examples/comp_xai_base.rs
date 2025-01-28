@@ -1,0 +1,40 @@
+#[allow(dead_code)]
+use langchain::compatible::chat::ChatCompatible;
+use langchain::compatible::libs::ChatResponse;
+use std::time::Instant;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let base_url = "https://api.x.ai/v1/chat/completions";
+    let model = "grok-2-latest";
+    let llm = ChatCompatible::new(base_url, model)?;
+
+    let system_prompt = "You are Grok, a chatbot inspired by the Hitchhikers Guide to the Galaxy.";
+    let prompt = "What is the answer to life and universe?";
+
+    let start = Instant::now();
+
+    let response: ChatResponse = llm
+        .with_retry(0)
+        .with_temperature(0.9)
+        .with_system_prompt(system_prompt)
+        .invoke(prompt)
+        .await?;
+    
+    let elapsed = start.elapsed().as_secs_f64();
+    println!("[Task took {:.2} seconds]", elapsed);
+
+    match response.choices {
+        Some(candidates) => {
+            for candidate in candidates {
+                #[allow(irrefutable_let_patterns)]
+                if let message = candidate.message {
+                    println!("{}", message.content);
+                }
+            }
+        }
+        None => println!("No response choices available"),
+    };
+    
+    Ok(())
+}

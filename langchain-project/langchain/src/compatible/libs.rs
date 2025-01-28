@@ -15,6 +15,23 @@ pub struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequency_penalty: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub presence_penalty: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "n")]
+    pub n_completion: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
 }
 

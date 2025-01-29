@@ -50,19 +50,19 @@
     },
     {
       "name": "Levothyroxine",
-      "purpose": "Hypothyroidism"
+      "purpose": "Hypothyroidism treatment"
     },
     {
       "name": "Warfarin",
-      "purpose": "Atrial Fibrillation anticoagulation"
+      "purpose": "Atrial Fibrillation management"
     },
     {
       "name": "Vitamin B12 injections",
-      "purpose": "Vitamin B12 deficiency"
+      "purpose": "Vitamin B12 deficiency treatment"
     },
     {
       "name": "Aspirin",
-      "purpose": "Prevention of recurrent TIA"
+      "purpose": "Prevention of further TIAs"
     },
     {
       "name": "Anastrozole",
@@ -70,21 +70,21 @@
     },
     {
       "name": "Donepezil",
-      "purpose": "Mild Cognitive Impairment"
+      "purpose": "Mild cognitive impairment treatment"
     },
     {
       "name": "Prophylactic antibiotics",
-      "purpose": "Recurrent UTIs"
+      "purpose": "Recurrent UTI prevention"
     }
   ],
   "other_treatments": [
     {
       "treatment": "Total hip replacement (right)",
-      "purpose": "Osteoarthritis"
+      "purpose": "Osteoarthritis management"
     },
     {
       "treatment": "Cataract surgery (both eyes)",
-      "purpose": "Vision correction"
+      "purpose": "Vision restoration"
     },
     {
       "treatment": "Lumpectomy and radiation",
@@ -92,7 +92,11 @@
     },
     {
       "treatment": "Total knee replacement (left)",
-      "purpose": "Osteoarthritis"
+      "purpose": "Osteoarthritis management"
+    },
+    {
+      "treatment": "IV antibiotics",
+      "purpose": "Pneumonia treatment"
     },
     {
       "treatment": "Physical therapy",
@@ -105,13 +109,12 @@
   ],
   "recent_concerns": [
     "Worsening kidney function (2022)",
-    "Declining mobility (2023)",
-    "Recurrent UTIs (2021)"
+    "Declining mobility (2023)"
   ],
   "action_items": [
-    "Monitor kidney function and adjust medications as needed",
-    "Assess effectiveness of physical therapy and mobility aids",
-    "Review and manage recurrent UTIs",
-    "Evaluate cognitive status and adjust treatment if necessary"
+    "Monitor kidney function and adjust medications as necessary",
+    "Assess effectiveness of physical therapy and home health aide support",
+    "Review blood pressure control and medication regimen",
+    "Evaluate cognitive function and adjust treatment if needed"
   ]
 }

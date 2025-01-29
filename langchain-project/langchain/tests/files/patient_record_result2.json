@@ -7,14 +7,6 @@
       "year": 2016
     },
     {
-      "diagnosis": "Right Ventricular Hypertrophy",
-      "year": 2016
-    },
-    {
-      "diagnosis": "Post-operative Arrhythmias",
-      "year": 2017
-    },
-    {
       "diagnosis": "Developmental Delay",
       "year": 2018
     },
@@ -27,7 +19,7 @@
       "year": 2020
     },
     {
-      "diagnosis": "Mild Pulmonary Stenosis",
+      "diagnosis": "Pulmonary Stenosis",
       "year": 2020
     },
     {
@@ -42,64 +34,64 @@
   "medications": [
     {
       "name": "Amiodarone",
-      "purpose": "Post-operative arrhythmia management"
+      "purpose": "Post-operative arrhythmias"
     }
   ],
   "other_treatments": [
     {
-      "treatment": "Shunt Surgery",
+      "treatment": "Shunt surgery",
       "purpose": "Increase pulmonary blood flow for TOF"
     },
     {
-      "treatment": "Complete TOF Repair",
-      "purpose": "VSD closure, pulmonary valve replacement, RV outflow tract repair"
+      "treatment": "Complete repair of TOF",
+      "purpose": "Correct congenital heart defect"
     },
     {
-      "treatment": "Early Intervention Services",
+      "treatment": "Early intervention services",
       "purpose": "Developmental delay"
     },
     {
-      "treatment": "Speech Therapy",
+      "treatment": "Speech therapy",
       "purpose": "Delayed language development"
     },
     {
-      "treatment": "Occupational Therapy",
+      "treatment": "Occupational therapy",
       "purpose": "Fine motor skill delays"
     },
     {
-      "treatment": "High-Calorie Diet",
+      "treatment": "High-calorie diet",
       "purpose": "Failure to thrive"
     },
     {
-      "treatment": "Cardiac Catheterization",
-      "purpose": "Evaluate pulmonary stenosis"
+      "treatment": "Cardiac catheterization",
+      "purpose": "Assess pulmonary stenosis"
     },
     {
-      "treatment": "Balloon Valvuloplasty",
-      "purpose": "Treat progression of pulmonary stenosis"
+      "treatment": "Balloon valvuloplasty",
+      "purpose": "Treat pulmonary stenosis"
     },
     {
-      "treatment": "Behavioral Therapy",
+      "treatment": "Behavioral therapy",
       "purpose": "ADHD management"
     },
     {
-      "treatment": "Cochlear Implant Surgery",
+      "treatment": "Cochlear implant surgery",
       "purpose": "Sensorineural hearing loss"
     },
     {
-      "treatment": "Integrated Preschool Program with IEP",
-      "purpose": "Support developmental and educational needs"
+      "treatment": "Integrated preschool program with IEP",
+      "purpose": "Educational support"
     }
   ],
   "recent_concerns": [
-    "Stable pulmonary valve function post-valvuloplasty",
-    "Progressing well with speech therapy",
-    "Discontinuation of occupational therapy due to met goals"
+    "Stable pulmonary valve function",
+    "Progressing well in speech development",
+    "Met fine motor skill goals, occupational therapy discontinued"
   ],
   "action_items": [
-    "Continue periodic cardiac follow-up to monitor TOF and pulmonary valve function",
-    "Review progress and ongoing needs for speech therapy",
-    "Monitor ADHD symptoms and effectiveness of behavioral therapy",
-    "Assess hearing and cochlear implant function"
+    "Continue periodic cardiac follow-up",
+    "Monitor progress in mainstream school with IEP support",
+    "Review effectiveness of speech therapy",
+    "Assess need for ongoing behavioral therapy for ADHD"
   ]
 }

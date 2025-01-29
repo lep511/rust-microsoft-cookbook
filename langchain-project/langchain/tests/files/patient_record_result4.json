@@ -38,43 +38,44 @@
     },
     {
       "name": "Fluoxetine",
-      "purpose": "Anxiety and Depression"
+      "purpose": "Anxiety and depression"
     }
   ],
   "other_treatments": [
     {
       "treatment": "Cognitive Rehabilitation Therapy",
-      "purpose": "Post-Concussion Syndrome"
-    },
-    {
-      "treatment": "Reconstructive Surgery",
-      "purpose": "ACL Tear repair"
+      "purpose": "Post-concussion syndrome"
     },
     {
       "treatment": "Cognitive-Behavioral Therapy (CBT)",
-      "purpose": "PTSD and Mental Health"
+      "purpose": "PTSD management"
     },
     {
       "treatment": "Exposure Therapy",
-      "purpose": "Panic Attack Management"
-    },
-    {
-      "treatment": "Mindfulness Meditation and Yoga",
-      "purpose": "Anxiety Management"
+      "purpose": "Panic attack management"
     },
     {
       "treatment": "CPAP Therapy",
       "purpose": "Sleep Apnea"
+    },
+    {
+      "treatment": "Mindfulness Meditation and Yoga",
+      "purpose": "Anxiety management"
+    },
+    {
+      "treatment": "Reconstructive Surgery",
+      "purpose": "ACL tear repair"
     }
   ],
   "recent_concerns": [
-    "Training for first half-marathon",
-    "Stable mental health and well-controlled asthma"
+    "Stable mental health and well-controlled asthma",
+    "No sports-related injuries in the past 2 years",
+    "Training for first half-marathon"
   ],
   "action_items": [
-    "Monitor progress with half-marathon training",
-    "Continue monitoring mental health stability",
-    "Ensure asthma remains well-controlled",
-    "Review effectiveness of ongoing therapy"
+    "Monitor asthma control and medication efficacy",
+    "Continue mental health therapy and assess need for adjustments",
+    "Evaluate sleep apnea management and CPAP therapy compliance",
+    "Support and monitor physical training for half-marathon"
   ]
 }

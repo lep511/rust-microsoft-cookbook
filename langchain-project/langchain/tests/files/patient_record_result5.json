@@ -49,32 +49,28 @@
       "purpose": "Fibromyalgia"
     },
     {
-      "name": "Topical Corticosteroids",
-      "purpose": "Cutaneous Lupus"
-    },
-    {
       "name": "Hydroxychloroquine",
       "purpose": "SLE"
     },
     {
       "name": "Prednisone",
-      "purpose": "SLE and various complications"
+      "purpose": "SLE and various lupus complications"
     },
     {
-      "name": "Mycophenolate Mofetil",
-      "purpose": "Lupus Nephritis"
+      "name": "Mycophenolate mofetil",
+      "purpose": "Lupus nephritis"
     },
     {
       "name": "Cyclophosphamide",
-      "purpose": "Interstitial Lung Disease"
+      "purpose": "ILD secondary to SLE"
     },
     {
       "name": "Pilocarpine",
-      "purpose": "Sjögren's Syndrome"
+      "purpose": "Sjögren's syndrome"
     },
     {
       "name": "Rituximab",
-      "purpose": "Lupus Cerebritis"
+      "purpose": "Lupus cerebritis"
     },
     {
       "name": "Belimumab",
@@ -82,15 +78,15 @@
     },
     {
       "name": "Metformin",
-      "purpose": "Steroid-induced Diabetes"
+      "purpose": "Steroid-induced diabetes"
     },
     {
       "name": "Insulin",
-      "purpose": "Steroid-induced Diabetes"
+      "purpose": "Steroid-induced diabetes"
     },
     {
-      "name": "ACE Inhibitors",
-      "purpose": "Diastolic Dysfunction"
+      "name": "ACE inhibitors",
+      "purpose": "Diastolic dysfunction"
     },
     {
       "name": "Abatacept",
@@ -99,51 +95,43 @@
   ],
   "other_treatments": [
     {
-      "treatment": "Physical Therapy",
+      "treatment": "Physical therapy",
       "purpose": "Fibromyalgia and joint health"
     },
     {
-      "treatment": "Sunscreen",
-      "purpose": "Cutaneous Lupus"
+      "treatment": "Topical corticosteroids",
+      "purpose": "Cutaneous lupus"
     },
     {
-      "treatment": "Home Oxygen Therapy",
-      "purpose": "Interstitial Lung Disease"
+      "treatment": "Home oxygen therapy",
+      "purpose": "ILD"
     },
     {
-      "treatment": "Artificial Tears",
-      "purpose": "Sjögren's Syndrome"
+      "treatment": "Artificial tears",
+      "purpose": "Sjögren's syndrome"
     },
     {
-      "treatment": "Total Hip Replacement",
-      "purpose": "Avascular Necrosis of Hip"
-    },
-    {
-      "treatment": "Telemedicine",
-      "purpose": "SLE management during COVID-19"
-    },
-    {
-      "treatment": "Home Infusions",
-      "purpose": "SLE management during COVID-19"
-    },
-    {
-      "treatment": "Cardio-rehab",
-      "purpose": "Diastolic Dysfunction"
+      "treatment": "Total hip replacement surgery",
+      "purpose": "Avascular necrosis"
     },
     {
       "treatment": "Yoga",
       "purpose": "Joint health"
+    },
+    {
+      "treatment": "Cardio-rehab",
+      "purpose": "Diastolic dysfunction"
     }
   ],
   "recent_concerns": [
-    "Improvement in all organ systems noted in 2024",
+    "Improvement noted in all organ systems",
     "Planning pregnancy, high-risk OB consultation"
   ],
   "action_items": [
-    "Monitor and adjust immunosuppressant medications",
+    "Monitor and adjust immunosuppressant tapering",
     "Continue physical therapy and yoga for joint health",
     "Follow up on cardiovascular health and diastolic dysfunction",
-    "Manage steroid-induced diabetes with endocrinologist and nutritionist",
-    "Prepare for high-risk pregnancy with OB consultation"
+    "Coordinate with high-risk OB for pregnancy planning",
+    "Manage steroid-induced diabetes with endocrinologist"
   ]
 }

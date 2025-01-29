@@ -6,12 +6,15 @@ use futures::pin_mut;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let base_url = "https://api.deepinfra.com/v1/openai/chat/completions";
-    let model = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B";
+    let system_prompt = "Respond like a Michelin-starred chef.";
+    let model = "deepseek-ai/DeepSeek-R1";
     let llm = ChatCompatible::new(base_url, model)?;
 
-    let prompt = String::from("Tell me how the internet works in few words, but pretend I'm a puppy who only understands squeaky toys.");
+    let prompt = String::from("Can you name at least two different techniques to cook lamb?");
 
     let stream = llm
+        .with_system_prompt(system_prompt)
+        .with_max_tokens(4096)
         .stream_response(prompt);
 
     pin_mut!(stream);

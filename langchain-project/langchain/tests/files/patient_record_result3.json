@@ -58,7 +58,7 @@
     },
     {
       "name": "Omeprazole",
-      "purpose": "GERD management"
+      "purpose": "GERD"
     },
     {
       "name": "Venlafaxine",
@@ -66,7 +66,7 @@
     },
     {
       "name": "Quetiapine",
-      "purpose": "Mood stabilization and antipsychotic"
+      "purpose": "Antipsychotic for mood stabilization"
     },
     {
       "name": "Lamotrigine",
@@ -76,7 +76,7 @@
   "other_treatments": [
     {
       "treatment": "Cognitive Behavioral Therapy (CBT)",
-      "purpose": "Mental health management"
+      "purpose": "Mental health support"
     },
     {
       "treatment": "CPAP therapy",
@@ -84,7 +84,7 @@
     },
     {
       "treatment": "Dialectical Behavior Therapy (DBT)",
-      "purpose": "Mental health management"
+      "purpose": "Mental health support post-divorce"
     },
     {
       "treatment": "Orthotics and Physical Therapy",
@@ -92,20 +92,19 @@
     },
     {
       "treatment": "Inpatient psychiatric treatment",
-      "purpose": "Suicide prevention and mental health stabilization"
+      "purpose": "Suicide attempt recovery"
     }
   ],
   "recent_concerns": [
-    "Attempted suicide in 2023, followed by inpatient treatment",
-    "Improvement in mood and sleep in 2024",
-    "Weight loss noted in 2024",
-    "A1C levels improved in 2024, insulin dose decreased"
+    "Attempted suicide in 2023, treated with inpatient care",
+    "Improvement in mood and sleep, weight loss noted in 2024",
+    "A1C levels improved, insulin dose decreased in 2024"
   ],
   "action_items": [
-    "Monitor mental health status post-inpatient treatment",
-    "Assess effectiveness of new medication regimen",
-    "Review diabetes management and insulin therapy",
-    "Follow up on weight management progress",
-    "Evaluate ongoing need for psychiatric therapies"
+    "Monitor mental health stability post-inpatient treatment",
+    "Review effectiveness of current medication regimen",
+    "Assess diabetes management and adjust insulin therapy as needed",
+    "Evaluate ongoing need for CPAP therapy and sleep quality",
+    "Continue support for weight management and lifestyle changes"
   ]
 }

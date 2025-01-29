@@ -11,7 +11,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_top_k(20)
         .with_top_p(0.95)
         .with_candidate_count(2)
-        .with_retry(3)
+        .with_max_retries(3)
         .with_stop_sequences(vec!["STOP!".to_string()])
         .with_system_prompt("You are a helpful assistant.")
         .invoke("Tell me how the internet works, but pretend I'm a puppy who only understands squeaky toys.")

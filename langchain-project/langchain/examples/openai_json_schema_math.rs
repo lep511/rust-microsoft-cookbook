@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response: ChatResponse = llm
         .with_system_prompt(system_prompt)    
         .with_json_schema(json_schema)
-        .with_retry(0)
+        .with_max_retries(0)
         .invoke(prompt)
         .await?;
 

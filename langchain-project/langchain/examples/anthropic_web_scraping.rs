@@ -63,7 +63,7 @@ pub async fn article_summarization() -> Result<(), Box<dyn std::error::Error>> {
             tool_choice,
         )
         .with_max_tokens(4096)
-        .with_retry(0)
+        .with_max_retries(0)
         .invoke(&prompt)
         .await?;
 

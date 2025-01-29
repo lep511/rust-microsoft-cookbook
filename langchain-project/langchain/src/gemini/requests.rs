@@ -9,10 +9,11 @@ use crate::gemini::{DEBUG_PRE, DEBUG_POST};
 use crate::llmerror::GeminiError;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::time::Duration;
 
-// ======== REQUEST CHAT ===========
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Request Chat ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 /// Makes an async HTTP POST request to chat endpoint with the provided chat request
 ///
 /// # Arguments
@@ -20,7 +21,7 @@ use std::time::Duration;
 /// * `url` - The endpoint URL to send the chat request to
 /// * `request` - The chat request object containing the message payload
 /// * `timeout` - Request timeout duration in seconds
-/// * `retry` - Maximum number of retry attempts if the request fails
+/// * `max_retries` - The maximum number of retry attempts for failed requests.
 ///
 /// # Returns
 ///
@@ -38,58 +39,83 @@ pub async fn request_chat(
     url: &str, 
     request: &ChatRequest, 
     timeout: u64,
-    retry: u32,
+    max_retries: u32,
 ) -> Result<String, GeminiError> {
+    // Creates an HTTPS-capable client using rustls TLS implementation.
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
-    let mut response: serde_json::Value;
+
+    // Converts the request struct to a JSON Value.
+    let request_value: Value = serde_json::to_value(request)?;
+
+    let mut response: Response = make_request(
+        &client,
+        url, 
+        &request_value, 
+        timeout,
+    ).await?;
     
     print_pre(&request, DEBUG_PRE);
 
-    response = client
-        .post(url)
-        .timeout(Duration::from_secs(timeout))
-        .header("Content-Type", "application/json")
-        .json(request)
-        .send()
-        .await?
-        .json::<serde_json::Value>()
-        .await?;
+    for attempt in 1..=max_retries {
+        if response.status().is_success() {
+            break;
+        }
 
-    print_pre(&response, DEBUG_POST);
+        println!(
+            "Retry {}/{}. Code error: {:?}", 
+            attempt,
+            max_retries,
+            response.status()
+        );
 
-    if response.get("error") != None && retry > 0 {
-        let mut n_count: u32 = 0;
-        while n_count < retry {
-            n_count += 1;
-            println!(
-                "Retry {}. Error: {:?}", 
-                n_count, 
-                response.get("error")
-            );
-            // Wait for 2 sec
-            tokio::time::sleep(Duration::from_secs(2)).await;
-            response = client
-                .post(url.to_string())
-                .header("Content-Type", "application/json")
-                .json(&request)
-                .send()
-                .await?
-                .json::<serde_json::Value>()
-                .await?;
-            
-            if response.get("error") == None {
-                break;
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        response = make_request(
+            &client,
+            url,
+            &request_value,
+            timeout,
+        ).await?;
+    }
+
+    // Checks if the response status is not successful (i.e., not in the 200-299 range).
+    if !response.status().is_success() {
+        println!("Response code: {}", response.status());
+        match response.json::<ChatResponse>().await {
+            Ok(error_detail) => {
+                if let Some(error_message) = error_detail.error {
+                    if let Some(message) = error_message.message {
+                        return Err(GeminiError::GenericError {
+                            message,
+                            detail: "ERROR-req-9821".to_string(),
+                        });
+                    }
+                }
+                return Err(GeminiError::GenericError {
+                    message: "Unknown error".to_string(),
+                    detail: "ERROR-req-9822".to_string(),
+                });
+            },
+            Err(e) => {
+                return Err(GeminiError::GenericError {
+                    message: format!("Error: {}", e),
+                    detail: "ERROR-req-9823".to_string(),
+                });
             }
         }
     }
+
+    let response_data = response.json::<serde_json::Value>().await?;
+    print_pre(&response_data, DEBUG_POST);
     
-    let response_string = response.to_string();
+    let response_string = response_data.to_string();
     Ok(response_string)
 }
 
-// ======== UPLOAD MEDIA ===========
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Upload Media ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 pub async fn upload_media(
     url: &str,
     base64_string: String,
@@ -97,16 +123,17 @@ pub async fn upload_media(
     content_length: &str,
     mime_type: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
+    // Creates an HTTPS-capable client using rustls TLS implementation.
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
+
     let mut headers = HeaderMap::new();
     headers.insert("X-Goog-Upload-Protocol", HeaderValue::from_static("resumable"));
     headers.insert("X-Goog-Upload-Command", HeaderValue::from_static("start"));
     headers.insert("X-Goog-Upload-Header-Content-Length", HeaderValue::from_str(content_length)?);
     headers.insert("X-Goog-Upload-Header-Content-Type", HeaderValue::from_str(mime_type)?);
     headers.insert("Content-Type", HeaderValue::from_static("application/json"));
-
-    let client = Client::builder()
-        .use_rustls_tls()
-        .build()?;
 
     let initial_resp = client
         .post(url)
@@ -163,7 +190,8 @@ pub async fn upload_media(
     Ok(file_uri)
 }
 
-// ======== REQUEST CACHE ===========
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Request Cache ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 /// Submits data to a caching service with model-specific instructions and TTL
 ///
 /// # Arguments
@@ -174,7 +202,6 @@ pub async fn upload_media(
 /// * `instruction` - System instruction for processing the data
 /// * `model` - The AI model identifier to be used
 /// * `ttl` - Time-to-live duration in seconds for the cached data
-/// * `retry` - Maximum number of retry attempts if the request fails
 ///
 /// # Returns
 ///
@@ -204,6 +231,10 @@ pub async fn request_cache(
     model: &str,
     ttl: u32,
 ) -> Result<String, GeminiError> {
+    // Creates an HTTPS-capable client using rustls TLS implementation.
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
 
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", HeaderValue::from_static("application/json"));
@@ -224,7 +255,7 @@ pub async fn request_cache(
 
     let ttl = format!("{}s", ttl);
 
-    let cache_request = CacheRequest {
+    let request = CacheRequest {
         model: model_name,
         contents: vec![Content {
             role: "user".to_string(),
@@ -243,26 +274,52 @@ pub async fn request_cache(
         ttl: ttl,
     };
 
-    let client = Client::builder()
-        .use_rustls_tls()
-        .build()?;
+    // Converts the request struct to a JSON Value.
+    let request_value: Value = serde_json::to_value(request)?;
+    let timeout = 2400;
+
+    let response: Response = make_request(
+        &client,
+        &url, 
+        &request_value, 
+        timeout,
+    ).await?;
+
+    // Checks if the response status is not successful (i.e., not in the 200-299 range).
+    if !response.status().is_success() {
+        println!("Response code: {}", response.status());
+        match response.json::<ChatResponse>().await {
+            Ok(error_detail) => {
+                if let Some(error_message) = error_detail.error {
+                    if let Some(message) = error_message.message {
+                        return Err(GeminiError::GenericError {
+                            message,
+                            detail: "ERROR-req-9821".to_string(),
+                        });
+                    }
+                }
+                return Err(GeminiError::GenericError {
+                    message: "Unknown error".to_string(),
+                    detail: "ERROR-req-9822".to_string(),
+                });
+            },
+            Err(e) => {
+                return Err(GeminiError::GenericError {
+                    message: format!("Error: {}", e),
+                    detail: "ERROR-req-9823".to_string(),
+                });
+            }
+        }
+    }
+
+    let response_data = response.json::<serde_json::Value>().await?;
+    print_pre(&response_data, DEBUG_POST);
     
-    let cache_resp: serde_json::Value = client
-        .post(url)
-        .headers(headers)
-        .json(&cache_request)
-        .send()
-        .await?
-        .json()
-        .await?;
-
-    print_pre(&cache_resp, DEBUG_POST);
-
-    let cache_name = cache_resp["name"]
+    let cache_name = response_data["name"]
         .as_str()
         .ok_or_else(|| GeminiError::GenericError { 
             message: "Missing cache name".to_string(),
-            source: None,
+            detail: "ERROR-req-9877".to_string(),
         })?
         .trim_matches('"')
         .to_string();
@@ -270,7 +327,8 @@ pub async fn request_cache(
     Ok(cache_name)
 }
 
-// ======== REQUEST EMBED ===========
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Request Embed ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 /// Sends an embedding request to generate vector embeddings for input text
 ///
 /// # Arguments
@@ -304,6 +362,7 @@ pub async fn request_embed(
     request: EmbedRequest,
     retry: u32,
 ) -> Result<String, GeminiError> {
+    // Creates an HTTPS-capable client using rustls TLS implementation.
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
@@ -408,4 +467,41 @@ pub fn strem_chat(
             }
         }
     }
+}
+
+/// Makes an HTTP POST request to the Anthropic API endpoint
+///
+/// Sends a request with the specified parameters and handles authentication and headers
+/// required by the Anthropic API.
+///
+/// # Arguments
+///
+/// * `client` - The HTTP client instance used to make the request
+/// * `url` - The endpoint URL to send the POST request to
+/// * `request_value` - The JSON payload to be sent in the request body
+/// * `timeout` - The request timeout duration in seconds
+///
+/// # Returns
+///
+/// * `Result<Response, reqwest::Error>` - The HTTP response on success, or an error if the request fails
+///
+/// # Errors
+///
+/// Returns a `reqwest::Error` if:
+/// * The request fails to send
+/// * The connection times out
+/// * There are network-related issues
+pub async fn make_request(
+    client: &Client,
+    url: &str,
+    request_value: &Value,
+    timeout: u64,
+) -> Result<Response, reqwest::Error> {
+    Ok(client
+        .post(url)
+        .timeout(Duration::from_secs(timeout))
+        .header("Content-Type", "application/json")
+        .json(request_value)
+        .send()
+        .await?)
 }

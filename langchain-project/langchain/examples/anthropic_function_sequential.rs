@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tools.clone(), 
             tool_choice,
         )
-        .with_retry(0)
+        .with_max_retries(0)
         .invoke(prompt)
         .await?;
 

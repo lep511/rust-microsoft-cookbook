@@ -13,7 +13,7 @@ pub struct EmbedGemini {
     pub base_url: String,
     pub model: String,
     pub request: EmbedRequest,
-    pub retry: u32,
+    pub max_retries: u32,
 }
 
 #[allow(dead_code)]
@@ -49,7 +49,7 @@ impl EmbedGemini {
             base_url: base_url,
             model: model.to_string(),
             request: request,
-            retry: 0,
+            max_retries: 0,
         })
     }
 
@@ -77,7 +77,7 @@ impl EmbedGemini {
         let response: String = match request_embed(
             &self.base_url,
             self.request.clone(),
-            self.retry,
+            self.max_retries,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -116,8 +116,8 @@ impl EmbedGemini {
         self
     }
 
-    pub fn with_retry(mut self, retry: u32) -> Self {
-        self.retry = retry;
+    pub fn with_max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = max_retries;
         self
     }
 }

@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tool_choice = json!({"type": "function", "function": {"name": "get_current_weather"}});
 
     let response: ChatResponse = llm
-        .with_retry(0)
+        .with_max_retries(0)
         .with_tools(tools)
         .with_tool_choice(tool_choice)
         .with_system_prompt(system_prompt)

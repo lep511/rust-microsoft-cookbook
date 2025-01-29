@@ -19,13 +19,14 @@ pub enum GeminiError {
     RequestCacheError,
     #[error("Failed to upload embed request")]
     RequestEmbedError,
+    #[error("Error in converting to json {0}")]
+    JsonError(#[from] serde_json::Error),
     #[error("Failed to extract the mime type")]
     InvalidMimeType,
     #[error("{message}")]
     GenericError {
         message: String,
-        #[source]
-        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        detail: String,
     },
 }
 

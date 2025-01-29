@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 // use langchain::gemini::ChatGemini;
 use langchain::gemini::embed::EmbedGemini;
-use langchain::gemini::utils::TaskType;
+use langchain::gemini::libs::TaskType;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_output_dimensionality(256)
         .with_task_type(TaskType::RetrievalDocument)
         .with_title("About the life")
-        .with_retry(3)
+        .with_max_retries(3)
         .embed_content(input_str)
         .await?;
    

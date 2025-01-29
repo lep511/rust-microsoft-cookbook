@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start = Instant::now();
 
     let response: ChatResponse = llm
-        .with_retry(0)
+        .with_max_retries(0)
         .with_temperature(0.9)
         .with_system_prompt(system_prompt)
         .invoke(prompt)

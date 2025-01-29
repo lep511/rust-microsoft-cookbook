@@ -26,7 +26,7 @@ pub struct ChatGemini {
     pub model: String,
     pub request: ChatRequest,
     pub timeout: u64,
-    pub retry: u32,
+    pub max_retries: u32,
 }
 
 #[allow(dead_code)]
@@ -69,7 +69,7 @@ impl ChatGemini {
             model: model.to_string(),
             request: request,
             timeout: 15 * 60, // default: 15 minutes
-            retry: 3,         // default: 3 times
+            max_retries: 3,         // default: 3 times
         })
     }
 
@@ -99,7 +99,7 @@ impl ChatGemini {
             &self.base_url,
             &self.request,
             self.timeout,
-            self.retry,
+            self.max_retries,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -270,7 +270,7 @@ impl ChatGemini {
                 model: self.model, 
                 request: self.request, 
                 timeout: self.timeout,
-                retry: self.retry,
+                max_retries: self.max_retries,
             }
         )
     }
@@ -416,8 +416,8 @@ impl ChatGemini {
         self
     }
 
-    pub fn with_retry(mut self, retry: u32) -> Self {
-        self.retry = retry;
+    pub fn with_max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = max_retries;
         self
     }
 

@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let start = Instant::now();
     let response: Value = llm
-        .with_retry(0)
+        .with_max_retries(0)
         .baseten_invoke(prompt)
         .await?;
 

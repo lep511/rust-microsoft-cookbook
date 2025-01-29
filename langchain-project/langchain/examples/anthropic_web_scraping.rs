@@ -133,7 +133,7 @@ pub async fn entity_recognition() -> Result<(), Box<dyn std::error::Error>> {
             tool_choice,
         )
         .with_max_tokens(4096)
-        .with_retry(0)
+        .with_max_retries(0)
         .invoke(&prompt)
         .await?;
 
@@ -182,7 +182,7 @@ pub async fn unknown_keys() -> Result<(), Box<dyn std::error::Error>> {
             tool_choice,
         )
         .with_max_tokens(4096)
-        .with_retry(0)
+        .with_max_retries(0)
         .invoke(prompt)
         .await?;
 

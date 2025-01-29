@@ -6,6 +6,7 @@ use crate::llmerror::CompatibleChatError;
 use crate::compatible::libs::{ChatRequest, ErrorResponse, ChatResponse};
 use crate::compatible::utils::print_pre;
 use std::time::Duration;
+use serde_json::Value;
 
 pub async fn request_chat(
     url: &str,
@@ -75,6 +76,46 @@ pub async fn request_chat(
     }
 
     let response_data = response.json::<serde_json::Value>().await?;
+    print_pre(&response_data, DEBUG_POST);
+
+    Ok(response_data)
+}
+
+pub async fn get_request(
+    url: &str, 
+    api_key: &str
+) -> Result<Value, CompatibleChatError> {
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
+
+    let response = client
+        .request(reqwest::Method::GET, url)
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Accept", "application/json")
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        println!("Response code: {}", response.status());
+        match response.json::<ErrorResponse>().await {
+            Ok(error) => {
+                return Err(CompatibleChatError::GenericError {
+                    message: error.detail,
+                    detail: "ERROR-req-9822".to_string(),
+                });
+            }
+            Err(e) => {
+                return Err(CompatibleChatError::GenericError {
+                    message: format!("Error: {}", e),
+                    detail: "ERROR-req-9823".to_string(),
+                });
+            }
+        }
+    }
+    
+    let response_data = response.json::<serde_json::Value>().await?;
+
     print_pre(&response_data, DEBUG_POST);
 
     Ok(response_data)

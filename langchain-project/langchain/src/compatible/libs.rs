@@ -58,6 +58,12 @@ pub struct ChatRequest {
     pub stream: Option<bool>,
 }
 
+/// Represents a message in a conversation
+///
+/// # Fields
+/// * `role` - Optional. The role of the message sender (e.g., "system", "user", "assistant")
+/// * `content` - Optional. The actual text content of the message
+/// * `tool_calls` - Optional. Array of tool calls made within this message
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
@@ -67,6 +73,18 @@ pub struct Message {
     pub tool_calls: Option<Vec<Value>>,
 }
 
+/// Represents a response from the chat API
+///
+/// # Fields
+/// * `choices` - Optional. Array of generated response choices
+/// * `id` - Optional. Unique identifier for the response
+/// * `created` - Optional. Unix timestamp of when the response was created
+/// * `model` - Optional. Name of the model used to generate the response
+/// * `object` - Optional. Type of object returned
+/// * `system_fingerprint` - Optional. System identifier or version information
+/// * `usage` - Optional. Token usage statistics for the request/response
+/// * `chat_history` - Optional. Array of messages showing conversation history
+/// * `error` - Optional. Details of any error that occurred during processing
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct ChatResponse {
@@ -81,6 +99,14 @@ pub struct ChatResponse {
     pub error: Option<ErrorDetails>,
 }
 
+/// Represents a single response choice from the chat API
+///
+/// # Fields
+/// * `finish_reason` - Optional. Reason why the response generation was completed
+/// * `delta` - Optional. Incremental message update when streaming responses
+/// * `index` - Optional. Index of this choice in the array of choices
+/// * `logprobs` - Optional. Log probabilities for token generation
+/// * `message` - Optional. The complete response message for this choice
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Choice {
@@ -91,6 +117,17 @@ pub struct Choice {
     pub message: Option<Message>,
 }
 
+/// Represents usage statistics for an API request/response
+///
+/// # Fields
+/// * `completion_time` - Optional. Time taken to generate the completion in seconds
+/// * `completion_tokens` - Optional. Number of tokens in the generated completion
+/// * `prompt_time` - Optional. Time taken to process the prompt in seconds
+/// * `prompt_tokens` - Optional. Number of tokens in the prompt
+/// * `queue_time` - Optional. Time spent in queue before processing in seconds
+/// * `total_time` - Optional. Total processing time in seconds
+/// * `total_tokens` - Optional. Total number of tokens used (prompt + completion)
+/// * `prompt_tokens_details` - Optional. Detailed breakdown of prompt token usage
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Usage {
@@ -104,6 +141,13 @@ pub struct Usage {
     pub prompt_tokens_details: Option<PromptTokensDetails>,
 }
 
+/// Provides a detailed breakdown of token usage by content type
+///
+/// # Fields
+/// * `text_tokens` - Optional. Number of tokens used for text content
+/// * `audio_tokens` - Optional. Number of tokens used for audio content
+/// * `image_tokens` - Optional. Number of tokens used for image content
+/// * `cached_tokens` - Optional. Number of tokens retrieved from cache
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct PromptTokensDetails {
@@ -113,6 +157,13 @@ pub struct PromptTokensDetails {
     pub cached_tokens: Option<u32>,
 }
 
+/// Contains details about an error that occurred during API processing
+///
+/// # Fields
+/// * `code` - Optional. Error code identifier
+/// * `message` - The error message describing what went wrong
+/// * `param` - Optional. Parameter that caused the error, if applicable
+/// * `error_type` - The type/category of error (renamed from "type" due to Rust keyword)
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorDetails {
@@ -126,6 +177,13 @@ pub struct ErrorDetails {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Errors ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+/// Represents an error response structure
+/// 
+/// This struct is used to provide a standardized error response format,
+/// containing a detailed error message.
+///
+/// # Fields
+/// * `detail` - Detailed error message or description of what went wrong
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorResponse {

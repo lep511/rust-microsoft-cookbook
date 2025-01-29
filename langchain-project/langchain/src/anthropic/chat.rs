@@ -14,7 +14,7 @@ pub struct ChatAnthropic {
     pub api_key: String,
     pub request: ChatRequest,
     pub timeout: u64,
-    pub retry: i32,
+    pub max_retries: u32,
 }
 
 #[allow(dead_code)]
@@ -37,7 +37,7 @@ impl ChatAnthropic {
             api_key: api_key,
             request: request,
             timeout: 15 * 60, // default: 15 minutes 
-            retry: 3,         // default: 3 times
+            max_retries: 3,         // default: 3 times
         })
     }
 
@@ -116,7 +116,7 @@ impl ChatAnthropic {
             &self.request,
             &self.api_key,
             self.timeout,
-            self.retry,
+            self.max_retries,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -186,8 +186,8 @@ impl ChatAnthropic {
         self
     }
 
-    pub fn with_retry(mut self, retry: i32) -> Self {
-        self.retry = retry;
+    pub fn with_max_retries(mut self, retry: u32) -> Self {
+        self.max_retries = retry;
         self
     }
 

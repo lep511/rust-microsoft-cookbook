@@ -74,6 +74,13 @@ pub enum AnthropicError {
     MediaTypeError,
     #[error("Failed to open file: {0}")]
     FileError(String),
+    #[error("Error in converting to json {0}")]
+    JsonError(#[from] serde_json::Error),
+    #[error("{message}")]
+    GenericError {
+        message: String,
+        detail: String,
+    },
 }
 
 #[allow(dead_code)]

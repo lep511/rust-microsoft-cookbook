@@ -13,6 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_temperature(0.9)
         .with_max_tokens(2048)
         .with_timeout_sec(30)
+        .with_max_retries(0)
         .invoke("Explain the Pythagorean theorem to a 10-year-old.")
         .await?;
 

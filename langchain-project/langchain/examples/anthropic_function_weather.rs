@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tools.clone(), 
             tool_choice,
         )
-        .with_retry(0)
+        .with_max_retries(0)
         .invoke(prompt)
         .await?;
 
@@ -116,7 +116,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_chat_history(history)
         .with_tools(tools, tool_choice)
         .with_assistant_content(contents)
-        .with_retry(0)
+        .with_max_retries(0)
         .with_tool_result(
             &tool_id,
             &result,

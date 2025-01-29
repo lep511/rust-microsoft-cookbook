@@ -1,7 +1,9 @@
 use futures::pin_mut;
 use futures::StreamExt;
 use async_stream::stream;
-use crate::compatible::requests::{request_chat, strem_chat};
+use crate::compatible::requests::{
+    request_chat, get_request, strem_chat,
+};
 use crate::compatible::utils::GetApiKey;
 use crate::compatible::libs::{ChatRequest, Message, ChatResponse};
 use crate::llmerror::CompatibleChatError;
@@ -141,13 +143,11 @@ impl ChatCompatible {
         };
 
         self.request = request;
-
-        let api_key_format = format!("Bearer {}", self.api_key);
     
         let response: serde_json::Value = match request_chat(
             &self.url,
             &self.request,
-            &api_key_format,
+            &self.api_key,
             self.timeout,
             self.retry,
         ).await {
@@ -194,6 +194,40 @@ impl ChatCompatible {
             }
         };
         
+        Ok(response)
+    }
+
+    /// Retrieves model information by making a GET request to the specified endpoint
+    /// 
+    /// # Arguments
+    /// 
+    /// * `self` - The instance containing base URL and API key configuration
+    /// * `suffix_url` - The URL path suffix to append to the base URL
+    /// 
+    /// # Returns
+    /// 
+    /// * `Result<serde_json::Value, CompatibleChatError>` - JSON response on success, or error on failure
+    /// 
+    /// # Errors
+    /// 
+    /// Returns `CompatibleChatError::ResponseContentError` if the request fails or response cannot be parsed
+    pub async fn get_models(
+        self, 
+        suffix_url: &str
+    ) -> Result<serde_json::Value, CompatibleChatError> {
+        let url = format!("{}/{}", self.url, suffix_url);
+
+        let response: serde_json::Value = match get_request(
+            &url,
+            &self.api_key,
+        ).await {
+            Ok(response) => response,
+            Err(e) => {
+                println!("[ERROR] {:?}", e);
+                return Err(CompatibleChatError::ResponseContentError);
+            }
+        };
+
         Ok(response)
     }
 

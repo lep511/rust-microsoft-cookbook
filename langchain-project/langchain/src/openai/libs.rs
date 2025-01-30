@@ -174,9 +174,39 @@ pub struct PromptTokensDetails {
     pub cached_tokens: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Errors ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+/// Represents an error response structure from the API
+/// 
+/// This struct encapsulates the complete error response format,
+/// containing both the error type and detailed error information.
+///
+/// # Fields
+/// * `error_type` - The primary classification of the error
+/// * `error` - Detailed error information contained in ErrorDetails
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ErrorResponse {
+    #[serde(rename = "type")]
+    pub error_type: String,
+    pub error: ErrorDetails,
+}
+
+/// Contains detailed information about an error
+/// 
+/// This struct provides specific details about an error occurrence,
+/// including the specific error type and a descriptive message.
+///
+/// # Fields
+/// * `code` - Error code
+/// * `message` - Detailed description of what went wrong
+/// * `param` - Optional - Parameter that caused the error
+/// * `error_type` - Optional - Specific type or category of the error
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorDetails {
-    pub code: Option<String>,
+    pub code: String,
     pub message: String,
     pub param: Option<String>,
     #[serde(rename = "type")]

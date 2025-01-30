@@ -16,6 +16,7 @@ pub async fn request_chat(
     timeout: u64,
     max_retries: i32,
 ) -> Result<serde_json::Value, CompatibleChatError> {
+    // Creates an HTTPS-capable client using rustls TLS implementation.
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
@@ -83,6 +84,7 @@ pub async fn get_request(
     url: &str, 
     api_key: &str
 ) -> Result<Value, CompatibleChatError> {
+    // Creates an HTTPS-capable client using rustls TLS implementation.
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;

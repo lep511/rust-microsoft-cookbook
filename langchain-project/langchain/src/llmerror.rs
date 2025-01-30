@@ -39,8 +39,15 @@ pub enum OpenAIError {
     RequestError(#[from] reqwest::Error),
     #[error("Environment error: {0}")]
     EnvError(#[from] env::VarError),
+    #[error("Error in converting to json {0}")]
+    JsonError(#[from] serde_json::Error),
     #[error("Failed to get response content")]
     ResponseContentError,
+    #[error("{message}")]
+    GenericError {
+        message: String,
+        detail: String,
+    },
 }
 
 #[allow(dead_code)]

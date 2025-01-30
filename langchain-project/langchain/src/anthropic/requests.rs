@@ -4,12 +4,13 @@ use crate::anthropic::libs::{
 };
 use crate::anthropic::utils::print_pre;
 use crate::anthropic::{
-    ANTHROPIC_VERSION, ANTHROPIC_BASE_URL, DEBUG_PRE, DEBUG_POST,
+    ANTHROPIC_VERSION, ANTHROPIC_BASE_URL, DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY,
     ANTHROPIC_EMBED_URL, ANTHROPIC_EMBEDMUL_URL, ANTHROPIC_EMBEDRANK_URL
 };
 use crate::llmerror::AnthropicError;
 use std::time::Duration;
 use serde_json::Value;
+use tokio::time::sleep;
 
 /// Sends a chat request to the Anthropic API with retry functionality.
 ///
@@ -61,7 +62,7 @@ pub async fn request_chat(
             response.status()
         );
 
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        sleep(RETRY_BASE_DELAY).await;
         
         response = make_request(
             &client,
@@ -127,8 +128,9 @@ pub async fn request_embed(
         AnthropicEmbedEndpoint::MultimodalEmbed => ANTHROPIC_EMBEDMUL_URL,
         AnthropicEmbedEndpoint::Rerank => ANTHROPIC_EMBEDRANK_URL,
     };
-    // Converts the request struct to a JSON Value.
-    let request_value: Value = serde_json::to_value(request)?;
+
+    // Serializes the request struct into a JSON byte vector
+    let request_body = serde_json::to_vec(request)?;
     
     print_pre(&request, DEBUG_PRE);
 
@@ -136,7 +138,7 @@ pub async fn request_embed(
         &client, 
         &request_url,
         api_key, 
-        &request_value, 
+        &request_body, 
     ).await?;
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
@@ -276,14 +278,14 @@ pub async fn make_embed_request(
     client: &Client,
     url: &str,
     api_key: &str,
-    request_value: &Value,
+    request_body: &[u8],
 ) -> Result<Response, reqwest::Error> {
     Ok(client
         .post(url)
         .header("Authorization", format!("Bearer {}", api_key))
         .header("anthropic-version", ANTHROPIC_VERSION)
         .header("Content-Type", "application/json")
-        .json(request_value)
+        .body(request_body.to_vec())
         .send()
         .await?)
 }

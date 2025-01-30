@@ -22,14 +22,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     
     let elapsed = start.elapsed().as_secs_f64();
-    println!("[Task took {:.2} seconds]", elapsed);
+    println!("[Task took {:.2} seconds]\n", elapsed);
 
     match response.choices {
         Some(candidates) => {
             for candidate in candidates {
                 #[allow(irrefutable_let_patterns)]
-                if let message = candidate.message {
-                    println!("{}", message.content);
+                if let Some(message) = candidate.message {
+                    if let Some(content) = message.content {
+                        println!("{}", content);
+                    }
                 }
             }
         }

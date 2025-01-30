@@ -1,19 +1,20 @@
 use reqwest::{Client, Response};
 use async_stream::stream;
 use futures::StreamExt;
-use crate::compatible::{DEBUG_PRE, DEBUG_POST};
+use crate::compatible::{DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY};
 use crate::llmerror::CompatibleChatError;
 use crate::compatible::libs::{ChatRequest, ErrorResponse, ChatResponse};
 use crate::compatible::utils::print_pre;
 use std::time::Duration;
 use serde_json::Value;
+use tokio::time::sleep;
 
 pub async fn request_chat(
     url: &str,
     request: &ChatRequest,
     api_key: &str,
     timeout: u64,
-    retry: i32,
+    max_retries: i32,
 ) -> Result<serde_json::Value, CompatibleChatError> {
     let client = Client::builder()
         .use_rustls_tls()
@@ -21,55 +22,52 @@ pub async fn request_chat(
     
     print_pre(&request, DEBUG_PRE);
     
-    let response = client
-        .post(url)
-        .timeout(Duration::from_secs(timeout))
-        .header("Authorization", format!("Bearer {}", api_key))
-        .header("Content-Type", "application/json")
-        .json(request)
-        .send()
-        .await?;
-    
+    // Serializes the request struct into a JSON byte vector
+    let request_body = serde_json::to_vec(request)?;
+
+    let mut response: Response = make_request(
+        &client,
+        url,
+        api_key, 
+        &request_body, 
+        timeout,
+    ).await?;
+
+    for attempt in 1..=max_retries {
+        if response.status().is_success() { break; }
+
+        println!(
+            "Retry {}/{}. Code error: {:?}", 
+            attempt,
+            max_retries,
+            response.status()
+        );
+
+        sleep(RETRY_BASE_DELAY).await;
+        
+        response = make_request(
+            &client,
+            url,
+            api_key,
+            &request_body,
+            timeout,
+        ).await?;
+    }
+
+    // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        if retry > 0 {
-            let mut n_count = 0;
-            while n_count < retry {
-                n_count += 1;
-                println!(
-                    "Error found. Retry {}.",
-                    n_count,
-                );
-                // Wait for 2 sec
-                tokio::time::sleep(Duration::from_secs(2)).await;
-                let response = client
-                    .post(url)
-                    .timeout(Duration::from_secs(timeout))
-                    .header("Authorization", format!("Bearer {}", api_key))
-                    .header("Content-Type", "application/json")
-                    .json(request)
-                    .send()
-                    .await?;
-
-                if response.status().is_success() {
-                    let response_data = response.json::<serde_json::Value>().await?;
-                    print_pre(&response_data, DEBUG_POST);
-
-                    return Ok(response_data);
-                }
-            }
-        }
         println!("Response code: {}", response.status());
         match response.json::<ErrorResponse>().await {
             Ok(error) => {
                 return Err(CompatibleChatError::GenericError {
                     message: error.detail,
-                    detail: "ERROR-req-9877".to_string(),
+                    detail: "ERROR-req-9822".to_string(),
                 });
             }
             Err(e) => {
                 return Err(CompatibleChatError::GenericError {
                     message: format!("Error: {}", e),
-                    detail: "ERROR-req-9876".to_string(),
+                    detail: "ERROR-req-9823".to_string(),
                 });
             }
         }
@@ -177,4 +175,43 @@ pub fn strem_chat(
             }
         }
     }
+}
+
+/// Makes an HTTP POST request with the provided parameters
+/// 
+/// # Arguments
+/// 
+/// * `client` - Reference to a reqwest Client instance for making HTTP requests
+/// * `url` - The target URL endpoint for the POST request
+/// * `api_key` - API key used for Bearer token authentication
+/// * `request_body` - Byte slice containing the JSON request body
+/// * `timeout` - Request timeout duration in seconds
+/// 
+/// # Returns
+/// 
+/// * `Result<Response, reqwest::Error>` - Returns the HTTP response if successful,
+///   or a reqwest error if the request fails
+///
+/// # Errors
+///
+/// Returns a `reqwest::Error` if:
+/// * The request fails to send
+/// * The connection times out
+/// * There are network-related issues
+///
+pub async fn make_request(
+    client: &Client,
+    url: &str,
+    api_key: &str,
+    request_body: &[u8],
+    timeout: u64,
+) -> Result<Response, reqwest::Error> {
+    Ok(client
+        .post(url)
+        .timeout(Duration::from_secs(timeout))
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .body(request_body.to_vec())
+        .send()
+        .await?)
 }

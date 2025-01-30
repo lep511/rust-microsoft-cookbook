@@ -14,7 +14,7 @@ pub struct ChatCompatible {
     pub api_key: String,
     pub request: ChatRequest,
     pub timeout: u64,
-    pub retry: i32,
+    pub max_retries: i32,
     pub url: String,
     pub model: String,
 }
@@ -47,7 +47,7 @@ impl ChatCompatible {
             api_key: api_key,
             request: request,
             timeout: 15 * 60, // default: 15 minutes
-            retry: 3,         // default: 3 times
+            max_retries: 3,         // default: 3 times
             url: url.to_string(),
             model: model.to_string(),
         })
@@ -77,7 +77,7 @@ impl ChatCompatible {
             &self.request,
             &self.api_key,
             self.timeout,
-            self.retry,
+            self.max_retries,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -149,7 +149,7 @@ impl ChatCompatible {
             &self.request,
             &self.api_key,
             self.timeout,
-            self.retry,
+            self.max_retries,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -185,7 +185,7 @@ impl ChatCompatible {
             &self.request,
             &api_key_format,
             self.timeout,
-            self.retry,
+            self.max_retries,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -310,8 +310,8 @@ impl ChatCompatible {
         self
     }
 
-    pub fn with_retry(mut self, retry: i32) -> Self {
-        self.retry = retry;
+    pub fn with_max_retries(mut self, max_retries: i32) -> Self {
+        self.max_retries = max_retries;
         self
     }
 

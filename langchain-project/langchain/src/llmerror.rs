@@ -95,6 +95,8 @@ pub enum CompatibleChatError {
     EnvError(#[from] env::VarError),
     #[error("Failed to get response content")]
     ResponseContentError,
+    #[error("Error in converting to json {0}")]
+    JsonError(#[from] serde_json::Error),
     #[error("Response content error: {message}")]
     GenericError {
         message: String,

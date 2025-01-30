@@ -25,6 +25,7 @@ use serde_json::Value;
 /// A `Result` which is:
 /// - `Ok(String)` containing the JSON response as a string if the request is successful.
 /// - `Err(AnthropicError)` if there's an error during the request or response processing.
+///
 pub async fn request_chat(
     request: &ChatRequest,
     api_key: &str,
@@ -35,18 +36,18 @@ pub async fn request_chat(
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
-    
-    // Converts the request struct to a JSON Value.
-    let request_value: Value = serde_json::to_value(request)?;
+
+    print_pre(&request, DEBUG_PRE);
+        
+    // Serializes the request struct into a JSON byte vector
+    let request_body = serde_json::to_vec(request)?;
 
     let mut response: Response = make_request(
         &client,
         api_key, 
-        &request_value, 
+        &request_body, 
         timeout,
     ).await?;
-    
-    print_pre(&request, DEBUG_PRE);
 
     for attempt in 1..=max_retries {
         if response.status().is_success() {
@@ -65,7 +66,7 @@ pub async fn request_chat(
         response = make_request(
             &client,
             api_key,
-            &request_value,
+            &request_body,
             timeout,
         ).await?;
     }
@@ -109,6 +110,7 @@ pub async fn request_chat(
 /// A `Result` which is:
 /// - `Ok(String)` containing the JSON response as a string if the request is successful.
 /// - `Err(AnthropicError)` if there's an error during the request or response processing.
+///
 pub async fn request_embed(
     request: &EmbedRequest,
     api_key: &str,
@@ -166,6 +168,7 @@ pub async fn request_embed(
 /// A `Result` which is:
 /// - `Ok(Value)` containing the JSON response if the request is successful.
 /// - `Err(AnthropicError)` if there's an error during the request or response processing.
+///
 pub async fn get_request(
     url: &str, 
     api_key: &str
@@ -228,10 +231,11 @@ pub async fn get_request(
 /// * The request fails to send
 /// * The connection times out
 /// * There are network-related issues
+///
 pub async fn make_request(
     client: &Client,
     api_key: &str,
-    request_value: &Value,
+    request_body: &[u8],
     timeout: u64,
 ) -> Result<Response, reqwest::Error> {
     Ok(client
@@ -240,7 +244,7 @@ pub async fn make_request(
         .header("x-api-key", api_key)
         .header("anthropic-version", ANTHROPIC_VERSION)
         .header("Content-Type", "application/json")
-        .json(request_value)
+        .body(request_body.to_vec())
         .send()
         .await?)
 }
@@ -267,6 +271,7 @@ pub async fn make_request(
 /// * The request fails to send
 /// * There are network-related issues
 /// * The server returns an error response
+///
 pub async fn make_embed_request(
     client: &Client,
     url: &str,
@@ -304,6 +309,7 @@ pub async fn make_embed_request(
 /// * The request fails to send
 /// * There are network-related issues
 /// * The server returns an error response
+///
 pub async fn make_get_request(
     client: &Client,
     url: &str,

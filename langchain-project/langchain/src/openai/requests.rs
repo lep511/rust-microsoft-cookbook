@@ -35,7 +35,7 @@ pub async fn request_chat(
     ).await?;
 
     for attempt in 1..=max_retries {
-        if response.status().is_success() {
+        if response.status().is_success() || response.status().as_u16() == 401 {
             break;
         }
 
@@ -59,21 +59,8 @@ pub async fn request_chat(
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        error!("Response code: {}", response.status());
-        match response.json::<ErrorResponse>().await {
-            Ok(error_detail) => {
-                return Err(OpenAIError::GenericError {
-                    message: error_detail.error.message,
-                    detail: "ERROR-req-9822".to_string(),
-                });
-            }
-            Err(e) => {
-                return Err(OpenAIError::GenericError {
-                    message: format!("Error: {}", e),
-                    detail: "ERROR-req-9823".to_string(),
-                });
-            }
-        }
+        let openai_error: OpenAIError = manage_error(response).await;
+        return Err(openai_error);
     }
 
     let response_data = response.json::<serde_json::Value>().await?;
@@ -125,4 +112,32 @@ pub async fn make_request(
         .body(request_body.to_vec())
         .send()
         .await?)
+}
+
+pub async fn manage_error(
+    response: Response,
+) -> OpenAIError {
+    error!("Response code: {}", response.status());
+
+    match response.json::<ErrorResponse>().await {
+        Ok(error_detail) => {
+            match error_detail.error.code.as_str() {
+                "invalid_api_key" => OpenAIError::AuthenticationError(
+                    error_detail.error.message
+                ),
+                _ => OpenAIError::GenericError {
+                    code: error_detail.error.code,
+                    message: error_detail.error.message,
+                    detail: "ERROR-req-9822".to_string(),
+                },
+            }
+        }
+        Err(e) => {
+            OpenAIError::GenericError {
+                code: "None".to_string(),
+                message: format!("Error: {}", e),
+                detail: "ERROR-req-9823".to_string(),
+            }
+        }
+    }
 }

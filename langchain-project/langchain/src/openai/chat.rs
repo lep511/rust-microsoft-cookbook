@@ -77,37 +77,32 @@ impl ChatOpenAI {
             self.max_retries,
         ).await {
             Ok(response) => response,
-            Err(e) => {
-                error!("Error {:?}", e);
-                return Err(OpenAIError::ResponseContentError);
+            Err(openai_error) => {
+                error!("Failed to get response from request. ERROR-req-0022");
+                return Err(openai_error);
             }
         };
         
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
-                error!("Error {:?}", e);
+                error!("Failed to parse response: {}. ERROR-req-0023", e);
                 return Err(OpenAIError::ResponseContentError);
             }
         };
 
-        if let Some(error) = chat_response.error {
-            error!("Error {}", error.message);
-            return Err(OpenAIError::ResponseContentError);
-        } else {
-            let format_response = ChatResponse {
-                choices: chat_response.choices,
-                created: chat_response.created,
-                id: chat_response.id,
-                model: chat_response.model,
-                object: chat_response.object,
-                system_fingerprint: chat_response.system_fingerprint,
-                usage: chat_response.usage,
-                chat_history: self.request.messages,
-                error: None,
-            };
-            Ok(format_response)
-        }
+        let format_response = ChatResponse {
+            choices: chat_response.choices,
+            created: chat_response.created,
+            id: chat_response.id,
+            model: chat_response.model,
+            object: chat_response.object,
+            system_fingerprint: chat_response.system_fingerprint,
+            usage: chat_response.usage,
+            chat_history: self.request.messages,
+            error: None,
+        };
+        Ok(format_response)
     }
 
     pub fn with_temperature(mut self, temperature: f32) -> Self {

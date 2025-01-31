@@ -188,7 +188,7 @@ pub struct PromptTokensDetails {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorResponse {
     #[serde(rename = "type")]
-    pub error_type: String,
+    pub error_type: Option<String>,
     pub error: ErrorDetails,
 }
 

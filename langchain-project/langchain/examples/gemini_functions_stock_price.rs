@@ -53,7 +53,7 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
         .invoke(prompt)
         .await?;
     
-    let mut function_args = Value::Null;
+    let mut function_args = Value::Null;   
 
     println!("Question: {}", prompt);
     if let Some(candidates) = &response.candidates {
@@ -87,18 +87,21 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut response_string = String::from("");
 
-    if let Some(candidates) = response.candidates {
-        for candidate in candidates {
-            if let Some(content) = candidate.content {
-                for part in content.parts {
-                    if let Some(text) = part.text {
+    let mut n = 1;
+    response.candidates.as_ref().map(|candidates| {
+        candidates.iter().for_each(|candidate| {
+            println!("\n\nCandidate: {}\n=============\n", n);
+            n += 1;
+            candidate.content.as_ref().map(|content| {
+                content.parts.iter().for_each(|part| {
+                    part.text.as_ref().map(|text| {
                         println!("{}", text);
                         response_string.push_str(&text);
-                    }
-                }
-            }
-        }
-    };
+                    });
+                });
+            });
+        });
+    });
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Final response ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
@@ -117,17 +120,20 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
         .invoke(&final_prompt)
         .await?;
 
-    if let Some(candidates) = response.candidates {
-        for candidate in candidates {
-            if let Some(content) = candidate.content {
-                for part in content.parts {
-                    if let Some(text) = part.text {
+    let mut n = 1;
+    response.candidates.as_ref().map(|candidates| {
+        candidates.iter().for_each(|candidate| {
+            println!("\n\nCandidate: {}\n=============\n", n);
+            n += 1;
+            candidate.content.as_ref().map(|content| {
+                content.parts.iter().for_each(|part| {
+                    part.text.as_ref().map(|text| {
                         println!("{}", text);
-                    }
-                }
-            }
-        }
-    };
+                    });
+                });
+            });
+        });
+    });
 
     Ok(())
 }

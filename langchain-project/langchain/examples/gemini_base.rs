@@ -20,21 +20,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     // println!("{:?}", response);
-
+   
     let mut n = 1;
-    if let Some(candidates) = response.candidates {
-        for candidate in candidates {
+    response.candidates.as_ref().map(|candidates| {
+        candidates.iter().for_each(|candidate| {
             println!("\n\nCandidate: {}\n=============\n", n);
             n += 1;
-            if let Some(content) = candidate.content {
-                for part in content.parts {
-                    if let Some(text) = part.text {
+            candidate.content.as_ref().map(|content| {
+                content.parts.iter().for_each(|part| {
+                    part.text.as_ref().map(|text| {
                         println!("{}", text);
-                    }
-                }
-            }
-        }
-    };
+                    });
+                });
+            });
+        });
+    });
 
     Ok(())
 }

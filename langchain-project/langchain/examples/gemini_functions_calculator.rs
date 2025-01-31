@@ -1,4 +1,5 @@
 use langchain::gemini::chat::ChatGemini;
+use langchain::gemini::libs::ChatResponse;
 use env_logger::Env;
 use serde_json::json;
 
@@ -10,7 +11,11 @@ enum Operation {
     Unknown,
 }
 
-fn calculator(operation: Operation, operand1: f64, operand2: f64) -> f64 {
+fn calculator(
+    operation: Operation, 
+    operand1: f64, 
+    operand2: f64
+) -> f64 {
     match operation {
         Operation::Add => operand1 + operand2,
         Operation::Subtract => operand1 - operand2,
@@ -18,6 +23,26 @@ fn calculator(operation: Operation, operand1: f64, operand2: f64) -> f64 {
         Operation::Divide => operand1 / operand2,
         Operation::Unknown => panic!("Unknown operation"),
     }
+}
+
+fn get_function_call_args(
+    response: &ChatResponse
+) -> Option<&serde_json::Map<String, serde_json::Value>> {
+    response.candidates.as_ref()?
+        .iter()
+        .find_map(|c| c.content.as_ref())?
+        .parts.iter()
+        .find_map(|p| p.function_call.as_ref())?
+        .args.as_object()
+}
+
+fn get_arg_value(
+    args: &Option<&serde_json::Map<String, serde_json::Value>>, 
+    key: &str
+) -> String {
+    args.and_then(|a| a.get(key))
+        .unwrap_or(&json!(""))
+        .to_string()
 }
 
 async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
@@ -71,34 +96,22 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
         .with_tool_config(tool_config)
         .invoke(question)
         .await?;
-    
-    let mut operation: Operation = Operation::Add;
-    let mut operand1_string = String::new();
-    let mut operand2_string = String::new();
 
-    println!("Question: {}", question);
-    if let Some(candidates) = &response.candidates {
-        for candidate in candidates {
-            if let Some(content) = &candidate.content {
-                for part in &content.parts {
-                    if let Some(function_call) = &part.function_call {
-                        // let get_operation = function_call.args.get("operation").unwrap_or(&json!(""));
-                        if let Some(get_operation) = function_call.args.get("operation") {
-                            match get_operation.as_str().unwrap_or("") {
-                                "Add" => operation = Operation::Add,
-                                "Subtract" => operation = Operation::Subtract,
-                                "Multiply" => operation = Operation::Multiply,
-                                "Divide" => operation = Operation::Divide,
-                                _ => operation = Operation::Unknown,
-                            }
-                        }
-                        operand1_string = function_call.args.get("operand1").unwrap_or(&json!("")).to_string();
-                        operand2_string = function_call.args.get("operand2").unwrap_or(&json!("")).to_string();
-                    }
-                }
-            }
-        }
-    };
+    let args = get_function_call_args(&response);
+
+    let operation = args
+        .and_then(|a| a.get("operation"))
+        .map(|op| match op.as_str().unwrap_or("") {
+            "Add" => Operation::Add,
+            "Subtract" => Operation::Subtract,
+            "Multiply" => Operation::Multiply,
+            "Divide" => Operation::Divide,
+            _ => Operation::Unknown,
+        })
+        .unwrap_or(Operation::Unknown);
+
+    let operand1_string = get_arg_value(&args, "operand1");
+    let operand2_string = get_arg_value(&args, "operand2");
 
     // Convert String to f64
     let operand1: f64 = operand1_string.parse().unwrap();

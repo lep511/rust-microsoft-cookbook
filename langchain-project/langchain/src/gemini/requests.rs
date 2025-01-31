@@ -1,6 +1,6 @@
 use reqwest::{Client, Response};
 use reqwest::{self, header::{HeaderMap, HeaderValue}};
-use log::{info, error};
+use log::{info, warn, error};
 use async_stream::stream;
 use futures::StreamExt;
 use crate::gemini::libs::{ChatRequest, Part, Content, ChatResponse};
@@ -84,29 +84,8 @@ pub async fn request_chat(
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        error!("Response code: {}", response.status());
-        match response.json::<ChatResponse>().await {
-            Ok(error_detail) => {
-                if let Some(error_message) = error_detail.error {
-                    if let Some(message) = error_message.message {
-                        return Err(GeminiError::GenericError {
-                            message,
-                            detail: "ERROR-req-9821".to_string(),
-                        });
-                    }
-                }
-                return Err(GeminiError::GenericError {
-                    message: "Unknown error".to_string(),
-                    detail: "ERROR-req-9822".to_string(),
-                });
-            },
-            Err(e) => {
-                return Err(GeminiError::GenericError {
-                    message: format!("Error: {}", e),
-                    detail: "ERROR-req-9823".to_string(),
-                });
-            }
-        }
+        let gemini_error: GeminiError = manage_error(response).await;
+        return Err(gemini_error);
     }
 
     let response_data = response.json::<serde_json::Value>().await?;
@@ -167,23 +146,28 @@ pub async fn upload_media(
         .use_rustls_tls()
         .build()?;
 
-    let upload_resp: serde_json::Value = client
+    let upload_resp = client
         .post(upload_url)
         .headers(upload_headers)
         .body(body_data)
         .send()
-        .await?
-        .json()
         .await?;
 
-    print_pre(&upload_resp, DEBUG_POST);
+    // Checks if the response status is not successful (i.e., not in the 200-299 range).
+    if !upload_resp.status().is_success() {
+        let gemini_error: GeminiError = manage_error(upload_resp).await;
+        return Err(Box::new(gemini_error));
+    }
+
+    let response_data = upload_resp.json::<serde_json::Value>().await?;
+    print_pre(&response_data, DEBUG_POST);
     
     // Wait for video processing
     if mime_type.starts_with("video") {
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        sleep(Duration::from_secs(5)).await;
     }
 
-    let file_uri = upload_resp["file"]["uri"]
+    let file_uri = response_data["file"]["uri"]
         .as_str()
         .ok_or("Missing file URI")?
         .trim_matches('"')
@@ -289,29 +273,8 @@ pub async fn request_cache(
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        error!("Response code: {}", response.status());
-        match response.json::<ChatResponse>().await {
-            Ok(error_detail) => {
-                if let Some(error_message) = error_detail.error {
-                    if let Some(message) = error_message.message {
-                        return Err(GeminiError::GenericError {
-                            message,
-                            detail: "ERROR-req-9821".to_string(),
-                        });
-                    }
-                }
-                return Err(GeminiError::GenericError {
-                    message: "Unknown error".to_string(),
-                    detail: "ERROR-req-9822".to_string(),
-                });
-            },
-            Err(e) => {
-                return Err(GeminiError::GenericError {
-                    message: format!("Error: {}", e),
-                    detail: "ERROR-req-9823".to_string(),
-                });
-            }
-        }
+        let gemini_error: GeminiError = manage_error(response).await;
+        return Err(gemini_error);
     }
 
     let response_data = response.json::<serde_json::Value>().await?;
@@ -337,7 +300,7 @@ pub async fn request_cache(
 ///
 /// * `url` - The endpoint URL for the embedding service
 /// * `request` - The embedding request containing the input text and model parameters
-/// * `retry` - Maximum number of retry attempts if the request fails
+/// * `max_retries` - Maximum number of retry attempts if the request fails
 ///
 /// # Returns
 ///
@@ -362,56 +325,58 @@ pub async fn request_cache(
 pub async fn request_embed(
     url: &str,
     request: EmbedRequest,
-    retry: u32,
+    max_retries: u32,
 ) -> Result<String, GeminiError> {
     // Creates an HTTPS-capable client using rustls TLS implementation.
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
-    let mut response: serde_json::Value;
-    let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", HeaderValue::from_static("application/json"));
  
     print_pre(&request, DEBUG_PRE);
-  
-    response = client
-        .post(url.to_string())
-        .header("Content-Type", "application/json")
-        .json(&request)
-        .send()
-        .await?
-        .json::<serde_json::Value>()
-        .await?;
 
-    print_pre(&response, DEBUG_POST);
+    let timeout = 2400;
+    // Serializes the request struct into a JSON byte vector
+    let request_body = serde_json::to_vec(&request)?;
     
-    if response.get("error") != None && retry > 0 {
-        let mut n_count: u32 = 0;
-        while n_count < retry {
-            n_count += 1;
-            info!(
-                "Retry {}. Error: {:?}", 
-                n_count, 
-                response.get("error")
-            );
-            // Wait for 2 sec
-            tokio::time::sleep(Duration::from_secs(2)).await;
-            response = client
-                .post(url.to_string())
-                .header("Content-Type", "application/json")
-                .json(&request)
-                .send()
-                .await?
-                .json::<serde_json::Value>()
-                .await?;
-            
-            if response.get("error") == None {
-                break;
-            }
+    let mut response: Response = make_request(
+        &client,
+        url, 
+        &request_body, 
+        timeout,
+    ).await?;
+
+    for attempt in 1..=max_retries {
+        if response.status().is_success() {
+            break;
         }
+
+        info!(
+            "Retry {}/{}. Code error: {:?}", 
+            attempt,
+            max_retries,
+            response.status()
+        );
+
+        sleep(RETRY_BASE_DELAY).await;
+
+        response = make_request(
+            &client,
+            url, 
+            &request_body, 
+            timeout,
+        ).await?;
     }
+
+    // Checks if the response status is not successful (i.e., not in the 200-299 range).
+    if !response.status().is_success() {
+        let gemini_error: GeminiError = manage_error(response).await;
+        return Err(gemini_error);
+    }
+
+    let response_data = response.json::<serde_json::Value>().await?;
+    print_pre(&response_data, DEBUG_POST);
     
-    let response_string = response.to_string();
+    let response_string = response_data.to_string();
     Ok(response_string)
 }
 
@@ -456,14 +421,14 @@ pub fn strem_chat(
                                         yield stream_response;
                                     },
                                     Err(e) => {
-                                        error!("Error Error parsing chunk: {}", e);
+                                        warn!("Error Error parsing chunk: {}", e);
                                     }
                                 }    
                             }
                         }
                     },
                     Err(e) => {
-                        error!("Error Error reading chunk: {}", e);
+                        warn!("Error Error reading chunk: {}", e);
                     }
                 }
             }
@@ -508,4 +473,33 @@ pub async fn make_request(
         .body(request_body.to_vec())
         .send()
         .await?)
+}
+
+pub async fn manage_error(
+    response: Response,
+) -> GeminiError {
+    error!("Response code: {}", response.status());
+
+    match response.json::<ChatResponse>().await {
+        Ok(error_detail) => {
+            if let Some(error_message) = error_detail.error {
+                if let Some(message) = error_message.message {
+                    return GeminiError::GenericError {
+                        message,
+                        detail: "ERROR-req-9821".to_string(),
+                    }
+                };
+            }
+            GeminiError::GenericError {
+                message: "Unknown error".to_string(),
+                detail: "ERROR-req-9822".to_string(),
+            }
+        },
+        Err(e) => {
+            GeminiError::GenericError {
+                message: format!("Error: {}", e),
+                detail: "ERROR-req-9823".to_string(),
+            }
+        }
+    }
 }

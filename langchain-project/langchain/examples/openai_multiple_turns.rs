@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let response: ChatResponse = llm
         .with_temperature(0.9)
-        .with_max_completion_tokens(2048)
+        .with_max_tokens(2048)
         .with_timeout_sec(30)
         .with_system_prompt(system_prompt)
         .invoke(prompt)

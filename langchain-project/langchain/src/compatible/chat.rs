@@ -1,7 +1,7 @@
 use futures::pin_mut;
 use futures::StreamExt;
-use log::error;
 use async_stream::stream;
+use log::error;
 use crate::compatible::requests::{
     request_chat, get_request, strem_chat,
 };

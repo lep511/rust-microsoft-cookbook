@@ -1,5 +1,5 @@
 use reqwest::{Client, Response};
-use log::{info, error};
+use log::{info, warn, error};
 use async_stream::stream;
 use futures::StreamExt;
 use crate::compatible::{DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY};
@@ -165,14 +165,14 @@ pub fn strem_chat(
                                         yield stream_response;
                                     },
                                     Err(e) => {
-                                        error!("Error Error parsing chunk: {}", e);
+                                        warn!("Error Error parsing chunk: {}", e);
                                     }
                                 }    
                             }
                         }
                     },
                     Err(e) => {
-                        error!("Error Error reading chunk: {}", e);
+                        warn!("Error Error reading chunk: {}", e);
                     }
                 }
             }

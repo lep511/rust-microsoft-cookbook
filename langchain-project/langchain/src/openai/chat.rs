@@ -1,4 +1,7 @@
-use crate::openai::requests::request_chat;
+use futures::pin_mut;
+use futures::StreamExt;
+use async_stream::stream;
+use crate::openai::requests::{request_chat, strem_chat};
 use crate::openai::utils::GetApiKey;
 use crate::openai::libs::{
     ChatRequest, InputContent, ResponseFormat,
@@ -6,6 +9,7 @@ use crate::openai::libs::{
 };
 use crate::llmerror::OpenAIError;
 use log::error;
+
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -32,7 +36,7 @@ impl ChatOpenAI {
             frequency_penalty: None,
             presence_penalty: None,
             top_p: None,
-            stream: None,
+            stream: Some(false),
             n_completion: Some(1),
             stop: None,
         };
@@ -100,9 +104,51 @@ impl ChatOpenAI {
             system_fingerprint: chat_response.system_fingerprint,
             usage: chat_response.usage,
             chat_history: self.request.messages,
+            service_tier: None,
             error: None,
         };
         Ok(format_response)
+    }
+
+    pub fn stream_response(
+        mut self,
+        prompt: String,  // Don't change type for stream
+    ) -> impl futures::Stream<Item = ChatResponse> {
+        stream! {     
+            
+            let content = vec![InputContent {
+                content_type: "text".to_string(),
+                text: Some(prompt),
+                source: None,
+                image_url: None,
+            }];       
+            
+            let new_message = Message {
+                role: Role::User,
+                content: content.clone(),
+                recipient: None,
+                end_turn: None,
+            };
+    
+            if let Some(messages) = &mut self.request.messages {
+                messages.push(new_message);
+            } else {
+                self.request.messages = Some(vec![new_message]);
+            }
+
+            self.request.stream = Some(true);
+
+            let stream = strem_chat(
+                self.api_key.clone(),
+                self.request.clone(),
+            );
+
+            pin_mut!(stream);
+
+            while let Some(chat_response) = stream.next().await {
+                yield chat_response;
+            }
+        }
     }
 
     pub fn with_temperature(mut self, temperature: f32) -> Self {
@@ -118,7 +164,7 @@ impl ChatOpenAI {
         }
     }
     
-    pub fn with_max_completion_tokens(mut self, max_tokens: u32) -> Self {
+    pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
         self.request.max_completion_tokens = Some(max_tokens);
         self
     }

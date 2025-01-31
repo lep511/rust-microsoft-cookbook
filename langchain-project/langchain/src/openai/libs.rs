@@ -127,16 +127,26 @@ pub struct ChatResponse {
     pub system_fingerprint: Option<String>,
     pub usage: Option<Usage>,
     pub chat_history: Option<Vec<Message>>,
+    pub service_tier: Option<String>,
     pub error: Option<ErrorDetails>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Choice {
-    pub finish_reason: String,
-    pub index: u32,
+    pub finish_reason: Option<String>,
+    pub index: Option<u32>,
     pub logprobs: Option<serde_json::Value>,
-    pub message: ChatMessage,
+    pub delta: Option<Delta>,
+    pub message: Option<ChatMessage>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+pub struct Delta {
+    pub content: Option<String>,
+    pub role: Option<String>,
+    pub tool_calls: Option<Vec<serde_json::Value>>,
 }
 
 #[allow(dead_code)]

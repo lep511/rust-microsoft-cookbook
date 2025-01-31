@@ -1,11 +1,15 @@
 use reqwest::{Client, Response};
-use log::{info, error};
+use log::{info, warn, error};
+use async_stream::stream;
+use futures::StreamExt;
 use crate::openai::{
     OPENAI_BASE_URL, OPENAI_EMBED_URL, RETRY_BASE_DELAY,
     DEBUG_PRE, DEBUG_POST,
 };
 use crate::llmerror::OpenAIError;
-use crate::openai::libs::{ChatRequest, EmbedRequest, ErrorResponse};
+use crate::openai::libs::{
+    ChatRequest, EmbedRequest, ErrorResponse, ChatResponse,
+};
 use crate::openai::utils::print_pre;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -36,6 +40,7 @@ pub async fn request_chat(
 
     for attempt in 1..=max_retries {
         if response.status().is_success() || response.status().as_u16() == 401 {
+            // 401 - Invalid Authentication
             break;
         }
 
@@ -95,6 +100,69 @@ pub async fn request_embed(
 
     let response_string = response.to_string();
     Ok(response_string)
+}
+
+pub fn strem_chat(
+    api_key: String,
+    request: ChatRequest,
+) -> impl futures::Stream<Item = ChatResponse> {
+    stream! {
+        let client = Client::new();
+
+        let response: Response = match client
+            .post(OPENAI_BASE_URL)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .header("Content-Type", "application/json")
+            .json(&request)
+            .send()
+            .await {
+                Ok(response) => response,
+                Err(e) => {
+                    error!("Error Error sending request: {}", e);
+                    return
+                }
+            };
+
+        if response.status().is_success() {
+            let mut stream = response.bytes_stream();
+
+            while let Some(chunk) = stream.next().await {
+                match chunk {
+                    Ok(bytes) => {
+                        let str_chunk = String::from_utf8_lossy(&bytes);
+                        let parts: Vec<&str> = str_chunk.split("\n\n").collect();
+                        for part in parts {
+                            if !part.is_empty() && part.ends_with("[DONE]") {
+                                break;
+                            }
+
+                            if !part.is_empty() && part.starts_with("data:") {
+                                let json_part = part.trim_start_matches("data:");
+                                if !json_part.contains("delta") {
+                                    continue;
+                                }
+                            
+                                match serde_json::from_str::<ChatResponse>(json_part) {
+                                    Ok(stream_response) => {
+                                        yield stream_response;
+                                    },
+                                    Err(e) => {
+                                        println!("Error parsing chunk: {:?}", json_part);
+                                        warn!("Error Error parsing chunk: {}", e);
+                                    }
+                                }    
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        warn!("Error Error reading chunk: {}", e);
+                    }
+                }
+            }
+        } else {
+            error!("Error Request failed with status code: {}", response.status());
+        }
+    }
 }
 
 pub async fn make_request(

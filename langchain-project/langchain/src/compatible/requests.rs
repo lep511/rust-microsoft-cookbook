@@ -1,4 +1,5 @@
 use reqwest::{Client, Response};
+use log::{info, error};
 use async_stream::stream;
 use futures::StreamExt;
 use crate::compatible::{DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY};
@@ -37,7 +38,7 @@ pub async fn request_chat(
     for attempt in 1..=max_retries {
         if response.status().is_success() { break; }
 
-        println!(
+        info!(
             "Retry {}/{}. Code error: {:?}", 
             attempt,
             max_retries,
@@ -57,7 +58,7 @@ pub async fn request_chat(
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        println!("Response code: {}", response.status());
+        error!("Response code: {}", response.status());
         match response.json::<ErrorResponse>().await {
             Ok(error) => {
                 return Err(CompatibleChatError::GenericError {
@@ -67,7 +68,7 @@ pub async fn request_chat(
             }
             Err(e) => {
                 return Err(CompatibleChatError::GenericError {
-                    message: format!("Error: {}", e),
+                    message: format!("[ERROR]: {}", e),
                     detail: "ERROR-req-9823".to_string(),
                 });
             }
@@ -97,7 +98,7 @@ pub async fn get_request(
         .await?;
 
     if !response.status().is_success() {
-        println!("Response code: {}", response.status());
+        error!("Response code: {}", response.status());
         match response.json::<ErrorResponse>().await {
             Ok(error) => {
                 return Err(CompatibleChatError::GenericError {
@@ -138,7 +139,7 @@ pub fn strem_chat(
             .await {
                 Ok(response) => response,
                 Err(e) => {
-                    println!("Error sending request: {}", e);
+                    error!("[ERROR] Error sending request: {}", e);
                     return
                 }
             };
@@ -164,17 +165,19 @@ pub fn strem_chat(
                                         yield stream_response;
                                     },
                                     Err(e) => {
-                                        println!("Error parsing chunk: {}", e);
+                                        error!("[ERROR] Error parsing chunk: {}", e);
                                     }
                                 }    
                             }
                         }
                     },
                     Err(e) => {
-                        println!("Error reading chunk: {}", e);
+                        error!("[ERROR] Error reading chunk: {}", e);
                     }
                 }
             }
+        } else {
+            error!("[ERROR] {}", response.status());
         }
     }
 }

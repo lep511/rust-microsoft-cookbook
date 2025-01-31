@@ -1,5 +1,6 @@
 use futures::pin_mut;
 use futures::StreamExt;
+use log::error;
 use async_stream::stream;
 use crate::compatible::requests::{
     request_chat, get_request, strem_chat,
@@ -81,7 +82,7 @@ impl ChatCompatible {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("[ERROR] {:?}", e);
                 return Err(CompatibleChatError::ResponseContentError);
             }
         };
@@ -91,13 +92,13 @@ impl ChatCompatible {
         let chat_response: ChatResponse = match serde_json::from_str(&response_string) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("[ERROR] {:?}", e);
                 return Err(CompatibleChatError::ResponseContentError);
             }
         };
 
         if let Some(error) = chat_response.error {
-            println!("[ERROR] {}", error.message);
+            error!("[ERROR] {}", error.message);
             return Err(CompatibleChatError::ResponseContentError);
         } else {
             let format_response = ChatResponse {
@@ -153,14 +154,14 @@ impl ChatCompatible {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("[ERROR] {:?}", e);
                 return Err(CompatibleChatError::ResponseContentError);
             }
         };
         
         Ok(response)
     }
-
+    
     pub async fn baseten_invoke(
         mut self, 
         prompt: &str,
@@ -189,7 +190,7 @@ impl ChatCompatible {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("[ERROR] {:?}", e);
                 return Err(CompatibleChatError::ResponseContentError);
             }
         };
@@ -211,6 +212,7 @@ impl ChatCompatible {
     /// # Errors
     /// 
     /// Returns `CompatibleChatError::ResponseContentError` if the request fails or response cannot be parsed
+    ///
     pub async fn get_models(
         self, 
         suffix_url: &str
@@ -223,7 +225,7 @@ impl ChatCompatible {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("[ERROR] {:?}", e);
                 return Err(CompatibleChatError::ResponseContentError);
             }
         };

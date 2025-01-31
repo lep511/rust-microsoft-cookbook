@@ -2,9 +2,12 @@
 use langchain::compatible::chat::ChatCompatible;
 use futures::StreamExt;
 use futures::pin_mut;
+use env_logger::Env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
     let base_url = "https://api.deepinfra.com/v1/openai/chat/completions";
     let system_prompt = "Respond like a Michelin-starred chef.";
     let model = "deepseek-ai/DeepSeek-R1";

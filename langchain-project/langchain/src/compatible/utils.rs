@@ -1,4 +1,5 @@
 use std::env;
+use log::error;
 use crate::llmerror::CompatibleChatError;
 
 /// Gets the API key from the environment variables
@@ -19,11 +20,11 @@ pub trait GetApiKey {
         match env::var("COMPATIBLE_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                println!("[ERROR] COMPATIBLE_API_KEY not found in environment variables");
+                error!("[ERROR] COMPATIBLE_API_KEY not found in environment variables");
                 Err(CompatibleChatError::ApiKeyNotFound)
             }
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("[ERROR] {:?}", e);
                 Err(CompatibleChatError::EnvError(e))
             }
         }
@@ -41,7 +42,7 @@ pub fn print_pre(request: &impl serde::Serialize, active: bool) {
     } else {
         match serde_json::to_string_pretty(request) {
             Ok(json) => println!("Pretty-printed JSON:\n{}", json),
-            Err(e) => println!("[ERROR] {:?}", e)
+            Err(e) => error!("[ERROR] {:?}", e)
         }
     }
 }

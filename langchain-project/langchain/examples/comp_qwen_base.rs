@@ -2,9 +2,12 @@
 use langchain::compatible::chat::ChatCompatible;
 use langchain::compatible::libs::ChatResponse;
 use std::time::Instant;
+use env_logger::Env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    
     let base_url = "https://api.deepinfra.com/v1/openai/chat/completions";
     // let model = "Qwen/QwQ-32B-Preview";
     let model = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B";
@@ -27,8 +30,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(candidates) => {
             for candidate in candidates {
                 #[allow(irrefutable_let_patterns)]
-                if let message = candidate.message {
-                    println!("{:?}", message.content);
+                if let Some(message) = candidate.message {
+                    if let Some(content) = message.content {
+                        println!("{}", content);
+                    }
                 }
             }
         }

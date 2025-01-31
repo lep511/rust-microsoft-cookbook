@@ -1,4 +1,5 @@
 use reqwest::Client;
+use log::error;
 use crate::langsmith::libs::{LangsmithRequest, ErrorResponse};
 use crate::langsmith::utils::print_pre;
 use crate::langsmith::{LANGSMITH_BASE_URL, DEBUG_PRE, DEBUG_POST};
@@ -73,6 +74,7 @@ pub async fn request_langsmith(
             ).await?;
         },
         LangsmithRequest::Unknown => {
+            error!("Unknown request type");
             return Err(Box::new(LangsmithError::GenericError {
                 message: "Unknown request type".to_string(),
                 detail: "ERROR-req-9890".to_string(),
@@ -97,6 +99,7 @@ pub async fn get_request(url: &str, api_key: &str) -> Result<Value, LangsmithErr
 
     if !response.status().is_success() {
         let error_response = response.json::<ErrorResponse>().await?;
+        error!("Error response: {:?}", error_response);
         return Err(LangsmithError::GenericError {
             message: error_response.detail,
             detail: "ERROR-req-9877".to_string(),
@@ -127,6 +130,7 @@ pub async fn post_request(request: Value, url: &str, api_key: &str) -> Result<Va
           
     if !response.status().is_success() {
         let error_response = response.json::<ErrorResponse>().await?;
+        error!("Error response: {:?}", error_response);
         return Err(LangsmithError::GenericError {
             message: error_response.detail,
             detail: "ERROR-req-9880".to_string(),

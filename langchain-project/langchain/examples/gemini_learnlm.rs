@@ -1,5 +1,6 @@
 #[allow(dead_code)]
 use langchain::gemini::chat::ChatGemini;
+use env_logger::Env;
 use langchain::gemini::libs::{Part, Content};
 use std::io::{self, Write, Read};
 use std::path::Path;
@@ -61,6 +62,7 @@ async fn check_chat_history_file_exist() -> bool {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let llm = ChatGemini::new("learnlm-1.5-pro-experimental")?;
 
     let system_prompt = "You are a tutor helping a student prepare for a test. If not provided by the \

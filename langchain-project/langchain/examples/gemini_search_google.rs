@@ -1,4 +1,5 @@
 use langchain::gemini::chat::ChatGemini;
+use env_logger::Env;
 use serde_json::json;
 
 async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
@@ -30,6 +31,7 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     example_tools().await?;
     Ok(())
 }

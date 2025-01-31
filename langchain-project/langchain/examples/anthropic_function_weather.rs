@@ -1,12 +1,13 @@
 #[allow(dead_code)]
 use langchain::anthropic::chat::ChatAnthropic;
+use env_logger::Env;
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::env;
 
 #[allow(dead_code)]
 pub async fn get_weather(location: &str, unit: &str) -> Result<String, Box<dyn std::error::Error>> {
-
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let api_key = env::var("OPENWEATHER_API_KEY").expect("OPENWEATHER_API_KEY not set");
     
     let unit_format: &str;
@@ -41,7 +42,8 @@ pub async fn get_weather(location: &str, unit: &str) -> Result<String, Box<dyn s
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
     let tool_data = json!({
         "name":"get_weather",
         "description":"Get the current weather in a given location",

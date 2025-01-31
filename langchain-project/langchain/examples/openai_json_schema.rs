@@ -5,6 +5,7 @@ use langchain::openai::utils::generate_schema;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
+use env_logger::Env;
 
 #[derive(Debug, JsonSchema, Serialize, Deserialize)]
 struct EmailSchema {
@@ -13,6 +14,7 @@ struct EmailSchema {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let llm = ChatOpenAI::new("gpt-4o-mini")?;
     
     let system_prompt = "You extract email addresses into JSON data.";

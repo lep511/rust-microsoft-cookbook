@@ -7,6 +7,7 @@ use crate::anthropic::utils::{GetApiKey, read_file_data};
 use crate::anthropic::requests::request_chat;
 use crate::llmerror::AnthropicError;
 use serde_json::Value;
+use log::error;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -120,7 +121,7 @@ impl ChatAnthropic {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(AnthropicError::ResponseContentError);
             }
         };
@@ -128,13 +129,13 @@ impl ChatAnthropic {
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(AnthropicError::ResponseContentError);
             }
         };
 
         if let Some(error) = chat_response.error {
-            println!("[ERROR] {}", error.message);
+            error!("Error {}", error.message);
             return Err(AnthropicError::ResponseContentError);
         } else {
             let format_response: ChatResponse = ChatResponse {
@@ -246,8 +247,8 @@ impl ChatAnthropic {
     ) -> Self {
 
         if !MIME_TYPE_SUPPORTED.contains(&mime_type) {
-            println!(
-                "[ERROR] Unsupported media type: {}. Supported: {}", 
+            error!(
+                "Error unsupported media type: {}. Supported: {}", 
                 mime_type,
                 MIME_TYPE_SUPPORTED.join(", ")
             );
@@ -292,8 +293,8 @@ impl ChatAnthropic {
     ) -> Self {
 
         if !MIME_TYPE_SUPPORTED.contains(&mime_type) {
-            println!(
-                "[ERROR] Unsupported media type: {}. Supported: {}", 
+            error!(
+                "Error unsupported media type: {}. Supported: {}", 
                 mime_type,
                 MIME_TYPE_SUPPORTED.join(", ")
             );
@@ -303,7 +304,7 @@ impl ChatAnthropic {
         let image_base64 = match read_file_data(image_file) {
             Ok(data) => data,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return self;
             }
         };

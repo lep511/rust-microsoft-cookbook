@@ -4,6 +4,7 @@ use langchain::openai::libs::ChatResponse;
 use langchain::openai::utils::generate_schema;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use env_logger::Env;
 
 #[derive(Debug, JsonSchema, Serialize, Deserialize)]
 struct MathReasoning {
@@ -19,6 +20,7 @@ struct Step {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let llm = ChatOpenAI::new("gpt-4o-mini")?;
 
     let name_schema = "math_reasoning";

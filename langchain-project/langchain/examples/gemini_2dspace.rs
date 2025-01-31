@@ -1,5 +1,6 @@
 #[allow(dead_code)]
 use langchain::gemini::chat::ChatGemini;
+use env_logger::Env;
 use langchain::gemini::libs::{SafetySetting, HarmCategory, HarmBlock};
 use serde::{Serialize, Deserialize};
 use serde_json::json;
@@ -12,6 +13,7 @@ struct Detection {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
 
     let prompt = "Detect the 2d bounding boxes of the cupcakes (with \"label\" as topping description)";

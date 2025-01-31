@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use crate::gemini::errors::ErrorDetail;
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Requests ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]
@@ -21,45 +22,6 @@ pub struct ChatRequest {
     #[serde(rename = "safetySettings")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub safety_settings: Option<Vec<SafetySetting>>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct  GenerationConfig {
-    pub temperature: Option<f32>,
-    #[serde(rename = "topK")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub top_k: Option<u32>,
-    #[serde(rename = "topP")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub top_p: Option<f32>,
-    #[serde(rename = "maxOutputTokens")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_output_tokens: Option<u32>,
-    #[serde(rename = "responseMimeType")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_mime_type: Option<String>,
-    #[serde(rename = "responseSchema")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_schema: Option<serde_json::Value>,
-    #[serde(rename = "stopSequences")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stop_sequences: Option<Vec<String>>,
-    #[serde(rename = "candidateCount")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub candidate_count: Option<u32>,
-    #[serde(rename = "presencePenalty")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub presence_penalty: Option<f32>,
-    #[serde(rename = "frequencyPenalty")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub frequency_penalty: Option<f32>,
-    #[serde(rename = "responseLogprobs")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_logprobs: Option<bool>,
-    #[serde(rename = "logProbs")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub log_probs: Option<u32>,
 }
 
 #[allow(dead_code)]
@@ -103,13 +65,6 @@ pub struct FileData {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct FunctionResponse {
-    pub name: String,
-    pub response: FunctionContent,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FunctionContent {
     pub name: String,
     pub content: serde_json::Value,
@@ -134,26 +89,8 @@ pub struct CacheRequest {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct EmbedResponse {
-    pub embedding: Option<Embedding>,
-    pub error: Option<ErrorDetails>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Embedding {
     pub values: Vec<f32>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ChatResponse {
-    pub candidates: Option<Vec<Candidate>>,
-    pub model_version: Option<String>,
-    #[serde(rename = "usageMetadata")]
-    pub usage_metadata: Option<UsageMetadata>,
-    pub chat_history: Option<Vec<Content>>,
-    pub error: Option<ErrorDetails>,
 }
 
 #[allow(dead_code)]
@@ -204,14 +141,6 @@ pub struct WebInfo {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GroundingSupport {
-    pub confidence_scores: Option<Vec<f64>>,
-    pub grounding_chunk_indices: Option<Vec<i32>>,
-    pub segment: Option<Segment>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Segment {
     pub end_index: Option<i32>,
     pub start_index: Option<i32>,
@@ -223,6 +152,87 @@ pub struct Segment {
 pub struct SearchEntryPoint {
     pub rendered_content: Option<String>,
 }
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SafetySetting {
+    pub category: HarmCategory,
+    pub threshold: HarmBlock,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UsageMetadata {
+    #[serde(rename = "candidatesTokenCount")]
+    pub candidates_token_count: Option<i32>,
+    #[serde(rename = "promptTokenCount")]
+    pub rompt_token_count: Option<i32>,
+    #[serde(rename = "totalTokenCount")]
+    pub total_token_count: Option<i32>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbedRequest {
+    pub model: String,
+    pub content: Content,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_dimensionality: Option<i32>,
+    pub task_type: TaskType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Config ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct  GenerationConfig {
+    pub temperature: Option<f32>,
+    #[serde(rename = "topK")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<u32>,
+    #[serde(rename = "topP")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+    #[serde(rename = "maxOutputTokens")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
+    #[serde(rename = "responseMimeType")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_mime_type: Option<String>,
+    #[serde(rename = "responseSchema")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_schema: Option<serde_json::Value>,
+    #[serde(rename = "stopSequences")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop_sequences: Option<Vec<String>>,
+    #[serde(rename = "candidateCount")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub candidate_count: Option<u32>,
+    #[serde(rename = "presencePenalty")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub presence_penalty: Option<f32>,
+    #[serde(rename = "frequencyPenalty")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequency_penalty: Option<f32>,
+    #[serde(rename = "responseLogprobs")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_logprobs: Option<bool>,
+    #[serde(rename = "logProbs")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_probs: Option<u32>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GroundingSupport {
+    pub confidence_scores: Option<Vec<f64>>,
+    pub grounding_chunk_indices: Option<Vec<i32>>,
+    pub segment: Option<Segment>,
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Enum ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -254,13 +264,6 @@ pub enum HarmProbability {
     Medium, // Content has a medium chance of being unsafe.
     #[serde(rename = "HIGH")]
     High, // Content has a high chance of being unsafe.
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SafetySetting {
-    pub category: HarmCategory,
-    pub threshold: HarmBlock,
 }
 
 #[allow(dead_code)]
@@ -307,38 +310,6 @@ pub enum FinishReason {
     MalformedFunctionCall,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct UsageMetadata {
-    #[serde(rename = "candidatesTokenCount")]
-    pub candidates_token_count: Option<i32>,
-    #[serde(rename = "promptTokenCount")]
-    pub rompt_token_count: Option<i32>,
-    #[serde(rename = "totalTokenCount")]
-    pub total_token_count: Option<i32>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ErrorDetails {
-    pub code: Option<i32>,
-    pub message: Option<String>,
-    pub status: Option<String>,
-    pub details: Option<Vec<ErrorDetail>>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct EmbedRequest {
-    pub model: String,
-    pub content: Content,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub output_dimensionality: Option<i32>,
-    pub task_type: TaskType,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
-}
-
 // Choose an embeddings task type:
 // https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/task-types
 #[allow(dead_code)]
@@ -362,4 +333,65 @@ pub enum TaskType {
     FactVerification,
     #[serde(rename = "CODE_RETRIEVAL_QUERY")] // The given text is a query in a code retrieval setting.
     CodeRetrievalQuery,
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Response ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChatResponse {
+    pub candidates: Option<Vec<Candidate>>,
+    pub model_version: Option<String>,
+    #[serde(rename = "usageMetadata")]
+    pub usage_metadata: Option<UsageMetadata>,
+    pub chat_history: Option<Vec<Content>>,
+    pub error: Option<ErrorDetails>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FunctionResponse {
+    pub name: String,
+    pub response: FunctionContent,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbedResponse {
+    pub embedding: Option<Embedding>,
+    pub error: Option<ErrorDetails>,
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Errors ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ErrorDetails {
+    pub code: Option<i32>,
+    pub message: Option<String>,
+    pub status: Option<String>,
+    pub details: Option<Vec<ErrorDetail>>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ErrorDetail {
+    #[serde(rename = "@type")]
+    pub type_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub domain: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<Metadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locale: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Metadata {
+    pub service: String,
 }

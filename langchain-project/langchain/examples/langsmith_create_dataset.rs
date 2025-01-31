@@ -1,8 +1,10 @@
 use langchain::langsmith::client::LangsmithClient;
+use env_logger::Env;
 use serde_json::{json, Value};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let dataset_name = "SampleDatasetData";
     let mut dataset_id = String::from("");

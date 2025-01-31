@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use crate::llmerror::XAIChatError;
 use std::env;
+use log::error;
 
 pub static XAI_BASE_URL: &str = "https://api.x.ai/v1/chat/completions";
 
@@ -36,11 +37,11 @@ pub trait GetApiKey {
         match env::var("XAI_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                println!("[ERROR] XAI_API_KEY not found in environment variables");
+                error!("Error XAI_API_KEY not found in environment variables");
                 Err(XAIChatError::ApiKeyNotFound)
             }
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 Err(XAIChatError::EnvError(e))
             }
         }
@@ -117,7 +118,7 @@ impl ChatXAI {
         let _pretty_json = match serde_json::to_string_pretty(&self.request) {
             Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
             }
         };
 
@@ -136,7 +137,7 @@ impl ChatXAI {
         let _pretty_json = match serde_json::to_string_pretty(&response) {
             Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
             }
         };
        
@@ -144,13 +145,13 @@ impl ChatXAI {
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(XAIChatError::ResponseContentError);
             }
         };
 
         if let Some(error) = chat_response.error {
-            println!("[ERROR] {}", error.error);
+            error!("Error {}", error.error);
             return Err(XAIChatError::ResponseContentError);
         } else {
             let format_response = ChatResponse {

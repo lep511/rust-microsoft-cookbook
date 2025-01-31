@@ -82,7 +82,7 @@ impl ChatCompatible {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                error!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(CompatibleChatError::ResponseContentError);
             }
         };
@@ -92,13 +92,13 @@ impl ChatCompatible {
         let chat_response: ChatResponse = match serde_json::from_str(&response_string) {
             Ok(response_form) => response_form,
             Err(e) => {
-                error!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(CompatibleChatError::ResponseContentError);
             }
         };
 
         if let Some(error) = chat_response.error {
-            error!("[ERROR] {}", error.message);
+            error!("Error {}", error.message);
             return Err(CompatibleChatError::ResponseContentError);
         } else {
             let format_response = ChatResponse {
@@ -154,7 +154,7 @@ impl ChatCompatible {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                error!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(CompatibleChatError::ResponseContentError);
             }
         };
@@ -190,7 +190,7 @@ impl ChatCompatible {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                error!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(CompatibleChatError::ResponseContentError);
             }
         };
@@ -225,7 +225,7 @@ impl ChatCompatible {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                error!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(CompatibleChatError::ResponseContentError);
             }
         };

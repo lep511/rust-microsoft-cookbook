@@ -1,5 +1,6 @@
 #[allow(dead_code)]
 use langchain::gemini::chat::ChatGemini;
+use env_logger::Env;
 use std::time::Instant;
 use std::fs::File;
 use std::io::Read;
@@ -102,6 +103,7 @@ async fn large_documents() -> Result<(), Box<dyn std::error::Error>> {
     
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     small_documents().await?;
     // large_documents().await?;    

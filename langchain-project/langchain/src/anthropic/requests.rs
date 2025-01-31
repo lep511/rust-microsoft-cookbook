@@ -1,4 +1,5 @@
 use reqwest::{Client, Response};
+use log::{info, error};
 use crate::anthropic::libs::{
     ChatRequest, EmbedRequest, AnthropicEmbedEndpoint, ErrorResponse
 };
@@ -55,7 +56,7 @@ pub async fn request_chat(
             break;
         }
 
-        println!(
+        info!(
             "Retry {}/{}. Code error: {:?}", 
             attempt,
             max_retries,
@@ -74,7 +75,7 @@ pub async fn request_chat(
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        println!("Response code: {}", response.status());
+        error!("Response code: {}", response.status());
         match response.json::<ErrorResponse>().await {
             Ok(error_detail) => {
                 return Err(AnthropicError::GenericError {
@@ -143,7 +144,7 @@ pub async fn request_embed(
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        println!("Response code: {}", response.status());
+        error!("Response code: {}", response.status());
         
         return Err(AnthropicError::GenericError {
             message: "Error in request_embed".to_string(),
@@ -187,7 +188,7 @@ pub async fn get_request(
     ).await?;
 
     if !response.status().is_success() {
-        println!("Response code: {}", response.status());
+        error!("Response code: {}", response.status());
         match response.json::<ErrorResponse>().await {
             Ok(error_detail) => {
                 return Err(AnthropicError::GenericError {

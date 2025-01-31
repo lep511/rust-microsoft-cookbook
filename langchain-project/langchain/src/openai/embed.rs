@@ -2,6 +2,7 @@ use crate::openai::requests::request_embed;
 use crate::openai::libs::{EmbedRequest, EmbedResponse};
 use crate::openai::utils::GetApiKey;
 use crate::llmerror::OpenAIError;
+use log::error;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -39,7 +40,7 @@ impl EmbedOpenAI {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(OpenAIError::ResponseContentError);
             }
         };
@@ -47,12 +48,12 @@ impl EmbedOpenAI {
         let embed_response: EmbedResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(OpenAIError::ResponseContentError);
             }
         };
         if let Some(error) = embed_response.error {
-            println!("[ERROR] {}", error.message);
+            error!("Error {}", error.message);
             return Err(OpenAIError::ResponseContentError);
         } else {
             Ok(embed_response)

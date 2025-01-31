@@ -5,6 +5,7 @@ use std::time::Duration;
 use crate::llmerror::AssemblyAIError;
 use std::collections::HashMap;
 use std::env;
+use log::error;
 
 pub static ASSEMBLYAI_BASE_URL: &str = "https://api.assemblyai.com/v2";
 static SPEECH_ACCEPT_MODEL: [&str; 2] = ["best", "nano"];
@@ -186,7 +187,7 @@ pub trait PrintDebug {
         } else {
             match serde_json::to_string_pretty(request) {
                 Ok(json) => println!("Pretty-printed JSON:\n{}", json),
-                Err(e) => println!("[ERROR] {:?}", e)
+                Err(e) => error!("Error {:?}", e)
             }
         }
     }
@@ -197,11 +198,11 @@ pub trait GetApiKey {
         match env::var("ASSEMBLYAI_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                println!("[ERROR] ASSEMBLYAI_API_KEY not found in environment variables");
+                error!("Error ASSEMBLYAI_API_KEY not found in environment variables");
                 Err(AssemblyAIError::ApiKeyNotFound)
             }
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 Err(AssemblyAIError::EnvError(e))
             }
         }
@@ -284,7 +285,7 @@ impl TranscriptAssemblyAI {
         let file = match std::fs::read(file_path) {
             Ok(file) => file,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(AssemblyAIError::FileReadError);
             }
         };
@@ -305,7 +306,7 @@ impl TranscriptAssemblyAI {
         let mut response_map: HashMap<String, String> = match serde_json::from_str(&response_string) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] UploadFileResponse: {:?}", e);
+                error!("Error UploadFileResponse: {:?}", e);
                 return Err(AssemblyAIError::ResponseContentError);
             }
         };
@@ -347,7 +348,7 @@ impl TranscriptAssemblyAI {
         let transcript_response: TranscriptResponse = match serde_json::from_str(&response_string) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] TranscriptResponse: {:?}", e);
+                error!("Error TranscriptResponse: {:?}", e);
                 return Err(AssemblyAIError::ResponseContentError);
             }
         };
@@ -381,7 +382,7 @@ impl TranscriptAssemblyAI {
         let transcript_response: GetTranscriptResponse = match serde_json::from_str(&response_string) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] GetTranscriptResponse: {:?}", e);
+                error!("Error GetTranscriptResponse: {:?}", e);
                 return Err(AssemblyAIError::ResponseContentError);
             }
         };
@@ -435,7 +436,7 @@ impl TranscriptAssemblyAI {
         let base_url = match Url::parse_with_params(&base_url, &param_data) {
             Ok(url) => url,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(AssemblyAIError::ResponseContentError);
             }
         };
@@ -457,7 +458,7 @@ impl TranscriptAssemblyAI {
         let transcript_response: ListTranscriptResponse = match serde_json::from_str(&response_string) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] ListTranscriptResponse: {:?}", e);
+                error!("Error ListTranscriptResponse: {:?}", e);
                 return Err(AssemblyAIError::ResponseContentError);
             }
         };
@@ -477,7 +478,7 @@ impl TranscriptAssemblyAI {
 
     pub fn with_speech_model(mut self, speech_model: &str) -> Self {
         if !SPEECH_ACCEPT_MODEL.contains(&speech_model) {
-            println!("[ERROR] Speech model not accepted");
+            error!("Error Speech model not accepted");
             return self;
         }
         self.request.speech_model = Some(speech_model.to_string());

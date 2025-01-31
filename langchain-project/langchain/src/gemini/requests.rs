@@ -1,16 +1,18 @@
 use reqwest::{Client, Response};
 use reqwest::{self, header::{HeaderMap, HeaderValue}};
+use log::{info, error};
 use async_stream::stream;
 use futures::StreamExt;
 use crate::gemini::libs::{ChatRequest, Part, Content, ChatResponse};
 use crate::gemini::libs::{CacheRequest, InlineData, EmbedRequest};
 use crate::gemini::utils::print_pre;
-use crate::gemini::{DEBUG_PRE, DEBUG_POST};
+use crate::gemini::{DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY};
 use crate::llmerror::GeminiError;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::time::Duration;
+use tokio::time::sleep;
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Request Chat ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -46,13 +48,13 @@ pub async fn request_chat(
         .use_rustls_tls()
         .build()?;
 
-    // Converts the request struct to a JSON Value.
-    let request_value: Value = serde_json::to_value(request)?;
+    // Serializes the request struct into a JSON byte vector
+    let request_body = serde_json::to_vec(request)?;
 
     let mut response: Response = make_request(
         &client,
         url, 
-        &request_value, 
+        &request_body, 
         timeout,
     ).await?;
     
@@ -63,26 +65,26 @@ pub async fn request_chat(
             break;
         }
 
-        println!(
+        info!(
             "Retry {}/{}. Code error: {:?}", 
             attempt,
             max_retries,
             response.status()
         );
 
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        sleep(RETRY_BASE_DELAY).await;
 
         response = make_request(
             &client,
             url,
-            &request_value,
+            &request_body,
             timeout,
         ).await?;
     }
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        println!("Response code: {}", response.status());
+        error!("Response code: {}", response.status());
         match response.json::<ChatResponse>().await {
             Ok(error_detail) => {
                 if let Some(error_message) = error_detail.error {
@@ -274,20 +276,20 @@ pub async fn request_cache(
         ttl: ttl,
     };
 
-    // Converts the request struct to a JSON Value.
-    let request_value: Value = serde_json::to_value(request)?;
+    // Serializes the request struct into a JSON byte vector
+    let request_body = serde_json::to_vec(&request)?;
     let timeout = 2400;
 
     let response: Response = make_request(
         &client,
         &url, 
-        &request_value, 
+        &request_body, 
         timeout,
     ).await?;
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        println!("Response code: {}", response.status());
+        error!("Response code: {}", response.status());
         match response.json::<ChatResponse>().await {
             Ok(error_detail) => {
                 if let Some(error_message) = error_detail.error {
@@ -387,7 +389,7 @@ pub async fn request_embed(
         let mut n_count: u32 = 0;
         while n_count < retry {
             n_count += 1;
-            println!(
+            info!(
                 "Retry {}. Error: {:?}", 
                 n_count, 
                 response.get("error")
@@ -428,7 +430,7 @@ pub fn strem_chat(
             .await {
                 Ok(response) => response,
                 Err(e) => {
-                    println!("Error sending request: {}", e);
+                    error!("Error Error sending request: {}", e);
                     return
                 }
             };
@@ -454,17 +456,19 @@ pub fn strem_chat(
                                         yield stream_response;
                                     },
                                     Err(e) => {
-                                        println!("Error parsing chunk: {}", e);
+                                        error!("Error Error parsing chunk: {}", e);
                                     }
                                 }    
                             }
                         }
                     },
                     Err(e) => {
-                        println!("Error reading chunk: {}", e);
+                        error!("Error Error reading chunk: {}", e);
                     }
                 }
             }
+        } else {
+            error!("Error Request failed with status code: {}", response.status());
         }
     }
 }
@@ -478,7 +482,7 @@ pub fn strem_chat(
 ///
 /// * `client` - The HTTP client instance used to make the request
 /// * `url` - The endpoint URL to send the POST request to
-/// * `request_value` - The JSON payload to be sent in the request body
+/// * `request_body` - Byte slice containing the JSON request body
 /// * `timeout` - The request timeout duration in seconds
 ///
 /// # Returns
@@ -494,14 +498,14 @@ pub fn strem_chat(
 pub async fn make_request(
     client: &Client,
     url: &str,
-    request_value: &Value,
+    request_body: &[u8],
     timeout: u64,
 ) -> Result<Response, reqwest::Error> {
     Ok(client
         .post(url)
         .timeout(Duration::from_secs(timeout))
         .header("Content-Type", "application/json")
-        .json(request_value)
+        .body(request_body.to_vec())
         .send()
         .await?)
 }

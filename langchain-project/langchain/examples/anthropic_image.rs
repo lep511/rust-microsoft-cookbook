@@ -1,11 +1,13 @@
 #[allow(dead_code)]
 use langchain::anthropic::chat::ChatAnthropic;
+use env_logger::Env;
 use std::fs::File;
 use std::io::Read;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     // Read first image into a byte vector
     let mut file_01 = File::open("tests/files/image01.jpg")?;
     let mut buffer_01 = Vec::new();

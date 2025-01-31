@@ -6,6 +6,7 @@ use crate::langsmith::utils::GetApiKey;
 use crate::langsmith::requests::request_langsmith;
 use crate::llmerror::LangsmithError;
 use serde_json::Value;
+use log::error;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -33,7 +34,7 @@ impl LangsmithClient {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(LangsmithError::ResponseContentError);
             }
         };

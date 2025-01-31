@@ -1,4 +1,5 @@
 use reqwest::{Client, Response};
+use log::{info, error};
 use crate::openai::{
     OPENAI_BASE_URL, OPENAI_EMBED_URL, RETRY_BASE_DELAY,
     DEBUG_PRE, DEBUG_POST,
@@ -38,7 +39,7 @@ pub async fn request_chat(
             break;
         }
 
-        println!(
+        info!(
             "Retry {}/{}. Code error: {:?}", 
             attempt,
             max_retries,
@@ -58,7 +59,7 @@ pub async fn request_chat(
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        println!("Response code: {}", response.status());
+        error!("Response code: {}", response.status());
         match response.json::<ErrorResponse>().await {
             Ok(error_detail) => {
                 return Err(OpenAIError::GenericError {

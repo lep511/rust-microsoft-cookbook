@@ -3,6 +3,7 @@ use crate::llmerror::GeminiError;
 use crate::gemini::libs::Candidate;
 use serde_json::{json, Value};
 use schemars::schema::RootSchema;
+use log::error;
 
 /// Gets the API key from the environment variables
 ///
@@ -12,21 +13,16 @@ use schemars::schema::RootSchema;
 /// # Panics
 /// * If the GEMINI_API_KEY environment variable is not set
 ///
-/// # Examples
-/// ```
-/// let api_key = get_api_key();
-/// println!("API key: {}", api_key);
-/// ```
 pub trait GetApiKey {
     fn get_api_key() -> Result<String, GeminiError> {
         match env::var("GEMINI_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                println!("[ERROR] GEMINI_API_KEY not found in environment variables");
+                error!("Error GEMINI_API_KEY not found in environment variables");
                 Err(GeminiError::ApiKeyNotFound)
             }
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 Err(GeminiError::EnvError(e))
             }
         }
@@ -44,7 +40,7 @@ pub fn print_pre(request: &impl serde::Serialize, active: bool) {
     } else {
         match serde_json::to_string_pretty(request) {
             Ok(json) => println!("Pretty-printed JSON:\n{}", json),
-            Err(e) => println!("[ERROR] {:?}", e)
+            Err(e) => error!("Error {:?}", e)
         }
     }
 }

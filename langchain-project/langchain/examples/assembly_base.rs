@@ -2,6 +2,7 @@ use langchain::assembly::TranscriptAssemblyAI;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     // UPLOAD FILE
     let audio_file = "tests/files/audio.mp3";

@@ -1,5 +1,6 @@
 use crate::llmerror::LangsmithError;
 use std::env;
+use log::error;
 
 /// Gets the LANGSMITH_API_KEY from the environment variables
 pub trait GetApiKey {
@@ -7,11 +8,11 @@ pub trait GetApiKey {
         match env::var("LANGSMITH_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                println!("[ERROR] LANGSMITH_API_KEY not found in environment variables");
+                error!("Error LANGSMITH_API_KEY not found in environment variables");
                 Err(LangsmithError::ApiKeyNotFound)
             }
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 Err(LangsmithError::EnvError(e))
             }
         }
@@ -29,7 +30,7 @@ pub fn print_pre(request: &impl serde::Serialize, active: bool) {
     } else {
         match serde_json::to_string_pretty(request) {
             Ok(json) => println!("Pretty-printed JSON:\n{}", json),
-            Err(e) => println!("[ERROR] {:?}", e)
+            Err(e) => error!("Error {:?}", e)
         }
     }
 }

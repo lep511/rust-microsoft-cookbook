@@ -5,7 +5,6 @@ pub mod embed;
 pub mod libs;
 pub mod utils;
 pub mod requests;
-pub mod errors;
 
 pub const RETRY_BASE_DELAY: Duration = Duration::from_secs(2);
 

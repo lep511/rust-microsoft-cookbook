@@ -1,8 +1,10 @@
 #[allow(dead_code)]
 use langchain::gemini::chat::ChatGemini;
+use env_logger::Env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     // Gemini 2.0 Flash Thinking Mode is an experimental model that's 
     // trained to generate the "thinking process" the model goes through 
     // as part of its response. As a result, Thinking Mode is capable of 

@@ -3,8 +3,10 @@ use langchain::anthropic::embed::EmbedMultiVoyage;
 use std::fs::File;
 use std::io::Read;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use env_logger::Env;
 
 async fn example_url_image() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     // === URL IMAGE ===
     let llm = EmbedMultiVoyage::new("voyage-multimodal-3")?;
     let imag_url = "https://raw.githubusercontent.com/voyage-ai/voyage-multimodal-3/refs/heads/main/images/banana.jpg";

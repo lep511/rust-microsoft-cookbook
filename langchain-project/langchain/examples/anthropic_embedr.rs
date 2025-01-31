@@ -2,7 +2,9 @@
 use langchain::anthropic::embed::EmbedRankVoyage;
 use langchain::anthropic::libs::EmbedResponse;
 use langchain::anthropic::chat::ChatAnthropic;
+use env_logger::Env;
 use std::cmp::Ordering::Equal;
+use env_logger::Env;
 
 fn get_highest_relevance_score(response: &EmbedResponse) -> Option<(f64, usize)> {
     response.data.as_ref()
@@ -17,6 +19,7 @@ fn get_highest_relevance_score(response: &EmbedResponse) -> Option<(f64, usize)>
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let llm = EmbedRankVoyage::new("rerank-2-lite")?;
 
     let doc1 = "Document 1: \
@@ -69,7 +72,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some((score, index)) = get_highest_relevance_score(&response) {
         println!("Question: {}", query);
         println!("Highest relevance score: {} at index: {}", score, index);
-        let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+        env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
         let prompt = format!("Based on the following document. Respond to the query. \
             Query: {query}. \
             Document: {documents}. \

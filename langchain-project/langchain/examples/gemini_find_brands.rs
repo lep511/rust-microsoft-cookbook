@@ -1,5 +1,6 @@
 #[allow(dead_code)]
 use langchain::gemini::chat::ChatGemini;
+use env_logger::Env;
 use langchain::gemini::libs::Part;
 
 #[derive(Debug)]
@@ -9,6 +10,7 @@ struct TestCase<'a> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let llm = ChatGemini::new("gemini-1.5-pro-latest")?;
     let llm = llm.with_temperature(0.9);
     let llm = llm.with_max_tokens(2048);

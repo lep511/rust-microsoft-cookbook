@@ -20,11 +20,11 @@ pub trait GetApiKey {
         match env::var("COMPATIBLE_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                error!("[ERROR] COMPATIBLE_API_KEY not found in environment variables");
+                error!("Error COMPATIBLE_API_KEY not found in environment variables");
                 Err(CompatibleChatError::ApiKeyNotFound)
             }
             Err(e) => {
-                error!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 Err(CompatibleChatError::EnvError(e))
             }
         }
@@ -42,7 +42,7 @@ pub fn print_pre(request: &impl serde::Serialize, active: bool) {
     } else {
         match serde_json::to_string_pretty(request) {
             Ok(json) => println!("Pretty-printed JSON:\n{}", json),
-            Err(e) => error!("[ERROR] {:?}", e)
+            Err(e) => error!("Error {:?}", e)
         }
     }
 }

@@ -2,9 +2,11 @@
 // use langchain::gemini::ChatGemini;
 use langchain::gemini::embed::EmbedGemini;
 use langchain::gemini::libs::TaskType;
+use env_logger::Env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     // The Embedding model is optimized for creating embeddings 
     // with 768 dimensions for text of up to 2,048 tokens.

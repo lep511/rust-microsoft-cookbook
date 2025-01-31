@@ -24,6 +24,7 @@ use langchain::compatible::libs::ChatResponse;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
+use env_logger::Env;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct SocialDeterminants {
@@ -43,6 +44,7 @@ struct SocialDeterminants {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let prompt = "You are a medical coding API specializing in social determinants of health that responds in JSON. \
             Your job is to extract structured SDOH data from an unstructured clinical note and output the structured data in JSON. \

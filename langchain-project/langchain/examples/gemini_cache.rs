@@ -1,11 +1,13 @@
 #[allow(dead_code)]
 use langchain::gemini::chat::ChatGemini;
+use env_logger::Env;
 use std::fs::File;
 use std::io::Read;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     // Read into a byte vector
     let mut file_01 = File::open("tests/files/apolo11.txt")?;

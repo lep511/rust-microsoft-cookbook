@@ -5,6 +5,7 @@ use crate::llmerror::ReplicateError;
 use std::io::copy;
 use std::fs::File;
 use std::env;
+use log::error;
 
 pub static REPLICATE_BASE_URL: &str = " https://api.replicate.com/v1";
 
@@ -13,11 +14,11 @@ pub trait GetApiKey {
         match env::var("REPLICATE_API_TOKEN") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                println!("[ERROR][E001] REPLICATE_API_TOKEN not found in environment variables");
+                error!("Error[E001] REPLICATE_API_TOKEN not found in environment variables");
                 Err(ReplicateError::ApiKeyNotFound)
             }
             Err(error) => {
-                println!("[ERROR][E002] {:?}", error);
+                error!("Error[E002] {:?}", error);
                 Err(ReplicateError::EnvError(error))
             }
         }
@@ -62,7 +63,7 @@ impl ReplicateModels {
         // let _pretty_json = match serde_json::to_string_pretty(&self.request) {
         //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
         //     Err(error) => {
-        //         println!("[ERROR][E003] {:?}", error);
+        //         error!("Error[E003] {:?}", error);
         //     }
         // };
 
@@ -82,18 +83,18 @@ impl ReplicateModels {
         // let _pretty_json = match serde_json::to_string_pretty(&response) {
         //     Ok(json) =>  println!("Pretty-printed JSON:\n{}", json),
         //     Err(error) => {
-        //         println!("[ERROR][E004] {:?}", error);
+        //         error!("Error[E004] {:?}", error);
         //     }
         // };
 
         if response.get("output").is_none() {
-            println!("[ERROR][E114] {:?}", response);
+            error!("Error[E114] {:?}", response);
             match serde_json::to_string_pretty(&response) {
                 Ok(response_form) => {
-                    println!("[ERROR][E114.1] {}", response_form);
+                    error!("Error[E114.1] {}", response_form);
                 }
                 Err(_) => {
-                    println!("[ERROR][E114.2] {:?}", response);
+                    error!("Error[E114.2] {:?}", response);
                 }
             };
             return Err(ReplicateError::ResponseContentError);
@@ -125,7 +126,7 @@ impl ReplicateModels {
         let mut file = match File::create(file_name) {
             Ok(file) => file,
             Err(error) => {
-                println!("[ERROR][E117] {:?}", error);
+                error!("Error[E117] {:?}", error);
                 return Err(ReplicateError::FileCreateError);
             }
         };
@@ -134,7 +135,7 @@ impl ReplicateModels {
         match copy(&mut bytes.as_ref(), &mut file) {
             Ok(_) => {}
             Err(error) => {
-                println!("[ERROR][E118] {:?}", error);
+                error!("Error[E118] {:?}", error);
                 return Err(ReplicateError::FileCopyError);
             }
         };

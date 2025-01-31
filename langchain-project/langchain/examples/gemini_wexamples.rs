@@ -1,5 +1,6 @@
 #[allow(dead_code)]
 use langchain::gemini::chat::ChatGemini;
+use env_logger::Env;
 use langchain::gemini::libs::Part;
 
 #[derive(Debug)]
@@ -10,6 +11,7 @@ struct SampleCase<'a> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
 
     let prompt = "input: We prepared our impairment test as of December 2022 and determined that the fair \

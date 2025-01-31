@@ -1,8 +1,10 @@
 use langchain::langsmith::client::LangsmithClient;
+use env_logger::Env;
 use serde_json::Value;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let client = LangsmithClient::new()?;
     let model_name = "Claude 3.5 Sonnet";

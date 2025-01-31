@@ -139,7 +139,7 @@ pub fn strem_chat(
             .await {
                 Ok(response) => response,
                 Err(e) => {
-                    error!("[ERROR] Error sending request: {}", e);
+                    error!("Error Error sending request: {}", e);
                     return
                 }
             };
@@ -165,19 +165,19 @@ pub fn strem_chat(
                                         yield stream_response;
                                     },
                                     Err(e) => {
-                                        error!("[ERROR] Error parsing chunk: {}", e);
+                                        error!("Error Error parsing chunk: {}", e);
                                     }
                                 }    
                             }
                         }
                     },
                     Err(e) => {
-                        error!("[ERROR] Error reading chunk: {}", e);
+                        error!("Error Error reading chunk: {}", e);
                     }
                 }
             }
         } else {
-            error!("[ERROR] {}", response.status());
+            error!("Error Request failed with status code: {}", response.status());
         }
     }
 }

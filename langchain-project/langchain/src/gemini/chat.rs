@@ -1,5 +1,6 @@
 use futures::pin_mut;
 use futures::StreamExt;
+use log::error;
 use async_stream::stream;
 use crate::llmerror::GeminiError;
 use crate::gemini::utils::{
@@ -103,7 +104,7 @@ impl ChatGemini {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(GeminiError::RequestChatError);
             }
         };
@@ -111,13 +112,13 @@ impl ChatGemini {
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(GeminiError::ResponseContentError);
             }
         };
 
         if let Some(error) = chat_response.error {
-            println!("[ERROR] {:?}", error);
+            error!("Error {:?}", error);
             return Err(GeminiError::ResponseContentError);
         } else {
             let format_response = ChatResponse {
@@ -188,10 +189,10 @@ impl ChatGemini {
         );
                 
         if file_path.is_some() && upload_data.is_some() {
-            println!("[ERROR] Can't use both file_path and upload_data");
+            error!("Error Can't use both file_path and upload_data");
             return Err(GeminiError::RequestUploadError);
         } else if file_path.is_none() && upload_data.is_none() {
-            println!("[ERROR] Must use file_path or upload_data");
+            error!("Error Must use file_path or upload_data");
             return Err(GeminiError::RequestUploadError);
         }
  
@@ -208,7 +209,7 @@ impl ChatGemini {
             let num_bytes = match metadata(file_path) {
                 Ok(file_data) => file_data.len(),
                 Err(e) => {
-                    println!("[ERROR] Read local file. {:?}", e);
+                    error!("Error Read local file. {:?}", e);
                     return Err(GeminiError::RequestUploadError);
                 }
             };
@@ -218,7 +219,7 @@ impl ChatGemini {
             let mut file_content = match File::open(file_path) {
                 Ok(file) => file,
                 Err(e) => {
-                    println!("[ERROR] Open local file. {:?}", e);
+                    error!("Error Open local file. {:?}", e);
                     return Err(GeminiError::RequestUploadError);
                 }
             };
@@ -228,7 +229,7 @@ impl ChatGemini {
             match file_content.read_to_end(&mut buffer) {
                 Ok(_) => (),
                 Err(e) => {
-                    println!("[ERROR] Read local file. {:?}", e);
+                    error!("Error Read local file. {:?}", e);
                     return Err(GeminiError::RequestUploadError);
                 }
             };
@@ -240,7 +241,7 @@ impl ChatGemini {
         // -------- Base 64 data ---------
         if let Some(upload_data) = upload_data {
             if mime_type == "auto" {
-                println!("[ERROR] Can't use auto with upload_data");
+                error!("Error Can't use auto with upload_data");
                 return Err(GeminiError::InvalidMimeType);
             }
             let num_bytes = get_base64_bytes_length(&upload_data);
@@ -257,7 +258,7 @@ impl ChatGemini {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(GeminiError::RequestUploadError);
             }
         };
@@ -299,7 +300,7 @@ impl ChatGemini {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(GeminiError::RequestCacheError);
             }
         }; 
@@ -552,7 +553,7 @@ impl ChatGemini {
             let last_content = contents.last().cloned();
             return last_content;
         } else {
-            println!("[ERROR] No contents found");
+            error!("Error No contents found");
             return None;
         }
     }
@@ -561,7 +562,7 @@ impl ChatGemini {
         let api_key = match Self::get_api_key() {
             Ok(key) => key,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return self;
             }
         };

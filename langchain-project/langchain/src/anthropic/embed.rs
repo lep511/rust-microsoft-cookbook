@@ -6,6 +6,7 @@ use crate::anthropic::libs::{
     EmbedRequest, Content, InputEmbed, EmbedContent,
     EmbedResponse, AnthropicEmbedEndpoint
 };
+use log::error;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -56,7 +57,7 @@ impl EmbedVoyage {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(AnthropicError::ResponseContentError);
             }
         };
@@ -64,12 +65,12 @@ impl EmbedVoyage {
         let embed_response: EmbedResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(AnthropicError::ResponseContentError);
             }
         };
         if let Some(detail) = embed_response.detail {
-            println!("[ERROR] {}", detail);
+            error!("Error {}", detail);
             return Err(AnthropicError::ResponseContentError);
         } else {
             Ok(embed_response)
@@ -154,7 +155,7 @@ impl EmbedMultiVoyage {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(AnthropicError::ResponseContentError);
             }
         };
@@ -162,12 +163,12 @@ impl EmbedMultiVoyage {
         let embed_response: EmbedResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(AnthropicError::ResponseContentError);
             }
         };
         if let Some(detail) = embed_response.detail {
-            println!("[ERROR] {}", detail);
+            error!("Error {}", detail);
             return Err(AnthropicError::ResponseContentError);
         } else {
             Ok(embed_response)
@@ -208,7 +209,7 @@ impl EmbedMultiVoyage {
     ) -> Self {
 
         if !MIME_TYPE_SUPPORTED.contains(&media_type) {
-            println!(
+            error!(
                 "[ERROR] Unsupported media type: {}. Supported: {}", 
                 media_type,
                 MIME_TYPE_SUPPORTED.join(", ")
@@ -294,7 +295,7 @@ impl EmbedRankVoyage {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(AnthropicError::ResponseContentError);
             }
         };
@@ -302,12 +303,12 @@ impl EmbedRankVoyage {
         let embed_response: EmbedResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(AnthropicError::ResponseContentError);
             }
         };
         if let Some(detail) = embed_response.detail {
-            println!("[ERROR] {}", detail);
+            error!("Error {}", detail);
             return Err(AnthropicError::ResponseContentError);
         } else {
             Ok(embed_response)

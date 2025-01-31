@@ -1,9 +1,11 @@
 use langchain::anthropic::chat::ChatAnthropic;
+use env_logger::Env;
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
 
     let tool_data = json!({
@@ -70,7 +72,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response_function = "15 degrees C°";
     let tool_choice = None;
 
-    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
 
     let response = llm
         .with_chat_history(history)

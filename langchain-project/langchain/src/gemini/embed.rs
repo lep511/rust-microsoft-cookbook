@@ -4,6 +4,7 @@ use crate::gemini::libs::{
     Content, Part, EmbedResponse,EmbedRequest, TaskType
 };
 use crate::gemini::requests::request_embed;
+use log::error;
 
 pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -81,7 +82,7 @@ impl EmbedGemini {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(GeminiError::RequestEmbedError);
             }
         };
@@ -89,12 +90,12 @@ impl EmbedGemini {
         let embed_response: EmbedResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
-                println!("[ERROR] {:?}", e);
+                error!("Error {:?}", e);
                 return Err(GeminiError::ResponseContentError);
             }
         };
         if let Some(error) = embed_response.error {
-            println!("[ERROR] {:?}", error);
+            error!("Error {:?}", error);
             return Err(GeminiError::ResponseContentError);
         } else {
             Ok(embed_response)

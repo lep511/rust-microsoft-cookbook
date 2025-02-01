@@ -83,7 +83,6 @@ impl ChatOpenAI {
         ).await {
             Ok(response) => response,
             Err(openai_error) => {
-                error!("Failed to get response from request. ERROR-req-0022");
                 return Err(openai_error);
             }
         };

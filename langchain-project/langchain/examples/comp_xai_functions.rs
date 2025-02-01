@@ -3,6 +3,7 @@ use reqwest;
 use langchain::compatible::chat::ChatCompatible;
 use langchain::compatible::libs::ChatResponse;
 use serde_json::{json, Value, Map};
+use env_logger::Env;
 
 const BASE_URL: &str = "https://api.open-meteo.com/v1";
 
@@ -26,6 +27,8 @@ async fn get_weather(latitude: f64, longitude: f64) -> Result<Value, Box<dyn std
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    
     let base_url = "https://api.x.ai/v1/chat/completions";
     let model = "grok-2-latest";
     let llm = ChatCompatible::new(base_url, model)?;
@@ -129,6 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let prompt_fmt = format!(
         "Based on this information: \n \
         {} \n \
+        Important: today's date is the date shown in the supplementary information above. \
         Answer this question: \n \
         {} \n",
         weather_data_string,

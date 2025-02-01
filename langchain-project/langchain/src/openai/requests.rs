@@ -188,6 +188,27 @@ pub async fn manage_error(
                 "invalid_api_key" => OpenAIError::AuthenticationError(
                     error_detail.error.message
                 ),
+                "invalid_request_error" => OpenAIError::BadRequestError(
+                    error_detail.error.message
+                ),
+                "rate_limit_error" => OpenAIError::RateLimitError(
+                    error_detail.error.message
+                ),
+                "tokens_exceeded_error" => OpenAIError::RateLimitError(
+                    error_detail.error.message
+                ),
+                "authentication_error" => OpenAIError::AuthenticationError(
+                    error_detail.error.message
+                ),
+                "not_found_error" => OpenAIError::NotFoundError(
+                    error_detail.error.message
+                ),
+                "server_error" => OpenAIError::InternalServerError(
+                    error_detail.error.message
+                ),
+                "permission_error" => OpenAIError::PermissionDeniedError(
+                    error_detail.error.message
+                ), 
                 _ => OpenAIError::GenericError {
                     code: error_detail.error.code,
                     message: error_detail.error.message,

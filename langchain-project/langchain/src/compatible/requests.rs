@@ -1,5 +1,5 @@
 use reqwest::{Client, Response};
-use log::{info, warn, error};
+use log::{warn, error};
 use async_stream::stream;
 use futures::StreamExt;
 use crate::compatible::{DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY};
@@ -27,6 +27,8 @@ pub async fn request_chat(
     // Serializes the request struct into a JSON byte vector
     let request_body = serde_json::to_vec(request)?;
 
+    println!("Url {}", url);
+
     let mut response: Response = make_request(
         &client,
         url,
@@ -38,12 +40,7 @@ pub async fn request_chat(
     for attempt in 1..=max_retries {
         if response.status().is_success() { break; }
 
-        info!(
-            "Retry {}/{}. Code error: {:?}", 
-            attempt,
-            max_retries,
-            response.status()
-        );
+        warn!("Server error (attempt {}/{}): {}", attempt, max_retries, response.status());
 
         sleep(RETRY_BASE_DELAY).await;
         
@@ -56,23 +53,11 @@ pub async fn request_chat(
         ).await?;
     }
 
+
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        error!("Response code: {}", response.status());
-        match response.json::<ErrorResponse>().await {
-            Ok(error) => {
-                return Err(CompatibleChatError::GenericError {
-                    message: error.detail,
-                    detail: "ERROR-req-9822".to_string(),
-                });
-            }
-            Err(e) => {
-                return Err(CompatibleChatError::GenericError {
-                    message: format!("[ERROR]: {}", e),
-                    detail: "ERROR-req-9823".to_string(),
-                });
-            }
-        }
+        let comp_error: CompatibleChatError = manage_error(response).await;
+        return Err(comp_error);
     }
 
     let response_data = response.json::<serde_json::Value>().await?;
@@ -98,21 +83,8 @@ pub async fn get_request(
         .await?;
 
     if !response.status().is_success() {
-        error!("Response code: {}", response.status());
-        match response.json::<ErrorResponse>().await {
-            Ok(error) => {
-                return Err(CompatibleChatError::GenericError {
-                    message: error.detail,
-                    detail: "ERROR-req-9822".to_string(),
-                });
-            }
-            Err(e) => {
-                return Err(CompatibleChatError::GenericError {
-                    message: format!("Error: {}", e),
-                    detail: "ERROR-req-9823".to_string(),
-                });
-            }
-        }
+        let comp_error: CompatibleChatError = manage_error(response).await;
+        return Err(comp_error);
     }
     
     let response_data = response.json::<serde_json::Value>().await?;
@@ -219,4 +191,25 @@ pub async fn make_request(
         .body(request_body.to_vec())
         .send()
         .await?)
+}
+
+pub async fn manage_error(
+    response: Response,
+) -> CompatibleChatError {
+    error!("Response code: {}", response.status());
+
+    match response.json::<ErrorResponse>().await {
+        Ok(error) => {
+            CompatibleChatError::GenericError {
+                message: error.detail,
+                detail: "ERROR-req-9822".to_string(),
+            }
+        }
+        Err(_) => {
+            CompatibleChatError::GenericError {
+                message: "Unknown error.".to_string(),
+                detail: "ERROR-req-9823".to_string(),
+            }
+        }
+    }
 }

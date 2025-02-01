@@ -4,7 +4,6 @@ use serde_json::json;
 use std::fs;
 
 pub async fn article_summarization() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let llm = ChatAnthropic::new("claude-3-5-haiku-20241022")?;
 
     let file_path = "tests/files/anthropic_web_scraping.txt";
@@ -202,7 +201,8 @@ pub async fn unknown_keys() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // article_summarization().await?
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    // article_summarization().await?;
     // entity_recognition().await?;
     unknown_keys().await?;
     

@@ -82,13 +82,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         let response = llm.invoke(&prompt).await?;
         if let Some(candidates) = response.content {
-            for candidate in candidates {
-                match candidate.text {
-                    Some(text) => println!("{}", text),
-                    None => println!(""),
-                }
-            }
-        };
+            candidates.iter()
+                .filter_map(|c| c.text.as_ref())
+                .for_each(|text| println!("{text}"));
+        } else {
+            println!("No response choices available");
+        }
     }
 
     Ok(())

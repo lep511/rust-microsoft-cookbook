@@ -1,13 +1,16 @@
 use futures::pin_mut;
 use futures::StreamExt;
 use async_stream::stream;
-use log::error;
+use log::{info, error};
 use crate::compatible::requests::{
     request_chat, get_request, strem_chat,
 };
 use crate::compatible::utils::GetApiKey;
 use crate::compatible::libs::{ChatRequest, Message, ChatResponse};
 use crate::llmerror::CompatibleChatError;
+use tokio::time::sleep;
+use std::time::Duration;
+use serde_json::json;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -81,9 +84,9 @@ impl ChatCompatible {
             self.max_retries,
         ).await {
             Ok(response) => response,
-            Err(e) => {
-                error!("Error {:?}", e);
-                return Err(CompatibleChatError::ResponseContentError);
+            Err(error) => {
+                error!("Error {:?}", error);
+                return Err(error);
             }
         };
 
@@ -120,9 +123,7 @@ impl ChatCompatible {
         mut self, 
         input: serde_json::Value,
     ) -> Result<serde_json::Value, CompatibleChatError> {
-        let model = self.request.model.unwrap_or("".to_string());
-        let url_format = format!("{}/{}", self.url, model);
-        self.url = url_format;
+        let url_format = format!("{}/{}", self.url, self.model);
        
         let request = ChatRequest {
             model: None,
@@ -146,7 +147,7 @@ impl ChatCompatible {
         self.request = request;
     
         let response: serde_json::Value = match request_chat(
-            &self.url,
+            &url_format,
             &self.request,
             &self.api_key,
             self.timeout,
@@ -158,8 +159,38 @@ impl ChatCompatible {
                 return Err(CompatibleChatError::ResponseContentError);
             }
         };
-        
-        Ok(response)
+
+        let url_str = response
+            .get("urls")
+            .and_then(|urls| urls.get("get"))
+            .and_then(|url| url.as_str())
+            .ok_or(CompatibleChatError::ResponseContentError)?;
+
+        let mut status = String::from("processing");
+
+        while status == "processing" {
+            let response = get_request(url_str, &self.api_key)
+                .await
+                .map_err(|e| {
+                    error!("Error fetching response: {:?}", e);
+                    CompatibleChatError::ResponseContentError
+                })?;
+    
+            status = response
+                .get("status")
+                .and_then(|s| s.as_str())
+                .unwrap_or("error")
+                .to_string();
+    
+            if status == "processing" {
+                info!("Status: {}", status);
+                sleep(Duration::from_secs(4)).await;
+            } else {
+                return Ok(response);
+            }
+        }
+    
+        Ok(json!({"detail": "Not found"}))
     }
     
     pub async fn baseten_invoke(

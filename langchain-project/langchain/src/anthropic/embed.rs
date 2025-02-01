@@ -56,9 +56,9 @@ impl EmbedVoyage {
             endpoint
         ).await {
             Ok(response) => response,
-            Err(e) => {
-                error!("Error {:?}", e);
-                return Err(AnthropicError::ResponseContentError);
+            Err(error) => {
+                error!("Error {:?}", error);
+                return Err(error);
             }
         };
                
@@ -66,12 +66,12 @@ impl EmbedVoyage {
             Ok(response_form) => response_form,
             Err(e) => {
                 error!("Error {:?}", e);
-                return Err(AnthropicError::ResponseContentError);
+                return Err(AnthropicError::VoyageError(e.to_string()));
             }
         };
         if let Some(detail) = embed_response.detail {
             error!("Error {}", detail);
-            return Err(AnthropicError::ResponseContentError);
+            return Err(AnthropicError::VoyageError(detail));
         } else {
             Ok(embed_response)
         }
@@ -156,7 +156,7 @@ impl EmbedMultiVoyage {
             Ok(response) => response,
             Err(e) => {
                 error!("Error {:?}", e);
-                return Err(AnthropicError::ResponseContentError);
+                return Err(AnthropicError::VoyageError(e.to_string()));
             }
         };
 
@@ -164,12 +164,12 @@ impl EmbedMultiVoyage {
             Ok(response_form) => response_form,
             Err(e) => {
                 error!("Error {:?}", e);
-                return Err(AnthropicError::ResponseContentError);
+                return Err(AnthropicError::VoyageError(e.to_string()));
             }
         };
         if let Some(detail) = embed_response.detail {
             error!("Error {}", detail);
-            return Err(AnthropicError::ResponseContentError);
+            return Err(AnthropicError::VoyageError(detail));
         } else {
             Ok(embed_response)
         }
@@ -294,9 +294,9 @@ impl EmbedRankVoyage {
             endpoint,
         ).await {
             Ok(response) => response,
-            Err(e) => {
-                error!("Error {:?}", e);
-                return Err(AnthropicError::ResponseContentError);
+            Err(error) => {
+                error!("Error {:?}", error);
+                return Err(error);
             }
         };
         
@@ -304,12 +304,12 @@ impl EmbedRankVoyage {
             Ok(response_form) => response_form,
             Err(e) => {
                 error!("Error {:?}", e);
-                return Err(AnthropicError::ResponseContentError);
+                return Err(AnthropicError::VoyageError(e.to_string()));
             }
         };
         if let Some(detail) = embed_response.detail {
             error!("Error {}", detail);
-            return Err(AnthropicError::ResponseContentError);
+            return Err(AnthropicError::VoyageError(detail));
         } else {
             Ok(embed_response)
         }

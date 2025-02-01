@@ -1,7 +1,8 @@
 use reqwest::{Client, Response};
-use log::{info, error};
+use log::{warn, error};
 use crate::anthropic::libs::{
-    ChatRequest, EmbedRequest, AnthropicEmbedEndpoint, ErrorResponse
+    ChatRequest, EmbedRequest, AnthropicEmbedEndpoint, 
+    ErrorResponse, VoyageError,
 };
 use crate::anthropic::utils::print_pre;
 use crate::anthropic::{
@@ -31,7 +32,7 @@ use tokio::time::sleep;
 pub async fn request_chat(
     request: &ChatRequest,
     api_key: &str,
-    timeout: u64,
+    timeout: Duration,
     max_retries: u32,
 ) -> Result<String, AnthropicError> {
     // Creates an HTTPS-capable client using rustls TLS implementation.
@@ -56,12 +57,7 @@ pub async fn request_chat(
             break;
         }
 
-        info!(
-            "Retry {}/{}. Code error: {:?}", 
-            attempt,
-            max_retries,
-            response.status()
-        );
+        warn!("Server error (attempt {}/{}): {}", attempt, max_retries, response.status());
 
         sleep(RETRY_BASE_DELAY).await;
         
@@ -75,21 +71,8 @@ pub async fn request_chat(
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        error!("Response code: {}", response.status());
-        match response.json::<ErrorResponse>().await {
-            Ok(error_detail) => {
-                return Err(AnthropicError::GenericError {
-                    message: error_detail.error.message,
-                    detail: "ERROR-req-9822".to_string(),
-                });
-            }
-            Err(e) => {
-                return Err(AnthropicError::GenericError {
-                    message: format!("Error: {}", e),
-                    detail: "ERROR-req-9823".to_string(),
-                });
-            }
-        }
+        let anthropic_error: AnthropicError = manage_error(response).await;
+        return Err(anthropic_error);   
     }
 
     let response_data = response.json::<serde_json::Value>().await?;
@@ -144,12 +127,8 @@ pub async fn request_embed(
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        error!("Response code: {}", response.status());
-        
-        return Err(AnthropicError::GenericError {
-            message: "Error in request_embed".to_string(),
-            detail: "ERROR-req-9835".to_string(),
-        });
+        let anthropic_error: AnthropicError = manage_voyage_error(response).await;
+        return Err(anthropic_error);   
     }
 
     let response_data = response.json::<serde_json::Value>().await?;
@@ -188,21 +167,8 @@ pub async fn get_request(
     ).await?;
 
     if !response.status().is_success() {
-        error!("Response code: {}", response.status());
-        match response.json::<ErrorResponse>().await {
-            Ok(error_detail) => {
-                return Err(AnthropicError::GenericError {
-                    message: error_detail.error.message,
-                    detail: "ERROR-req-9822".to_string(),
-                });
-            }
-            Err(e) => {
-                return Err(AnthropicError::GenericError {
-                    message: format!("Error: {}", e),
-                    detail: "ERROR-req-9823".to_string(),
-                });
-            }
-        }
+        let anthropic_error: AnthropicError = manage_error(response).await;
+        return Err(anthropic_error);   
     }
     
     let response_data = response.json::<Value>().await?;
@@ -239,11 +205,11 @@ pub async fn make_request(
     client: &Client,
     api_key: &str,
     request_body: &[u8],
-    timeout: u64,
+    timeout: Duration,
 ) -> Result<Response, reqwest::Error> {
     Ok(client
         .post(ANTHROPIC_BASE_URL)
-        .timeout(Duration::from_secs(timeout))
+        .timeout(timeout)
         .header("x-api-key", api_key)
         .header("anthropic-version", ANTHROPIC_VERSION)
         .header("Content-Type", "application/json")
@@ -325,4 +291,74 @@ pub async fn make_get_request(
         .header("Accept", "application/json")
         .send()
         .await?)
+}
+
+pub async fn manage_error(
+    response: Response,
+) -> AnthropicError {
+    error!("Response code: {}", response.status());
+
+    match response.json::<ErrorResponse>().await {
+        Ok(error_detail) => {
+            match error_detail.error.error_type.as_str() {
+                "authentication_error" => AnthropicError::AuthenticationError(
+                    error_detail.error.message
+                ),
+                "invalid_request_error" => AnthropicError::BadRequestError(
+                    error_detail.error.message
+                ),
+                "permission_error" => AnthropicError::PermissionDeniedError(
+                    error_detail.error.message
+                ),
+                "not_found_error" => AnthropicError::NotFoundError(
+                    error_detail.error.message
+                ),
+                "request_too_large" => AnthropicError::RequestTooLarge(
+                    error_detail.error.message
+                ),
+                "rate_limit_error" => AnthropicError::RateLimitError(
+                    error_detail.error.message
+                ),
+                "api_error" => AnthropicError::APIConnectionError(
+                    error_detail.error.message
+                ),
+                "overloaded_error" => AnthropicError::OverloadedServerError(
+                    error_detail.error.message
+                ),
+                _ => AnthropicError::GenericError {
+                    code: error_detail.error.error_type,
+                    message: error_detail.error.message,
+                    detail: "ERROR-req-9822".to_string(),
+                },
+            }
+        }
+        Err(e) => {
+            AnthropicError::GenericError {
+                code: "None".to_string(),
+                message: format!("Error: {}", e),
+                detail: "ERROR-req-9823".to_string(),
+            }
+        }
+    }
+}
+
+pub async fn manage_voyage_error(
+    response: Response,
+) -> AnthropicError {
+    error!("Response code: {}", response.status());
+
+    match response.json::<VoyageError>().await {
+        Ok(error) => {
+            AnthropicError::VoyageError(
+                error.detail,
+            )
+        }
+        Err(e) => {
+            AnthropicError::GenericError {
+                code: "None".to_string(),
+                message: format!("Error: {}", e),
+                detail: "ERROR-req-9853".to_string(),
+            }
+        }
+    }
 }

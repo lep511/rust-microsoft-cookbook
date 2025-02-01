@@ -7,6 +7,7 @@ use crate::anthropic::utils::{GetApiKey, read_file_data};
 use crate::anthropic::requests::request_chat;
 use crate::llmerror::AnthropicError;
 use serde_json::Value;
+use std::time::Duration;
 use log::error;
 
 #[allow(dead_code)]
@@ -14,7 +15,7 @@ use log::error;
 pub struct ChatAnthropic {
     pub api_key: String,
     pub request: ChatRequest,
-    pub timeout: u64,
+    pub timeout: Duration,
     pub max_retries: u32,
 }
 
@@ -37,7 +38,7 @@ impl ChatAnthropic {
         Ok(Self {
             api_key: api_key,
             request: request,
-            timeout: 15 * 60, // default: 15 minutes 
+            timeout: Duration::from_secs(300), // default: 5 minutes
             max_retries: 3,         // default: 3 times
         })
     }
@@ -156,7 +157,7 @@ impl ChatAnthropic {
     }
 
     pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
-        self.timeout = timeout;
+        self.timeout = Duration::from_secs(timeout);
         self
     }
 

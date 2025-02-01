@@ -29,7 +29,7 @@ pub trait GetApiKeyVoyage {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
                 error!("Error VOYAGE_API_KEY not found in environment variables");
-                Err(AnthropicError::ApiKeyNotFound)
+                Err(AnthropicError::VoyageApiKeyNotFound)
             }
             Err(e) => {
                 error!("Error {:?}", e);

@@ -169,6 +169,7 @@ pub struct Usage {
 /// # Fields
 /// * `error_type` - The primary classification of the error
 /// * `error` - Detailed error information contained in ErrorDetails
+///
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorResponse {
@@ -185,10 +186,24 @@ pub struct ErrorResponse {
 /// # Fields
 /// * `error_type` - Specific type or category of the error
 /// * `message` - Detailed description of what went wrong
+///
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorDetails {
     #[serde(rename = "type")]
     pub error_type: String,
     pub message: String,
+}
+
+/// Contains detailed information about an error in Voyage
+/// 
+/// This struct provides sime details about an error occurrence.
+///
+/// # Fields
+/// * `detail` - Detailed description of what went wrong
+///
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VoyageError {
+    pub detail: String,
 }

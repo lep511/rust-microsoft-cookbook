@@ -8,6 +8,7 @@ use crate::openai::libs::{
     Message, Role, ChatResponse, ImageUrl,
 };
 use crate::llmerror::OpenAIError;
+use std::time::Duration;
 use log::error;
 
 
@@ -16,7 +17,7 @@ use log::error;
 pub struct ChatOpenAI {
     pub api_key: String,
     pub request: ChatRequest,
-    pub timeout: u64,
+    pub timeout: Duration,
     pub max_retries: u32,
 }
 
@@ -44,7 +45,7 @@ impl ChatOpenAI {
         Ok(Self {
             api_key: api_key,
             request: request,
-            timeout: 15 * 60, // default: 15 minutes
+            timeout: Duration::from_secs(300), // default: 5 minutes
             max_retries: 3,         // default: 3 times
         })
     }
@@ -170,7 +171,7 @@ impl ChatOpenAI {
     }
 
     pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
-        self.timeout = timeout;
+        self.timeout = Duration::from_secs(timeout);
         self
     }
 

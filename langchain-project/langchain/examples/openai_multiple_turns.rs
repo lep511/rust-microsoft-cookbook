@@ -29,13 +29,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n#### Turn 1 ####");
     match response.choices {
         Some(candidates) => {
-            for candidate in candidates {
-                #[allow(irrefutable_let_patterns)]
-                if let message = candidate.message {
-                    message_assistant = message.content.expect("Response fail!");
-                    println!("{:?}", message_assistant);
-                }
-            }
+            candidates.iter()
+                .filter_map(|candidate| candidate
+                    .message.as_ref()?
+                    .content.as_ref()
+                ).for_each(|content| {
+                    println!("{}", content);
+                    message_assistant.push_str(content);
+                });
         }
         None => println!("No response choices available"),
     };
@@ -59,12 +60,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n#### Turn 2 ####");
     match response.choices {
         Some(candidates) => {
-            for candidate in candidates {
-                #[allow(irrefutable_let_patterns)]
-                if let message = candidate.message {
-                    println!("{:?}", message.content);
-                }
-            }
+            candidates.iter()
+                .filter_map(|candidate| candidate
+                    .message.as_ref()?
+                    .content.as_ref()
+                ).for_each(|content| println!("{}", content));
         }
         None => println!("No response choices available"),
     };

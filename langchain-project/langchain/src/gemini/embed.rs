@@ -4,6 +4,7 @@ use crate::gemini::libs::{
     Content, Part, EmbedResponse,EmbedRequest, TaskType
 };
 use crate::gemini::requests::request_embed;
+use std::time::Duration;
 use log::error;
 
 pub static GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
@@ -15,6 +16,7 @@ pub struct EmbedGemini {
     pub model: String,
     pub request: EmbedRequest,
     pub max_retries: u32,
+    pub timeout: Duration,
 }
 
 #[allow(dead_code)]
@@ -51,6 +53,7 @@ impl EmbedGemini {
             model: model.to_string(),
             request: request,
             max_retries: 0,
+            timeout: Duration::from_secs(300), // default: 5 minutes
         })
     }
 
@@ -79,6 +82,7 @@ impl EmbedGemini {
             &self.base_url,
             self.request.clone(),
             self.max_retries,
+            self.timeout,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -119,6 +123,11 @@ impl EmbedGemini {
 
     pub fn with_max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = max_retries;
+        self
+    }
+    
+    pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
+        self.timeout = Duration::from_secs(timeout);
         self
     }
 }

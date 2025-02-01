@@ -1,5 +1,5 @@
 use reqwest::{Client, Response};
-use log::{info, warn, error};
+use log::{warn, error};
 use async_stream::stream;
 use futures::StreamExt;
 use crate::openai::{
@@ -17,7 +17,7 @@ use tokio::time::sleep;
 pub async fn request_chat(
     request: &ChatRequest,
     api_key: &str,
-    timeout: u64,
+    timeout: Duration,
     max_retries: u32,
 ) -> Result<String, OpenAIError> {
     // Creates an HTTPS-capable client using rustls TLS implementation.
@@ -44,12 +44,7 @@ pub async fn request_chat(
             break;
         }
 
-        info!(
-            "Retry {}/{}. Code error: {:?}", 
-            attempt,
-            max_retries,
-            response.status()
-        );
+        warn!("Server error (attempt {}/{}): {}", attempt, max_retries, response.status());
 
         sleep(RETRY_BASE_DELAY).await;
         
@@ -170,11 +165,11 @@ pub async fn make_request(
     url: &str,
     api_key: &str,
     request_body: &[u8],
-    timeout: u64,
+    timeout: Duration,
 ) -> Result<Response, reqwest::Error> {
     Ok(client
         .post(url)
-        .timeout(Duration::from_secs(timeout))
+        .timeout(timeout)
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .body(request_body.to_vec())

@@ -2,6 +2,7 @@ use crate::openai::requests::request_embed;
 use crate::openai::libs::{EmbedRequest, EmbedResponse};
 use crate::openai::utils::GetApiKey;
 use crate::llmerror::OpenAIError;
+use std::time::Duration;
 use log::error;
 
 #[allow(dead_code)]
@@ -9,7 +10,7 @@ use log::error;
 pub struct EmbedOpenAI {
     pub model: String,
     pub request: EmbedRequest,
-    pub timeout: u64,
+    pub timeout: Duration,
     pub api_key: String,
 }
 
@@ -26,7 +27,7 @@ impl EmbedOpenAI {
         Ok(Self {
             model: model.to_string(),
             request: request,
-            timeout: 15 * 60, // default: 15 minutes
+            timeout: Duration::from_secs(300), // default: 5 minutes
             api_key: api_key,
         })
     }
@@ -61,7 +62,7 @@ impl EmbedOpenAI {
     }
 
     pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
-        self.timeout = timeout;
+        self.timeout = Duration::from_secs(timeout);
         self
     }
 

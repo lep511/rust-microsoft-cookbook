@@ -68,12 +68,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match response.choices {
         Some(candidates) => {
-            for candidate in candidates {
-                #[allow(irrefutable_let_patterns)]
-                if let Some(content) = candidate.message.content {
-                    println!("{}", content);
-                }
-            }
+            candidates.iter()
+                .filter_map(|candidate| candidate
+                    .message.as_ref()?
+                    .content.as_ref()
+                ).for_each(|content| println!("{}", content));
         }
         None => println!("No response choices available"),
     };

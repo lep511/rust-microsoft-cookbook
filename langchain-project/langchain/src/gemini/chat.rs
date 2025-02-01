@@ -18,6 +18,7 @@ use crate::gemini::{GEMINI_BASE_URL, UPLOAD_BASE_URL};
 use std::fs::File;
 use std::io::Read;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use std::time::Duration;
 use std::fs::metadata;
 
 #[allow(dead_code)]
@@ -26,7 +27,7 @@ pub struct ChatGemini {
     pub base_url: String,
     pub model: String,
     pub request: ChatRequest,
-    pub timeout: u64,
+    pub timeout: Duration,
     pub max_retries: u32,
 }
 
@@ -69,7 +70,7 @@ impl ChatGemini {
             base_url: base_url,
             model: model.to_string(),
             request: request,
-            timeout: 15 * 60, // default: 15 minutes
+            timeout: Duration::from_secs(300), // default: 5 minutes
             max_retries: 3,         // default: 3 times
         })
     }
@@ -297,6 +298,7 @@ impl ChatGemini {
             instruction.to_string(),
             &self.model,
             ttl,
+            self.timeout,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -413,7 +415,7 @@ impl ChatGemini {
     }
     
     pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
-        self.timeout = timeout;
+        self.timeout = Duration::from_secs(timeout);
         self
     }
 

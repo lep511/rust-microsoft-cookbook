@@ -1,6 +1,6 @@
 use reqwest::{Client, Response};
 use reqwest::{self, header::{HeaderMap, HeaderValue}};
-use log::{info, warn, error};
+use log::{warn, error};
 use async_stream::stream;
 use futures::StreamExt;
 use crate::gemini::libs::{ChatRequest, Part, Content, ChatResponse};
@@ -40,7 +40,7 @@ use tokio::time::sleep;
 pub async fn request_chat(
     url: &str, 
     request: &ChatRequest, 
-    timeout: u64,
+    timeout: Duration,
     max_retries: u32,
 ) -> Result<String, GeminiError> {
     // Creates an HTTPS-capable client using rustls TLS implementation.
@@ -65,12 +65,7 @@ pub async fn request_chat(
             break;
         }
 
-        info!(
-            "Retry {}/{}. Code error: {:?}", 
-            attempt,
-            max_retries,
-            response.status()
-        );
+        warn!("Server error (attempt {}/{}): {}", attempt, max_retries, response.status());
 
         sleep(RETRY_BASE_DELAY).await;
 
@@ -216,6 +211,7 @@ pub async fn request_cache(
     instruction: String,
     model: &str,
     ttl: u32,
+    timeout: Duration,
 ) -> Result<String, GeminiError> {
     // Creates an HTTPS-capable client using rustls TLS implementation.
     let client = Client::builder()
@@ -262,7 +258,6 @@ pub async fn request_cache(
 
     // Serializes the request struct into a JSON byte vector
     let request_body = serde_json::to_vec(&request)?;
-    let timeout = 2400;
 
     let response: Response = make_request(
         &client,
@@ -326,6 +321,7 @@ pub async fn request_embed(
     url: &str,
     request: EmbedRequest,
     max_retries: u32,
+    timeout: Duration,
 ) -> Result<String, GeminiError> {
     // Creates an HTTPS-capable client using rustls TLS implementation.
     let client = Client::builder()
@@ -334,7 +330,6 @@ pub async fn request_embed(
  
     print_pre(&request, DEBUG_PRE);
 
-    let timeout = 2400;
     // Serializes the request struct into a JSON byte vector
     let request_body = serde_json::to_vec(&request)?;
     
@@ -350,12 +345,7 @@ pub async fn request_embed(
             break;
         }
 
-        info!(
-            "Retry {}/{}. Code error: {:?}", 
-            attempt,
-            max_retries,
-            response.status()
-        );
+        warn!("Server error (attempt {}/{}): {}", attempt, max_retries, response.status());
 
         sleep(RETRY_BASE_DELAY).await;
 
@@ -464,11 +454,11 @@ pub async fn make_request(
     client: &Client,
     url: &str,
     request_body: &[u8],
-    timeout: u64,
+    timeout: Duration,
 ) -> Result<Response, reqwest::Error> {
     Ok(client
         .post(url)
-        .timeout(Duration::from_secs(timeout))
+        .timeout(timeout)
         .header("Content-Type", "application/json")
         .body(request_body.to_vec())
         .send()

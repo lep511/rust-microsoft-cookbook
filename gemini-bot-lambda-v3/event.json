@@ -3,19 +3,19 @@
     "id":"17793124-05d4-b198-2fde-7ededc63b103",
     "detail-type":"Object Created",
     "source":"aws.s3",
-    "account":"111122223333",
+    "account":"089715336747",
     "time":"2021-11-12T00:00:00Z",
-    "region":"ca-central-1",
+    "region":"us-east-1",
     "resources":[
-        "arn:aws:s3:::amzn-s3-demo-bucket1"
+        "arn:aws:s3:::telegram-data-stream"
     ],
     "detail":{
         "version":"0",
         "bucket":{
-            "name":"amzn-s3-demo-bucket1"
+            "name":"telegram-data-stream"
         },
         "object":{
-            "key":"example-key",
+            "key":"medial_data/medical_inf49334.json",
             "size":5,
             "etag":"b1946ac92492d2347c6235b4d2611184",
             "version-id":"IYV3p45BT0ac8hjHg1houSdS1a.Mro8e",

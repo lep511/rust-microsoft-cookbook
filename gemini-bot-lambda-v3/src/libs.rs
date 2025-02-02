@@ -18,3 +18,8 @@ pub struct MedicalTerms {
 pub struct MedicalDummie {
     pub medical_terms: Vec<MedicalTerms>,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FileData {
+    pub medical_info: String
+}

@@ -1,0 +1,24 @@
+[package]
+name = "gemini-bot-lambda-v3"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aws_lambda_events = { version = "0.15.1", default-features = false, features = ["eventbridge"] }
+futures = "0.3.28"
+env_logger = "0.11.6"
+log = "0.4.25"
+thiserror = "2.0.11"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.12.9", default-features = false, features = [
+  "rustls-tls",
+  "json",
+  "stream",
+] }
+lambda_runtime = "0.13.0"
+tokio = { version = "1", features = ["macros"] }
+
+
+[dependencies.mongodb]
+version = "3.2.0"

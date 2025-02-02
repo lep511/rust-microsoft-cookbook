@@ -1,7 +1,7 @@
 use std::env;
 use crate::llmerror::GeminiError;
 use crate::gemini::libs::Candidate;
-use log::error;
+use lambda_runtime::tracing;
 
 /// Gets the API key from the environment variables
 ///
@@ -16,11 +16,11 @@ pub trait GetApiKey {
         match env::var("GEMINI_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                error!("Error GEMINI_API_KEY not found in environment variables");
+                tracing::error!("Error GEMINI_API_KEY not found in environment variables");
                 Err(GeminiError::ApiKeyNotFound)
             }
             Err(e) => {
-                error!("Error {:?}", e);
+                tracing::error!("Error {:?}", e);
                 Err(GeminiError::EnvError(e))
             }
         }
@@ -38,7 +38,7 @@ pub fn print_pre(request: &impl serde::Serialize, active: bool) {
     } else {
         match serde_json::to_string_pretty(request) {
             Ok(json) => println!("Pretty-printed JSON:\n{}", json),
-            Err(e) => error!("Error {:?}", e)
+            Err(e) => tracing::error!("Error {:?}", e)
         }
     }
 }

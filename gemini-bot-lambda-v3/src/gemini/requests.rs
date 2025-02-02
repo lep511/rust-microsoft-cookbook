@@ -1,6 +1,6 @@
 use reqwest::{Client, Response};
 use reqwest::{self, header::{HeaderMap, HeaderValue}};
-use log::{warn, error};
+use lambda_runtime::tracing;
 use crate::gemini::libs::{ChatRequest, Part, Content, ChatResponse};
 use crate::gemini::libs::{CacheRequest, InlineData, EmbedRequest};
 use crate::gemini::utils::print_pre;
@@ -60,7 +60,7 @@ pub async fn request_chat(
             break;
         }
 
-        warn!("Server error (attempt {}/{}): {}", attempt, max_retries, response.status());
+        tracing::warn!("Server error (attempt {}/{}): {}", attempt, max_retries, response.status());
 
         sleep(RETRY_BASE_DELAY).await;
 
@@ -259,7 +259,7 @@ pub async fn request_embed(
             break;
         }
 
-        warn!("Server error (attempt {}/{}): {}", attempt, max_retries, response.status());
+        tracing::warn!("Server error (attempt {}/{}): {}", attempt, max_retries, response.status());
 
         sleep(RETRY_BASE_DELAY).await;
 
@@ -324,7 +324,7 @@ pub async fn make_request(
 pub async fn manage_error(
     response: Response,
 ) -> GeminiError {
-    error!("Response code: {}", response.status());
+    tracing::error!("Response code: {}", response.status());
 
     match response.json::<ChatResponse>().await {
         Ok(error_detail) => {

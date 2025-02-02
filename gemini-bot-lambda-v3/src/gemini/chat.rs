@@ -1,4 +1,4 @@
-use log::error;
+use lambda_runtime::tracing;
 use crate::llmerror::GeminiError;
 use crate::gemini::utils::{
     GetApiKey, get_mime_type,
@@ -95,7 +95,7 @@ impl ChatGemini {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                error!("Error {:?}", e);
+                tracing::error!("Error {:?}", e);
                 return Err(GeminiError::RequestChatError);
             }
         };
@@ -103,13 +103,13 @@ impl ChatGemini {
         let chat_response: ChatResponse = match serde_json::from_str(&response) {
             Ok(response_form) => response_form,
             Err(e) => {
-                error!("Error {:?}", e);
+                tracing::error!("Error {:?}", e);
                 return Err(GeminiError::ResponseContentError);
             }
         };
 
         if let Some(error) = chat_response.error {
-            error!("Error {:?}", error);
+            tracing::error!("Error {:?}", error);
             return Err(GeminiError::ResponseContentError);
         } else {
             let format_response = ChatResponse {
@@ -148,7 +148,7 @@ impl ChatGemini {
         ).await {
             Ok(response) => response,
             Err(e) => {
-                error!("Error {:?}", e);
+                tracing::error!("Error {:?}", e);
                 return Err(GeminiError::RequestCacheError);
             }
         }; 
@@ -401,7 +401,7 @@ impl ChatGemini {
             let last_content = contents.last().cloned();
             return last_content;
         } else {
-            error!("Error No contents found");
+            tracing::error!("Error No contents found");
             return None;
         }
     }
@@ -410,7 +410,7 @@ impl ChatGemini {
         let api_key = match Self::get_api_key() {
             Ok(key) => key,
             Err(e) => {
-                error!("Error {:?}", e);
+                tracing::error!("Error {:?}", e);
                 return self;
             }
         };

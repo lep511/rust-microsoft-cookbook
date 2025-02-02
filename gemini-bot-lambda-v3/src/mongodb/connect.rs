@@ -1,16 +1,17 @@
-use log::info;
+use lambda_runtime::tracing;
 use mongodb::{
     bson::doc,
     Client,
     Collection
 };
 use crate::mongodb::CONNECTION_STRING;
-use crate::libs::{MedicalData, MedicalTerms};
+use crate::libs::{MedicalData, MedicalDummie};
 use std::env;
 
 pub async fn mongodb_update(
     user_id: &str, 
-    medical_info: &str, 
+    medical_info: &str,
+    medical_result: MedicalDummie,
 ) -> mongodb::error::Result<()> {
     
     let user_name = env::var("MONGODB_USER_NAME")
@@ -35,22 +36,11 @@ pub async fn mongodb_update(
     let medical_data = MedicalData {
         user_id: user_id.to_string(),
         medical_info: medical_info.to_string(),
-        medical_terms: vec![
-            MedicalTerms {
-                code_type: "ICD-10".to_string(),
-                code_value: "A00".to_string(),
-                code_explain: "Cholera".to_string(),
-            },
-            MedicalTerms {
-                code_type: "ICD-10".to_string(),
-                code_value: "B00".to_string(),
-                code_explain: "Herpesviral [herpes simplex] infections".to_string(),
-            },
-        ],
+        medical_terms: medical_result.medical_terms,
     };
     
     let res = my_coll.insert_one(medical_data).await?;
-    info!("Inserted a document with _id: {}", res.inserted_id);
+    tracing::info!("Inserted a document with _id: {}", res.inserted_id);
 
     Ok(())
 }

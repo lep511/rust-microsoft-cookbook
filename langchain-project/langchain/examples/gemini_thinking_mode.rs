@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the base Gemini 2.0 Flash model.
     // https://ai.google.dev/gemini-api/docs/thinking-mode
 
-    let llm = ChatGemini::new("gemini-2.0-flash-thinking-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-thinking-exp-01-21")?;
 
     let prompt = "What is the geometric monthly fecal coliform mean of a \
                   distribution system with the following FC counts: \
@@ -22,9 +22,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // NOTE: the correct answer is 18
    
-    let response = llm.invoke(prompt).await?;
-
-    println!("\n#### Example Gemini Thinking Mode ####");
+    let response = llm
+        .with_temperature(0.7)
+        .with_top_k(64)
+        .with_top_p(0.95)
+        .with_max_tokens(8192)
+        .invoke(prompt)
+        .await?;
+    
     if let Some(candidates) = response.candidates {
         for candidate in candidates {
             if let Some(content) = candidate.content {

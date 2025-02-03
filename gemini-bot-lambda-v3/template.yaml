@@ -12,18 +12,12 @@ Parameters:
   GeminiOutputBucket:
     Type: String
     Description: The S3 bucket name where the medical data is stored.
-  GeminiApikey:
+  GeminiApiKey:
     Type: String
     Description: The API key for the Gemini API.
-    NoEcho: true
-  MongoDbUserName:
+  SecretManagerName:
     Type: String
-    Description: The username for the MongoDB.
-    NoEcho: true
-  MongoDbPassword:
-    Type: String
-    Description: The password for the MongoDB.
-    NoEcho: true
+    Description: The name of the secret in AWS Secrets Manager.
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -49,9 +43,8 @@ Resources:
         Variables:
           INPUT_BUCKET: !Ref GeminiInputBucket
           OUTPUT_BUCKET: !Ref GeminiOutputBucket
-          GEMINI_API_KEY: !Ref GeminiApikey
-          MONGODB_MONGODB_USER_NAME: !Ref MongoDbUserName
-          MONGODB_PASSWORD: !Ref MongoDbPassword
+          GEMINI_API_KEY: !Ref GeminiApiKey
+          SECRET_NAME: !Ref SecretManagerName
       Events:
         Trigger:
           Type: EventBridgeRule

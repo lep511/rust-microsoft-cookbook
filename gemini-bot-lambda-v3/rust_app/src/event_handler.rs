@@ -41,8 +41,8 @@ pub(crate)async fn function_handler(event: LambdaEvent<EventBridgeEvent>) -> Res
     let payload = event.payload;
     // tracing::info!("Payload: {:?}", payload);
 
-    let bucket = std::env::var("BUCKET_NAME")
-        .expect("BUCKET_NAME environment variable not set.");
+    let bucket = std::env::var("INPUT_BUCKET")
+        .expect("INPUT_BUCKET environment variable not set.");
 
     let object_key = payload
         .detail

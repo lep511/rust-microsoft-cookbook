@@ -21,5 +21,6 @@ pub struct MedicalDummie {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FileData {
+    pub user_id: String,
     pub medical_info: String
 }

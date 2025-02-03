@@ -1,6 +1,6 @@
 # Introduction
 
-gemini-bot-lambda-v3 is a Rust project that implements an AWS Lambda function in Rust.
+gemini-telegram is a Rust project that implements an AWS Lambda function in Rust.
 
 ## Prerequisites
 
@@ -28,7 +28,7 @@ You can use the existent [event payloads](https://github.com/awslabs/aws-lambda-
 You can use those examples directly with the `--data-example` flag, where the value is the name of the file in the [lambda-events](https://github.com/awslabs/aws-lambda-rust-runtime/tree/main/lambda-events/src/fixtures) repository without the `example_` prefix and the `.json` extension.
 
 ```bash
-cargo lambda invoke --data-example apigw-request
+cargo lambda invoke --data-file event.json
 ```
 
 For generic events, where you define the event data structure, you can create a JSON file with the data you want to test with. For example:
@@ -39,8 +39,11 @@ For generic events, where you define the event data structure, you can create a 
 }
 ```
 
-Then, run `cargo lambda invoke --data-file ./data.json` to invoke the function with the data in `data.json`.
+For HTTP events, you can also call the function directly with cURL or any other HTTP client. For example:
 
+```bash
+curl https://localhost:9000
+```
 
 Read more about running the local server in [the Cargo Lambda documentation for the `watch` command](https://www.cargo-lambda.info/commands/watch.html).
 Read more about invoking the function in [the Cargo Lambda documentation for the `invoke` command](https://www.cargo-lambda.info/commands/invoke.html).

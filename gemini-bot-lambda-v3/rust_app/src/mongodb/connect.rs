@@ -5,7 +5,6 @@ use mongodb::{
     Collection
 };
 use mongodb::error::Error as MongoError;
-use crate::mongodb::CONNECTION_STRING;
 use crate::libs::{MedicalData, MedicalDummie};
 use aws_sdk_secretsmanager::{Client as SemClient, Error};
 use serde::{Serialize, Deserialize};
@@ -37,13 +36,10 @@ struct MongoConnection {
     pub mongodb_password: String,
 }
 
-async fn get_secret() -> Result<String, Error> {
+async fn get_secret(secret_name: String) -> Result<String, Error> {
     let shared_config = aws_config::load_from_env().await;
     let client = SemClient::new(&shared_config);
-    
-    let secret_name = env::var("SECRET_NAME")
-        .expect("SECRET_NAME environment variable not set.");
-    
+        
     let secret = client
         .get_secret_value()
         .secret_id(secret_name)
@@ -61,15 +57,22 @@ pub async fn mongodb_update(
     medical_info: &str,
     medical_result: MedicalDummie,
 ) -> Result<(), CustomError> {
+    let connection_string = env::var("MONGODB_ATLAS_URI")
+        .expect("MONGODB_ATLAS_URI environment variable not set.");
+        
+    let secret_name = env::var("SECRET_NAME")
+        .expect("SECRET_NAME environment variable not set.");
     
-    let secret = match get_secret().await {
+    // Retrieve secret value from AWS Secrets Manager
+    let secret = match get_secret(secret_name).await {
         Ok(secret) => secret,
         Err(e) => {
             tracing::error!("Error getting credentials: {}", e);
             return Err(CustomError::CredentialError(e.to_string()));
         }
     };
-
+    
+    // Deserialize MongoDB connection credentials from JSON string into MongoConnection struct
     let credentials:MongoConnection = match serde_json::from_str(&secret) {
         Ok(credentials) => credentials,
         Err(e) => {
@@ -77,16 +80,11 @@ pub async fn mongodb_update(
             return Err(CustomError::CredentialError(e.to_string()));
         }
     };
-
-    let user_name = credentials.mongodb_username;
-    let db_password = credentials.mongodb_password;
    
-    let uri = format!(
-        "mongodb+srv://{}:{}@{}",
-        user_name,
-        db_password,
-        CONNECTION_STRING,
-    );
+    // Replace placeholder values in connection string with actual MongoDB credentials
+    let uri = connection_string
+        .replace("<db_username>", &credentials.mongodb_username)
+        .replace("<db_password>", &credentials.mongodb_password);
 
     let client = Client::with_uri_str(uri).await?;
 

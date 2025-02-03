@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "Gemini-Medical \n"
+Parameters:
+  GeminiInputBucket:
+    Type: String
+    Description: The S3 bucket name where the medical data is stored.
+  GeminiOutputBucket:
+    Type: String
+    Description: The S3 bucket name where the medical data is stored.
+  GeminiApiKey:
+    Type: String
+    Description: The API key for the Gemini API.
+  SecretManagerName:
+    Type: String
+    Description: The name of the secret in AWS Secrets Manager.
+  MongoDbAtlasUrl:
+    Type: String
+    Description: The MongoDB Atlas URL.
+Globals:
+  Function:
+    Timeout: 180
+    MemorySize: 128
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+Resources:
+  GeminiMedicalFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+      SamResourceId: GeminiMedicalFunction
+    Properties:
+      CodeUri: GeminiMedicalFunction
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+      - arm64
+      Policies:
+      - S3CrudPolicy:
+          BucketName:
+            Ref: GeminiInputBucket
+      - S3CrudPolicy:
+          BucketName:
+            Ref: GeminiOutputBucket
+      - AWSSecretsManagerGetSecretValuePolicy:
+          SecretArn:
+            Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretManagerName}-*
+      Environment:
+        Variables:
+          INPUT_BUCKET:
+            Ref: GeminiInputBucket
+          OUTPUT_BUCKET:
+            Ref: GeminiOutputBucket
+          GEMINI_API_KEY:
+            Ref: GeminiApiKey
+          SECRET_NAME:
+            Ref: SecretManagerName
+          MONGODB_ATLAS_URI:
+            Ref: MongoDbAtlasUrl
+      Events:
+        Trigger:
+          Type: EventBridgeRule
+          Properties:
+            InputPath: $.detail
+            Pattern:
+              source:
+              - aws.s3
+              detail-type:
+              - Object Created
+              detail:
+                bucket:
+                  name:
+                  - Ref: GeminiInputBucket
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+Outputs:
+  LambdaGeminiMedicalFunction:
+    Description: Gemini Medical Lambda Function ARN
+    Value:
+      Fn::GetAtt:
+      - GeminiMedicalFunction
+      - Arn

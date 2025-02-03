@@ -4,10 +4,12 @@ version = 0.1
 
 [default.global.parameters]
 stack_name = "gemini-medical"
+stage = "DEV"
 
 [default.build.parameters]
 cached = true
 parallel = true
+beta_features = true
 
 [default.validate.parameters]
 lint = true
@@ -16,12 +18,17 @@ lint = true
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
+s3_prefix = "gemini-medical"
+region = "us-east-1"
+parameter_overrides = "GeminiInputBucket=\"medical-data-input9443\" GeminiOutputBucket=\"medical-data-output9443\" GeminiApiKey=\"AIzaSyAWv78Ac7eGqM5Z52weMMqdz_PRg63Rzxc\" SecretManagerName=\"test/GeminiMedical\" MongoDbAtlasUrl=\"mongodb+srv://<db_username>:<db_password>@cluster0.klhsa.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0\""
+image_repositories = []
 
 [default.package.parameters]
 resolve_s3 = true
 
 [default.sync.parameters]
 watch = true
+beta_features = true
 
 [default.local_start_api.parameters]
 warm_containers = "EAGER"

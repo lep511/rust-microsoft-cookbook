@@ -2,6 +2,15 @@
 
 gemini-telegram is a Rust project that implements an AWS Lambda function in Rust.
 
+```bash
+cargo lambda build --release --arm64 --output-format zip
+```
+More info about Cargo Lambda: https://github.com/cargo-lambda/cargo-lambda
+
+```bash
+sam build
+```
+
 ## Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install)

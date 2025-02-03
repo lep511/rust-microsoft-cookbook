@@ -1,9 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  sam-app
-
-  Sample SAM Template for sam-app
+  Gemini-Medical 
 
 Parameters:
   GeminiInputBucket:
@@ -18,6 +16,9 @@ Parameters:
   SecretManagerName:
     Type: String
     Description: The name of the secret in AWS Secrets Manager.
+  MongoDbAtlasUrl:
+    Type: String
+    Description: The MongoDB Atlas URL.
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -28,6 +29,7 @@ Globals:
     # You can add LoggingConfig parameters such as the Logformat, Log Group, and SystemLogLevel or ApplicationLogLevel. Learn more here https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html#sam-function-loggingconfig.
     LoggingConfig:
       LogFormat: JSON
+
 Resources:
   GeminiMedicalFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
@@ -39,12 +41,20 @@ Resources:
       Runtime: provided.al2023
       Architectures:
       - arm64
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref GeminiInputBucket
+        - S3CrudPolicy:
+            BucketName: !Ref GeminiOutputBucket
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretManagerName}-*'
       Environment:
         Variables:
           INPUT_BUCKET: !Ref GeminiInputBucket
           OUTPUT_BUCKET: !Ref GeminiOutputBucket
           GEMINI_API_KEY: !Ref GeminiApiKey
           SECRET_NAME: !Ref SecretManagerName
+          MONGODB_ATLAS_URI: !Ref MongoDbAtlasUrl
       Events:
         Trigger:
           Type: EventBridgeRule
@@ -59,6 +69,7 @@ Resources:
                 bucket:
                   name:
                     - !Ref GeminiInputBucket
+  
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
@@ -66,12 +77,14 @@ Resources:
         Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
       ResourceQuery:
         Type: CLOUDFORMATION_STACK_1_0
+  
   ApplicationInsightsMonitoring:
     Type: AWS::ApplicationInsights::Application
     Properties:
       ResourceGroupName:
         Ref: ApplicationResourceGroup
       AutoConfigurationEnabled: 'true'
+
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM

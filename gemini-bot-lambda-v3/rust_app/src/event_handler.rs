@@ -36,6 +36,32 @@ pub async fn get_s3_object(
     Ok(content)
 }
 
+pub async fn move_s3_object(
+    s3_client: &Client,
+    input_bucket: &str,
+    object_key: &str,
+    output_bucket: &str
+) -> Result<(), S3Error> {
+
+    let copy_source = format!("{}/{}", input_bucket, object_key);
+    let output_key = format!("process/{}", object_key);
+
+    s3_client.copy_object()
+        .bucket(output_bucket)
+        .copy_source(copy_source)
+        .key(&output_key)
+        .send()
+        .await?;
+
+    s3_client.delete_object()
+        .bucket(input_bucket)
+        .key(object_key)
+        .send()
+        .await?;
+
+    Ok(())
+}
+
 pub(crate)async fn function_handler(event: LambdaEvent<EventBridgeEvent>) -> Result<(), Error> {
     // Extract some useful information from the request
     let payload = event.payload;
@@ -43,6 +69,9 @@ pub(crate)async fn function_handler(event: LambdaEvent<EventBridgeEvent>) -> Res
 
     let bucket = std::env::var("INPUT_BUCKET")
         .expect("INPUT_BUCKET environment variable not set.");
+
+    let output_bucket = std::env::var("OUTPUT_BUCKET")
+        .expect("OUTPUT_BUCKET environment variable not set.");
 
     let object_key = payload
         .detail
@@ -137,6 +166,27 @@ pub(crate)async fn function_handler(event: LambdaEvent<EventBridgeEvent>) -> Res
             tracing::error!("MongoDB update failed: {}", e);
             let error_message = format!("MongoDB update failed: {}", e);
             return Err(Error::from(error_message));
+        }
+    }
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~ Move file to output bucket ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    match move_s3_object(
+        &s3_client, 
+        &bucket, 
+        object_key, 
+        &output_bucket
+    ).await {
+        Ok(_) => tracing::info!(
+                "File moved to output bucket. From {}/{} to {}/{}",
+                bucket,
+                object_key,
+                output_bucket,
+                object_key
+        ),
+        Err(e) => {
+            tracing::error!("Error moving file to output bucket: {:?}", e);
+            return Err(Error::from(e.to_string()));
         }
     }
 

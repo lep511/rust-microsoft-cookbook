@@ -111,8 +111,6 @@ pub(crate)async fn function_handler(event: LambdaEvent<EventBridgeEvent>) -> Res
     let replaced = result_string.replace("```json", "").replace("```", "");
     let json_str = replaced.trim();
 
-    println!("Result: {}", json_str);
-
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Update MongoDB ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let medical_data: MedicalDummie = match serde_json::from_str(json_str) {
@@ -135,7 +133,11 @@ pub(crate)async fn function_handler(event: LambdaEvent<EventBridgeEvent>) -> Res
         medical_data,
     ).await {
         Ok(_) => tracing::info!("MongoDB update successful"),
-        Err(e) => tracing::error!("MongoDB update failed: {}", e),
+        Err(e) => {
+            tracing::error!("MongoDB update failed: {}", e);
+            let error_message = format!("MongoDB update failed: {}", e);
+            return Err(Error::from(error_message));
+        }
     }
 
     Ok(())

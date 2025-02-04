@@ -59,16 +59,19 @@ Resources:
         Trigger:
           Type: EventBridgeRule
           Properties:
-            InputPath: $.detail
             Pattern:
-              source:
-                - "aws.s3"
               detail-type:
-                - "Object Created"
+                - Object Created
+              source:
+                - aws.s3
               detail:
                 bucket:
                   name:
                     - !Ref GeminiInputBucket
+                object:
+                  key:
+                    - prefix: medical_data/
+                    - suffix: .json
   
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group

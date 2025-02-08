@@ -1,0 +1,101 @@
+Patient ID,Date of Birth,Gender,Medical History,Current Medications,Allergies,Lab Results (Glucose mg/dL),Diagnoses,Treatment Plan,Is Valid,Issue
+P001,1980-05-14,M,Hypertension,Lisinopril,None,110,Hypertension,Continue Lisinopril,True,
+P002,1975-11-30,F,Diabetes Type 2,Metformin,Penicillin,90,Diabetes Type 2,Continue Metformin,True,
+P003,1990-07-22,F,Asthma,Albuterol,Aspirin,85,Asthma,Prescribe Albuterol,True,
+P004,2000-03-10,M,None,Amoxicillin,Penicillin,95,Infection,Prescribe Amoxicillin,False,Prescribed Amoxicillin despite Penicillin allergy
+P005,1985-09-18,F,Hyperlipidemia,Atorvastatin,None,200,Hyperlipidemia,Continue Atorvastatin,True,
+P006,1978-12-05,M,Hypertension; Diabetes Type 2,Lisinopril; Insulin,None,55,Diabetes Type 2,Adjust insulin dosage,False,Low glucose level not properly addressed
+P007,1995-08-15,F,None,None,None,120,None,None,True,
+P008,1960-04-25,M,Diabetes Type 2,None,Sulfa,300,Diabetes Type 2,None,False,Diabetes Type 2 patient not prescribed medication
+P009,1988-02-29,F,None,Paracetamol,None,85,Diabetes Type 2,Prescribe Metformin,False,Normal glucose level contradicts Diabetes Type 2 diagnosis
+P010,2050-01-01,M,Hypertension,Lisinopril,None,130,Hypertension,Continue Lisinopril,False,Impossible Date of Birth
+P011,1972-07-10,F,Migraine,Propranolol,None,95,Migraine,Continue Propranolol,True,
+P012,1993-11-12,M,None,Penicillin,Penicillin,100,Infection,Prescribe Penicillin,False,Prescribed Penicillin despite allergy
+P013,1983-06-19,M,Asthma,None,Pollen,88,Asthma,None,False,Asthma patient not prescribed bronchodilator
+P014,1955-09-05,F,Diabetes Type 2,Insulin,None,250,Diabetes Type 2,Adjust insulin dosage,True,
+P015,2005-12-20,M,None,None,Peanuts,75,None,None,True,
+P016,1998-04-18,F,Hyperthyroidism,Methimazole,None,105,Hyperthyroidism,Continue Methimazole,True,
+P017,1948-03-08,M,COPD,Albuterol,None,92,COPD,Prescribe Albuterol,True,
+P018,1977-10-31,F,None,Ibuprofen,Aspirin,115,Arthritis,Prescribe Ibuprofen,False,Prescribed Ibuprofen despite Aspirin allergy
+P019,1992-01-14,M,Epilepsy,Valproate,None,78,Epilepsy,Continue Valproate,True,
+P020,1986-07-07,F,Diabetes Type 2,None,None,320,Diabetes Type 2,None,False,Diabetes Type 2 patient not prescribed medication
+P021,2002-09-23,M,None,None,Shellfish,70,None,None,True,
+P022,1950-12-25,F,Hypertension; Hyperlipidemia,None,None,140,Hypertension; Hyperlipidemia,None,False,Hypertension and Hyperlipidemia patient not on medication
+P023,1965-08-30,M,Diabetes Type 2,Metformin,None,65,Diabetes Type 2,Continue Metformin,False,Low glucose level not addressed
+P024,1999-05-17,F,None,Amoxicillin,None,88,Infection,Prescribe Amoxicillin,True,
+P025,1979-03-03,M,None,None,None,600,None,None,False,Extremely high glucose without diagnosis
+P026,1984-11-21,F,Asthma,Albuterol,Dust,93,Asthma,Prescribe Albuterol,True,
+P027,1968-04-12,M,Diabetes Type 2,Insulin,Penicillin,85,Diabetes Type 2,Adjust insulin dosage,True,
+P028,2001-02-28,F,None,None,None,720,None,None,False,Critical glucose level without diagnosis
+P029,1996-06-09,M,Hypertension,Lisinopril,None,110,Hypertension,Continue Lisinopril,True,
+P030,1957-10-10,F,None,Cephalexin,None,95,Infection,Prescribe Cephalexin,True,
+P031,1989-08-08,M,Diabetes Type 2,Metformin,Sulfa,240,Diabetes Type 2,Continue Metformin,True,
+P032,1973-01-01,F,None,Penicillin,Penicillin,105,Infection,Prescribe Penicillin,False,Prescribed Penicillin despite allergy
+P033,1991-07-15,M,Hyperlipidemia,None,None,190,Hyperlipidemia,None,False,Hyperlipidemia patient not on statin
+P034,1962-12-14,F,Diabetes Type 2,Insulin,None,50,Diabetes Type 2,Adjust insulin dosage,False,Severe hypoglycemia not addressed
+P035,2003-04-05,M,None,None,None,130,None,None,True,
+P036,1987-05-19,F,Migraine,None,None,92,Migraine,None,False,Migraine patient not prescribed prophylaxis
+P037,1958-09-27,M,COPD,None,None,87,COPD,None,False,COPD patient not on bronchodilator
+P038,1970-11-11,F,Hypertension; Diabetes Type 2,None,Shellfish,300,Hypertension; Diabetes Type 2,None,False,Hypertension and Diabetes Type 2 patient not on medication
+P039,1994-03-22,M,None,Amoxicillin,None,99,Infection,Prescribe Amoxicillin,True,
+P040,1967-06-30,F,Epilepsy,None,None,75,Epilepsy,None,False,Epilepsy patient not on anticonvulsant
+P041,2000-08-14,M,None,None,None,115,None,None,True,
+P042,1981-02-17,F,Diabetes Type 2,Glimepiride,None,280,Diabetes Type 2,Continue Glimepiride,True,
+P043,1953-07-03,M,Asthma,None,Cats,90,Asthma,None,False,Asthma patient not prescribed inhaler
+P044,1976-04-25,F,None,Diclofenac,Aspirin,100,Arthritis,Prescribe Diclofenac,False,Prescribed Diclofenac despite Aspirin allergy
+P045,1997-12-01,M,Hyperthyroidism,None,None,110,Hyperthyroidism,None,False,Hyperthyroidism patient not on antithyroid
+P046,1964-10-08,F,Hypertension,None,None,145,Hypertension,None,False,Hypertension patient not on medication
+P047,1982-09-12,M,Diabetes Type 2,Metformin,None,85,Diabetes Type 2,Continue Metformin,True,
+P048,1951-05-06,F,None,None,None,60,None,None,False,Low glucose without diagnosis
+P049,1999-11-30,M,None,Ciprofloxacin,None,105,Infection,Prescribe Ciprofloxacin,True,
+P050,1974-08-19,F,Diabetes Type 2,Insulin,Penicillin,200,Diabetes Type 2,Adjust insulin dosage,True,
+P051,1980-03-14,M,Hypertension,Lisinopril,None,135,Hypertension,Continue Lisinopril,True,
+P052,1969-07-07,F,None,Azithromycin,None,95,Infection,Prescribe Azithromycin,True,
+P053,1995-01-25,M,Diabetes Type 2,None,None,320,Diabetes Type 2,None,False,Diabetes Type 2 patient not on medication
+P054,1945-12-24,F,Hyperlipidemia,Atorvastatin,None,180,Hyperlipidemia,Continue Atorvastatin,True,
+P055,1988-06-18,M,None,None,None,55,None,None,False,Severe hypoglycemia without diagnosis
+P056,1971-04-02,F,Asthma,Albuterol,Pollen,89,Asthma,Prescribe Albuterol,True,
+P057,2004-09-15,M,None,None,Penicillin,110,None,None,True,
+P058,1956-11-23,F,Diabetes Type 2,Metformin,None,75,Diabetes Type 2,Continue Metformin,False,Low glucose level not addressed
+P059,1983-10-10,M,Hypertension; Hyperlipidemia,None,None,150,Hypertension; Hyperlipidemia,None,False,Hypertension and Hyperlipidemia patient not on medication
+P060,1992-02-29,F,None,None,None,95,None,None,True,
+P061,1963-05-19,M,COPD,Albuterol,None,90,COPD,Prescribe Albuterol,True,
+P062,1978-08-08,F,Diabetes Type 2,Insulin,None,45,Diabetes Type 2,Adjust insulin dosage,False,Critical hypoglycemia not addressed
+P063,1989-12-31,M,None,Amoxicillin,Penicillin,100,Infection,Prescribe Amoxicillin,False,Prescribed Amoxicillin despite Penicillin allergy
+P064,1954-07-17,F,Hyperthyroidism,Methimazole,None,105,Hyperthyroidism,Continue Methimazole,True,
+P065,1996-04-22,M,None,None,None,130,None,None,True,
+P066,1975-01-14,F,Migraine,Propranolol,None,88,Migraine,Continue Propranolol,True,
+P067,1987-03-09,M,Hypertension,None,None,160,Hypertension,None,False,Hypertension patient not on medication
+P068,1960-06-28,F,Diabetes Type 2,Glipizide,None,240,Diabetes Type 2,Continue Glipizide,True,
+P069,1993-10-11,M,None,Ibuprofen,None,102,Arthritis,Prescribe Ibuprofen,True,
+P070,1949-09-05,F,None,None,None,70,None,None,True,
+P071,1984-05-30,M,Asthma,None,Dust,92,Asthma,None,False,Asthma patient not prescribed inhaler
+P072,1976-11-12,F,Diabetes Type 2,Metformin,None,310,Diabetes Type 2,Continue Metformin,True,
+P073,1998-07-07,M,None,None,Shellfish,85,None,None,True,
+P074,1959-02-14,F,Hypertension; Diabetes Type 2,None,None,290,Hypertension; Diabetes Type 2,None,False,Hypertension and Diabetes Type 2 patient not on medication
+P075,1981-08-25,M,None,Penicillin,Penicillin,110,Infection,Prescribe Penicillin,False,Prescribed Penicillin despite allergy
+P076,1967-04-03,F,Hyperlipidemia,None,None,210,Hyperlipidemia,None,False,Hyperlipidemia patient not on statin
+P077,1990-01-19,M,Epilepsy,Valproate,None,78,Epilepsy,Continue Valproate,True,
+P078,1973-12-24,F,Diabetes Type 2,None,None,50,Diabetes Type 2,None,False,Severe hypoglycemia not addressed
+P079,2005-06-15,M,None,None,None,140,None,None,True,
+P080,1952-03-18,F,COPD,None,None,88,COPD,None,False,COPD patient not on bronchodilator
+P081,1986-10-09,M,None,Amoxicillin,None,97,Infection,Prescribe Amoxicillin,True,
+P082,1961-07-04,F,Diabetes Type 2,Insulin,None,230,Diabetes Type 2,Adjust insulin dosage,True,
+P083,1994-08-21,M,Hypertension,Lisinopril,None,125,Hypertension,Continue Lisinopril,True,
+P084,1979-11-30,F,None,Cephalexin,Sulfa,105,Infection,Prescribe Cephalexin,False,Prescribed Cephalexin despite Sulfa allergy
+P085,1955-04-12,M,Hyperthyroidism,None,None,115,Hyperthyroidism,None,False,Hyperthyroidism patient not on antithyroid
+P086,1988-02-28,F,None,None,None,65,None,None,False,Low glucose without diagnosis
+P087,1964-09-16,M,Asthma,Albuterol,Mold,91,Asthma,Prescribe Albuterol,True,
+P088,1970-05-05,F,Diabetes Type 2,Metformin,None,80,Diabetes Type 2,Continue Metformin,True,
+P089,1991-12-03,M,None,None,None,95,None,None,True,
+P090,1947-01-07,F,Hypertension; Hyperlipidemia,Amlodipine; Atorvastatin,None,135,Hypertension; Hyperlipidemia,Continue medications,True,
+P091,1985-06-24,M,None,Azithromycin,Penicillin,99,Infection,Prescribe Azithromycin,False,Prescribed Azithromycin despite Penicillin allergy
+P092,1972-10-31,F,Diabetes Type 2,None,None,340,Diabetes Type 2,None,False,Diabetes Type 2 patient not on medication
+P093,1997-04-18,M,None,None,None,110,None,None,True,
+P094,1958-08-14,F,Epilepsy,None,None,72,Epilepsy,None,False,Epilepsy patient not on anticonvulsant
+P095,1983-03-09,M,Hypertension,None,None,155,Hypertension,None,False,Hypertension patient not on medication
+P096,1966-11-22,F,Diabetes Type 2,Insulin,None,48,Diabetes Type 2,Adjust insulin dosage,False,Severe hypoglycemia not addressed
+P097,1999-07-12,M,None,None,Peanuts,85,None,None,True,
+P098,1977-02-05,F,None,Diclofenac,Aspirin,100,Arthritis,Prescribe Diclofenac,False,Prescribed Diclofenac despite Aspirin allergy
+P099,1989-09-19,M,Hyperlipidemia,None,None,220,Hyperlipidemia,None,False,Hyperlipidemia patient not on statin
+P100,1950-05-01,F,Diabetes Type 2,Metformin,None,75,Diabetes Type 2,Continue Metformin,False,Low glucose level not addressed

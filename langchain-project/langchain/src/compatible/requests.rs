@@ -27,8 +27,6 @@ pub async fn request_chat(
     // Serializes the request struct into a JSON byte vector
     let request_body = serde_json::to_vec(request)?;
 
-    println!("Url {}", url);
-
     let mut response: Response = make_request(
         &client,
         url,
@@ -52,7 +50,6 @@ pub async fn request_chat(
             timeout,
         ).await?;
     }
-
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
@@ -200,15 +197,27 @@ pub async fn manage_error(
 
     match response.json::<ErrorResponse>().await {
         Ok(error) => {
-            CompatibleChatError::GenericError {
-                message: error.detail,
-                detail: "ERROR-req-9822".to_string(),
+            if let Some(error) = error.error {
+                CompatibleChatError::GenericError {
+                    message: error.message,
+                    detail: "ERROR-req-9821".to_string(),
+                }
+            } else if let Some(error) = error.detail {
+                CompatibleChatError::GenericError {
+                    message: error,
+                    detail: "ERROR-req-9822".to_string(),
+                }
+            } else {
+                CompatibleChatError::GenericError {
+                    message: "Unknown error.".to_string(),
+                    detail: "ERROR-req-9823".to_string(),
+                }
             }
-        }
+        },
         Err(_) => {
             CompatibleChatError::GenericError {
                 message: "Unknown error.".to_string(),
-                detail: "ERROR-req-9823".to_string(),
+                detail: "ERROR-req-9824".to_string(),
             }
         }
     }

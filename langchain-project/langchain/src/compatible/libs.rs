@@ -86,7 +86,7 @@ pub struct Message {
 /// * `chat_history` - Optional. Array of messages showing conversation history
 /// * `error` - Optional. Details of any error that occurred during processing
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatResponse {
     pub choices: Option<Vec<Choice>>,
     pub id: Option<String>,
@@ -108,7 +108,7 @@ pub struct ChatResponse {
 /// * `logprobs` - Optional. Log probabilities for token generation
 /// * `message` - Optional. The complete response message for this choice
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Choice {
     pub finish_reason: Option<String>,
     pub delta: Option<Message>,
@@ -129,7 +129,7 @@ pub struct Choice {
 /// * `total_tokens` - Optional. Total number of tokens used (prompt + completion)
 /// * `prompt_tokens_details` - Optional. Detailed breakdown of prompt token usage
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Usage {
     pub completion_time: Option<f64>,
     pub completion_tokens: Option<u32>,
@@ -149,7 +149,7 @@ pub struct Usage {
 /// * `image_tokens` - Optional. Number of tokens used for image content
 /// * `cached_tokens` - Optional. Number of tokens retrieved from cache
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PromptTokensDetails {
     pub text_tokens: Option<u32>,
     pub audio_tokens: Option<u32>,
@@ -165,7 +165,7 @@ pub struct PromptTokensDetails {
 /// * `param` - Optional. Parameter that caused the error, if applicable
 /// * `error_type` - The type/category of error (renamed from "type" due to Rust keyword)
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorDetails {
     pub code: Option<String>,
     pub message: String,
@@ -187,5 +187,6 @@ pub struct ErrorDetails {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorResponse {
-    pub detail: String,
+    pub detail: Option<String>,
+    pub error: Option<ErrorDetails>,
 }

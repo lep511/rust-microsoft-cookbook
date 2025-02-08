@@ -19,9 +19,57 @@ pub struct Ingredient {
     pub quantity: String,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+#[derive(Debug, JsonSchema, Serialize, Deserialize)]
+pub struct SimpleRecipe {
+    pub recipe_name: String,
+    pub grade: Grade,
+}
+
+#[derive(Debug, JsonSchema, Serialize, Deserialize)]
+pub enum Grade {
+    A,
+    B,
+    C,
+    D,
+    F,
+}
+
+
+async fn sample_json_response() -> Result<(), Box<dyn std::error::Error>> {
+    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+
+    let prompt = "List about 10 cookie recipes, grade them based on popularity";
+
+    // Generate schema for Grade
+    let schema_grade = schemars::schema_for!(Grade);
+    let json_schema_grade = generate_schema(schema_grade, true)?;
+    
+    // Generate schema for SimpleRecipe
+    let schema_recipe = schemars::schema_for!(SimpleRecipe);
+    let mut json_schema_rec = generate_schema(schema_recipe, false)?;
+    json_schema_rec["properties"]["grade"] = json_schema_grade;
+
+    let response = llm
+        .with_json_schema(json_schema_rec)
+        .invoke(prompt)
+        .await?;
+
+    if let Some(candidates) = response.candidates {
+        for candidate in candidates {
+            if let Some(content) = candidate.content {
+                for part in content.parts {
+                    if let Some(text) = part.text {
+                        println!("{}", text);
+                    }
+                }
+            }
+        }
+    };
+
+    Ok(())
+}
+
+async fn sample_with_image() -> Result<(), Box<dyn std::error::Error>> {
     let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
 
     let prompt = "From the image detail the recipe to bake this item, include item names and quantities for the recipe";
@@ -63,6 +111,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     };
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
+    // sample_with_image().await?;
+    sample_json_response().await?;
 
     Ok(())
 }

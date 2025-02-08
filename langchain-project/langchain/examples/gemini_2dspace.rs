@@ -30,11 +30,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     ];
 
-    let file_path = "tests/files/cupcackes.png";
+    let file_path = Some("tests/files/cupcackes.png");
+    let upload_data = None;
+    let display_name = "cupcackes.png";
 
     let response = llm
         .with_safety_settings(safety_settings)
-        .media_upload(file_path, "auto")
+        .media_upload(
+            file_path,
+            upload_data,
+            display_name,
+            "auto",
+        )
         .await?
         .with_system_prompt(system_prompt)
         .with_temperature(0.5)

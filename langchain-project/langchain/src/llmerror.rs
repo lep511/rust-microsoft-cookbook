@@ -200,6 +200,9 @@ pub enum CompatibleChatError {
     
     #[error("Environment error: {0}")]
     EnvError(#[from] env::VarError),
+
+    #[error("Failed to open file: {0}")]
+    FileError(String),
     
     #[error("Failed to get response content")]
     ResponseContentError,

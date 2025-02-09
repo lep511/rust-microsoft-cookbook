@@ -73,3 +73,4 @@ pub fn read_file_data(file_path: &str) -> Result<String, AnthropicError> {
     
     Ok(base64_encoded)
 }
+

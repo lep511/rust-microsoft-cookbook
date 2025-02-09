@@ -5,8 +5,10 @@ use log::{info, error};
 use crate::compatible::requests::{
     request_chat, get_request, strem_chat,
 };
-use crate::compatible::utils::GetApiKey;
-use crate::compatible::libs::{ChatRequest, Message, ChatResponse};
+use crate::compatible::utils::{GetApiKey, read_file_data};
+use crate::compatible::libs::{
+    ChatRequest, Message, ChatResponse, Content, ImageUrl,
+};
 use crate::llmerror::CompatibleChatError;
 use tokio::time::sleep;
 use std::time::Duration;
@@ -61,10 +63,23 @@ impl ChatCompatible {
         mut self,
         prompt: &str,
     ) -> Result<ChatResponse, CompatibleChatError> {
+
+        let content = vec![Content {
+            content_type: "text".to_string(),
+            text: Some(prompt.to_string()),
+            source: None,
+            image_url: None,
+            image_base64: None,
+            id: None,
+            name: None,
+            input: None,
+            content: None,
+            tool_use_id: None,
+        }];
         
         let new_message = Message {
             role: Some("user".to_string()),
-            content: Some(prompt.to_string()),
+            content: content,
             tool_calls: None,
         };
 
@@ -197,9 +212,22 @@ impl ChatCompatible {
         mut self, 
         prompt: &str,
     ) -> Result<serde_json::Value, CompatibleChatError> {
+        let content = vec![Content {
+            content_type: "text".to_string(),
+            text: Some(prompt.to_string()),
+            source: None,
+            image_url: None,
+            image_base64: None,
+            id: None,
+            name: None,
+            input: None,
+            content: None,
+            tool_use_id: None,
+        }];
+        
         let new_message = Message {
             role: Some("user".to_string()),
-            content: Some(prompt.to_string()),
+            content: content,
             tool_calls: None,
         };
 
@@ -269,9 +297,22 @@ impl ChatCompatible {
         prompt: String,  // Don't change type for stream
     ) -> impl futures::Stream<Item = ChatResponse> {
         stream! {            
+            let content = vec![Content {
+                content_type: "text".to_string(),
+                text: Some(prompt.to_string()),
+                source: None,
+                image_url: None,
+                image_base64: None,
+                id: None,
+                name: None,
+                input: None,
+                content: None,
+                tool_use_id: None,
+            }];
+            
             let new_message = Message {
                 role: Some("user".to_string()),
-                content: Some(prompt),
+                content: content,
                 tool_calls: None,
             };
     
@@ -349,9 +390,23 @@ impl ChatCompatible {
     }
 
     pub fn with_system_prompt(mut self, system_prompt: &str) -> Self {
+
+        let content = vec![Content {
+            content_type: "text".to_string(),
+            text: Some(system_prompt.to_string()),
+            source: None,
+            image_url: None,
+            image_base64: None,
+            id: None,
+            name: None,
+            input: None,
+            content: None,
+            tool_use_id: None,
+        }];
+        
         let new_message = Message {
             role: Some("system".to_string()),
-            content: Some(system_prompt.to_string()),
+            content: content,
             tool_calls: None,
         };
 
@@ -365,9 +420,23 @@ impl ChatCompatible {
     }
 
     pub fn with_assistant_response(mut self,  assistant_response: &str) -> Self {
+        
+        let content = vec![Content {
+            content_type: "text".to_string(),
+            text: Some(assistant_response.to_string()),
+            source: None,
+            image_url: None,
+            image_base64: None,
+            id: None,
+            name: None,
+            input: None,
+            content: None,
+            tool_use_id: None,
+        }];
+        
         let new_message = Message {
             role: Some("assistant".to_string()),
-            content: Some(assistant_response.to_string()),
+            content: content,
             tool_calls: None,
         };
 
@@ -392,6 +461,134 @@ impl ChatCompatible {
     
     pub fn with_tool_choice(mut self, tool_choice: serde_json::Value) -> Self {
         self.request.tool_choice = Some(tool_choice);
+        self
+    }
+
+    pub fn with_image_url(
+        mut self, 
+        image_url: &str, 
+    ) -> Self {
+
+        let image_url = ImageUrl {
+            url: image_url.to_string(),
+            detail: "high".to_string(),
+        };
+
+        let content = vec![Content {
+            content_type: "image_url".to_string(),
+            text: None,
+            source: None,
+            image_url: Some(image_url),
+            image_base64: None,
+            id: None,
+            name: None,
+            input: None,
+            content: None,
+            tool_use_id: None,
+        }];
+
+        let new_message = Message {
+            role: Some("user".to_string()),
+            content: content,
+            tool_calls: None,
+        };
+
+        if let Some(messages) = &mut self.request.messages {
+            messages.push(new_message);
+        } else {
+            self.request.messages = Some(vec![new_message]);
+        }
+
+        self
+    }
+
+    pub fn with_image_base64(
+        mut self, 
+        image_base64: &str, 
+        mime_type: &str
+    ) -> Self {
+
+        let url = format!("data:{};base64,{}", mime_type, image_base64);
+
+        let image_url = ImageUrl {
+            url: url,
+            detail: "high".to_string(),
+        };
+        
+        let content = vec![Content {
+            content_type: "image_url".to_string(),
+            text: None,
+            source: None,
+            image_url: Some(image_url),
+            image_base64: None,
+            id: None,
+            name: None,
+            input: None,
+            content: None,
+            tool_use_id: None,
+        }];
+
+        let new_message = Message {
+            role: Some("user".to_string()),
+            content: content,
+            tool_calls: None,
+        };
+
+        if let Some(messages) = &mut self.request.messages {
+            messages.push(new_message);
+        } else {
+            self.request.messages = Some(vec![new_message]);
+        }
+
+        self
+    }
+
+    pub fn with_image_file(
+        mut self, 
+        file_path: &str, 
+        mime_type: &str
+    ) -> Self {
+
+        let image_base64 = match read_file_data(file_path) {
+            Ok(data) => data,
+            Err(e) => {
+                error!("Error {:?}", e);
+                return self;
+            }
+        };
+
+        let url = format!("data:{};base64,{}", mime_type, image_base64);
+
+        let image_url = ImageUrl {
+            url: url,
+            detail: "high".to_string(),
+        };
+        
+        let content = vec![Content {
+            content_type: "image_url".to_string(),
+            text: None,
+            source: None,
+            image_url: Some(image_url),
+            image_base64: None,
+            id: None,
+            name: None,
+            input: None,
+            content: None,
+            tool_use_id: None,
+        }];
+
+        let new_message = Message {
+            role: Some("user".to_string()),
+            content: content,
+            tool_calls: None,
+        };
+
+        if let Some(messages) = &mut self.request.messages {
+            messages.push(new_message);
+        } else {
+            self.request.messages = Some(vec![new_message]);
+        }
+
         self
     }
 }

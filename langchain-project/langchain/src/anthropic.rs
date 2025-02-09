@@ -14,14 +14,5 @@ pub static ANTHROPIC_VERSION: &str = "2023-06-01";
 
 pub const RETRY_BASE_DELAY: Duration = Duration::from_secs(2);
 
-pub static MIME_TYPE_SUPPORTED: [&str; 6] = [
-    "image/png", 
-    "image/jpeg",
-    "image/jpg",
-    "image/gif", 
-    "image/webp", 
-    "image/gif"
-];
-
 pub const DEBUG_PRE: bool = false;
 pub const DEBUG_POST: bool = false;

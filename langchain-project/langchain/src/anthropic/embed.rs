@@ -1,4 +1,3 @@
-use crate::anthropic::MIME_TYPE_SUPPORTED;
 use crate::anthropic::requests::request_embed;
 use crate::anthropic::utils::GetApiKeyVoyage;
 use crate::llmerror::AnthropicError;
@@ -207,15 +206,6 @@ impl EmbedMultiVoyage {
         image_base64: &str, 
         media_type: &str
     ) -> Self {
-
-        if !MIME_TYPE_SUPPORTED.contains(&media_type) {
-            error!(
-                "[ERROR] Unsupported media type: {}. Supported: {}", 
-                media_type,
-                MIME_TYPE_SUPPORTED.join(", ")
-            );
-            return self;
-        }
 
         let format_base64 = format!("data:{};base64,{}", media_type, image_base64);
         let content = Content {

@@ -2,8 +2,9 @@ use crate::anthropic::libs::{
     ChatRequest, Content, Message, ChatResponse,
     Source,
 };
-use crate::anthropic::MIME_TYPE_SUPPORTED;
-use crate::anthropic::utils::{GetApiKey, read_file_data};
+use crate::anthropic::utils::{
+    GetApiKey, read_file_data,
+};
 use crate::anthropic::requests::request_chat;
 use crate::llmerror::AnthropicError;
 use serde_json::Value;
@@ -247,15 +248,6 @@ impl ChatAnthropic {
         mime_type: &str
     ) -> Self {
 
-        if !MIME_TYPE_SUPPORTED.contains(&mime_type) {
-            error!(
-                "Error unsupported media type: {}. Supported: {}", 
-                mime_type,
-                MIME_TYPE_SUPPORTED.join(", ")
-            );
-            return self;
-        }
-
         let content = vec![Content {
             content_type: "image".to_string(),
             text: None,
@@ -289,20 +281,11 @@ impl ChatAnthropic {
 
     pub fn with_image_file(
         mut self, 
-        image_file: &str, 
+        file_path: &str, 
         mime_type: &str
     ) -> Self {
 
-        if !MIME_TYPE_SUPPORTED.contains(&mime_type) {
-            error!(
-                "Error unsupported media type: {}. Supported: {}", 
-                mime_type,
-                MIME_TYPE_SUPPORTED.join(", ")
-            );
-            return self;
-        }
-
-        let image_base64 = match read_file_data(image_file) {
+        let image_base64 = match read_file_data(file_path) {
             Ok(data) => data,
             Err(e) => {
                 error!("Error {:?}", e);

@@ -34,9 +34,9 @@ pub struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<Vec<serde_json::Value>>,
+    pub tools: Option<Vec<Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_choice: Option<serde_json::Value>,
+    pub tool_choice: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub frequency_penalty: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -68,9 +68,50 @@ pub struct ChatRequest {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
     pub role: Option<String>,
-    pub content: Option<String>,
+    pub content: Vec<Content>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<Value>>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Content {
+    #[serde(rename = "type")]
+    pub content_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<Source>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<ImageUrl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_base64: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_use_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ImageUrl {
+    pub url: String,
+    pub detail: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Source {
+    #[serde(rename = "type")]
+    pub source_type: String,
+    pub media_type: String,
+    pub data: String,
 }
 
 /// Represents a response from the chat API
@@ -88,7 +129,7 @@ pub struct Message {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatResponse {
-    pub choices: Option<Vec<Choice>>,
+    pub choices: Option<Vec<ResponseChoice>>,
     pub id: Option<String>,
     pub created: Option<u64>,
     pub model: Option<String>,
@@ -97,6 +138,25 @@ pub struct ChatResponse {
     pub usage: Option<Usage>,
     pub chat_history: Option<Vec<Message>>,
     pub error: Option<ErrorDetails>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ResponseChoice {
+    pub finish_reason: Option<String>,
+    pub delta: Option<Message>,
+    pub index: Option<u32>,
+    pub logprobs: Option<Value>,
+    pub message: Option<ResponseMessage>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ResponseMessage {
+    pub role: Option<String>,
+    pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<Value>>,
 }
 
 /// Represents a single response choice from the chat API
@@ -113,7 +173,7 @@ pub struct Choice {
     pub finish_reason: Option<String>,
     pub delta: Option<Message>,
     pub index: Option<u32>,
-    pub logprobs: Option<serde_json::Value>,
+    pub logprobs: Option<Value>,
     pub message: Option<Message>,
 }
 

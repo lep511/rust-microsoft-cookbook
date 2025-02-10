@@ -4,7 +4,9 @@ use async_stream::stream;
 use futures::StreamExt;
 use crate::compatible::{DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY};
 use crate::llmerror::CompatibleChatError;
-use crate::compatible::libs::{ChatRequest, ErrorResponse, ChatResponse};
+use crate::compatible::libs::{
+    ChatRequest, ErrorResponse, ChatStreamResponse
+};
 use crate::compatible::utils::print_pre;
 use std::time::Duration;
 use serde_json::Value;
@@ -95,7 +97,7 @@ pub fn strem_chat(
     url: String,
     api_key: String,
     request: ChatRequest,
-) -> impl futures::Stream<Item = ChatResponse> {
+) -> impl futures::Stream<Item = ChatStreamResponse> {
     stream! {
         let client = Client::new();
 
@@ -129,19 +131,19 @@ pub fn strem_chat(
                             if !part.is_empty() && part.starts_with("data:") {
                                 let json_part = part.trim_start_matches("data:");
                             
-                                match serde_json::from_str::<ChatResponse>(json_part) {
+                                match serde_json::from_str::<ChatStreamResponse>(json_part) {
                                     Ok(stream_response) => {
                                         yield stream_response;
                                     },
                                     Err(e) => {
-                                        warn!("Error Error parsing chunk: {}", e);
+                                        warn!("Error parsing chunk: {}", e);
                                     }
                                 }    
                             }
                         }
                     },
                     Err(e) => {
-                        warn!("Error Error reading chunk: {}", e);
+                        warn!("Error reading chunk: {}", e);
                     }
                 }
             }

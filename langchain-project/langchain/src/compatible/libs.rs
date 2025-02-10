@@ -159,6 +159,38 @@ pub struct ResponseMessage {
     pub tool_calls: Option<Vec<Value>>,
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChatStreamResponse {
+    pub choices: Option<Vec<ResponseStreamChoice>>,
+    pub id: Option<String>,
+    pub created: Option<u64>,
+    pub model: Option<String>,
+    pub object: Option<String>,
+    pub system_fingerprint: Option<String>,
+    pub usage: Option<Usage>,
+    pub chat_history: Option<Vec<Message>>,
+    pub error: Option<ErrorDetails>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ResponseStreamChoice {
+    pub finish_reason: Option<String>,
+    pub delta: Option<StreamMessage>,
+    pub index: Option<u32>,
+    pub message: Option<ResponseMessage>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct StreamMessage {
+    pub role: Option<String>,
+    pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<Value>>,
+}
+
 /// Represents a single response choice from the chat API
 ///
 /// # Fields

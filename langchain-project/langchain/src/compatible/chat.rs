@@ -7,7 +7,8 @@ use crate::compatible::requests::{
 };
 use crate::compatible::utils::{GetApiKey, read_file_data};
 use crate::compatible::libs::{
-    ChatRequest, Message, ChatResponse, Content, ImageUrl,
+    ChatRequest, Message, ChatResponse, ChatStreamResponse, 
+    Content, ImageUrl,
 };
 use crate::llmerror::CompatibleChatError;
 use tokio::time::sleep;
@@ -295,7 +296,7 @@ impl ChatCompatible {
     pub fn stream_response(
         mut self,
         prompt: String,  // Don't change type for stream
-    ) -> impl futures::Stream<Item = ChatResponse> {
+    ) -> impl futures::Stream<Item = ChatStreamResponse> {
         stream! {            
             let content = vec![Content {
                 content_type: "text".to_string(),

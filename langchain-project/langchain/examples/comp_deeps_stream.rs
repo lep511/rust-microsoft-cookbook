@@ -2,14 +2,17 @@
 use langchain::compatible::chat::ChatCompatible;
 use futures::StreamExt;
 use futures::pin_mut;
+use env_logger::Env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let base_url = "https://api.x.ai/v1/chat/completions";
-    let model = "grok-2-latest";
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    
+    let base_url = "https://api.deepinfra.com/v1/openai/chat/completions";
+    let model = "meta-llama/Llama-3.3-70B-Instruct-Turbo";
     let llm = ChatCompatible::new(base_url, model)?;
 
-    let prompt = String::from("Tell me how the internet works, but pretend I'm a puppy who only understands squeaky toys.");
+    let prompt = "Create a story about a young woman who discovers she has the power to control the weather.".to_string();
 
     let stream = llm
         .stream_response(prompt);

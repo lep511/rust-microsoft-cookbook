@@ -8,11 +8,11 @@ use env_logger::Env;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    let base_url = "https://api.deepseek.com/chat/completions";
-    let model = "deepseek-chat";
+    let base_url = "https://api.deepinfra.com/v1/openai/chat/completions";
+    // let model = "deepseek-ai/DeepSeek-R1";
+    let model = "meta-llama/Llama-3.3-70B-Instruct-Turbo";
     let llm = ChatCompatible::new(base_url, model)?;
 
-    let system_prompt = "You are an AI assistant with a passion for creative writing and storytelling.";
     let prompt = "Create a story about a young woman who discovers she has the power to control the weather.";
 
     let start = Instant::now();
@@ -20,7 +20,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response: ChatResponse = llm
         .with_max_retries(0)
         .with_temperature(0.9)
-        .with_system_prompt(system_prompt)
         .invoke(prompt)
         .await?;
     

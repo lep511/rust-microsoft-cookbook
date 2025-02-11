@@ -5,7 +5,7 @@ use serde_json::json;
 
 async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
 
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
     
     let question = "Look up the weather in Paris and set my climate control appropriately.";
     
@@ -72,7 +72,7 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     let response = llm
         .with_tools(function_dec)

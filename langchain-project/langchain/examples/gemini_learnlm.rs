@@ -63,7 +63,7 @@ async fn check_chat_history_file_exist() -> bool {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = ChatGemini::new("learnlm-1.5-pro-experimental")?;
+    let llm = ChatGemini::new("learnlm-1.5-pro-experimental");
 
     let system_prompt = "You are a tutor helping a student prepare for a test. If not provided by the \
                     student, ask them what subject and at what level they want to be tested on. \

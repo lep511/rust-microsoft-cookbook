@@ -12,7 +12,7 @@ struct SampleCase<'a> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     let prompt = "input: We prepared our impairment test as of December 2022 and determined that the fair \
             values of each of our reporting units exceeded net book value by more than 25%. \

@@ -6,7 +6,7 @@ use env_logger::Env;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = ChatOpenAI::new("gpt-4o-mini")?;
+    let llm = ChatOpenAI::new("gpt-4o-mini");
 
     let system_prompt = "You are a customer service assistant for Acme Corp. \
                         1. You are not authorized to provide any discounts or refunds; these must be approved by a person in-store. \
@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // New ChatOpenAI
-    let llm = ChatOpenAI::new("gpt-4o-mini")?;
+    let llm = ChatOpenAI::new("gpt-4o-mini");
 
     let prompt = "OK, but can you tell me if you're allowed to provide refunds?";
 

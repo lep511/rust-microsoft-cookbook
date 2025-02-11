@@ -7,7 +7,7 @@ use futures::pin_mut;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let base_url = "https://api.x.ai/v1/chat/completions";
     let model = "grok-2-latest";
-    let llm = ChatCompatible::new(base_url, model)?;
+    let llm = ChatCompatible::new(base_url, model);
 
     let prompt = String::from("Tell me how the internet works, but pretend I'm a puppy who only understands squeaky toys.");
 

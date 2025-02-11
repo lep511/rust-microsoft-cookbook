@@ -43,7 +43,7 @@ pub async fn get_weather(location: &str, unit: &str) -> Result<String, Box<dyn s
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022");
     let tool_data = json!({
         "name":"get_weather",
         "description":"Get the current weather in a given location",

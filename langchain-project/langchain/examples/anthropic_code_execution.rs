@@ -6,7 +6,7 @@ use env_logger::Env;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example simple shot
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022");
     let llm = llm.with_temperature(0.9);
     let llm = llm.with_max_tokens(2048);
     

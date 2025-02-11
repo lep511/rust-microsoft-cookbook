@@ -5,16 +5,11 @@ use env_logger::Env;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = ChatGemini::new("gemini-2.0-flash-exp");
+    let llm = ChatGemini::new("gemini-2.0-flash");
+    let api_key = "AIzaSyAWv78Ac7eGqM5Z52weMMqdz_PRg63Rzxc";
 
     let response = llm
-        .with_temperature(0.2)
-        .with_max_tokens(1024)
-        .with_top_k(20)
-        .with_top_p(0.95)
-        .with_candidate_count(2)
-        .with_max_retries(3)
-        .with_stop_sequences(vec!["STOP!".to_string()])
+        .with_api_key(api_key)
         .with_system_prompt("You are a helpful assistant.")
         .invoke("Tell me how the internet works, but pretend I'm a puppy who only understands squeaky toys.")
         .await?;

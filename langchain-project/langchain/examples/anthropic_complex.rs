@@ -6,7 +6,7 @@ use env_logger::Env;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example simple shot
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022");
 
     let prompt = "What is the geometric monthly fecal coliform mean of a \
                   distribution system with the following FC counts: \

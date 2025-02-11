@@ -8,7 +8,7 @@ async fn example_chat() -> Result<(), Box<dyn std::error::Error>> {
     let file_txt = "tests/files/note.txt";
     let contents = fs::read_to_string(file_txt)?;
 
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     let base_prompt = "Please return JSON describing the the people, places, \
         things and relationships from this story using the following schema: \
@@ -50,7 +50,7 @@ async fn example_chat() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
 
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
     
     let function1 = json!({
         "name":"find_movies",

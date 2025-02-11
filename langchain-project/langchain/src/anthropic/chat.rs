@@ -22,8 +22,11 @@ pub struct ChatAnthropic {
 
 #[allow(dead_code)]
 impl ChatAnthropic {
-    pub fn new(model: &str) -> Result<Self, AnthropicError> {
-        let api_key = Self::get_api_key()?;
+    pub fn new(model: &str) -> Self {
+        let api_key: String = match Self::get_api_key() {
+            Ok(api_key) => api_key,
+            Err(_) => "not_key".to_string()
+        };
 
         let request = ChatRequest {
             model: model.to_string(),
@@ -36,12 +39,12 @@ impl ChatAnthropic {
             stream: false,
         };
         
-        Ok(Self {
+        Self {
             api_key: api_key,
             request: request,
             timeout: Duration::from_secs(300), // default: 5 minutes
             max_retries: 3,         // default: 3 times
-        })
+        }
     }
 
     pub async fn invoke(
@@ -276,6 +279,11 @@ impl ChatAnthropic {
             self.request.messages = Some(vec![new_message]);
         }
 
+        self
+    }
+
+    pub fn with_api_key(mut self, api_key: &str) -> Self {
+        self.api_key = api_key.to_string();
         self
     }
 

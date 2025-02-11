@@ -75,7 +75,7 @@ async fn medical_example() -> Result<(), Box<dyn std::error::Error>> {
 
     let f_prompt = format!("{}\n\n{}", prompt, mdata_string);
 
-    let llm = ChatGemini::new("gemini-2.0-flash-thinking-exp-01-21")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-thinking-exp-01-21");
     let response = llm
         .invoke(&f_prompt)
         .await?;
@@ -96,7 +96,7 @@ async fn medical_example() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn geometric_example() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatGemini::new("gemini-2.0-flash-thinking-exp-01-21")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-thinking-exp-01-21");
 
     let prompt = "What is the geometric monthly fecal coliform mean of a \
                   distribution system with the following FC counts: \

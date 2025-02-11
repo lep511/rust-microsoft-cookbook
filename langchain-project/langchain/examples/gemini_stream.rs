@@ -7,7 +7,7 @@ use futures::pin_mut;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     let prompt = String::from("Tell me how the internet works, but pretend I'm a puppy who only understands squeaky toys.");
 

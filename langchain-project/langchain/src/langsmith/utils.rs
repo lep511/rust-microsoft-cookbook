@@ -1,6 +1,6 @@
 use crate::llmerror::LangsmithError;
 use std::env;
-use log::error;
+use log::{info, error};
 
 /// Gets the LANGSMITH_API_KEY from the environment variables
 pub trait GetApiKey {
@@ -8,11 +8,11 @@ pub trait GetApiKey {
         match env::var("LANGSMITH_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                error!("Error LANGSMITH_API_KEY not found in environment variables");
+                info!("LANGSMITH_API_KEY not found in environment variables");
                 Err(LangsmithError::ApiKeyNotFound)
             }
             Err(e) => {
-                error!("Error {:?}", e);
+                error!("Unable to read env LANGSMITH_API_KEY {:?}", e);
                 Err(LangsmithError::EnvError(e))
             }
         }

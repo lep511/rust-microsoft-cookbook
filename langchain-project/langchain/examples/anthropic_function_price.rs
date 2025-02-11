@@ -6,7 +6,7 @@ use serde_json::json;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022");
     let tool_data = json!({
         "name": "get_stock_price",
         "description": "Retrieves the current stock price for a given ticker symbol. \

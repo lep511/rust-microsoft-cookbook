@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let base_url = "https://api.x.ai/v1/chat/completions";
     let model = "grok-2-latest";
-    let llm = ChatCompatible::new(base_url, model)?;
+    let llm = ChatCompatible::new(base_url, model);
 
     let system_prompt = "Don't make assumptions about what values to plug into functions. \
                         Ask for clarification if a user request is ambiguous.";

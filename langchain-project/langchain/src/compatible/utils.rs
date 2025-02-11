@@ -1,5 +1,5 @@
 use std::env;
-use log::error;
+use log::{info, error};
 use crate::llmerror::CompatibleChatError;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use std::fs::File;
@@ -23,11 +23,11 @@ pub trait GetApiKey {
         match env::var("COMPATIBLE_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                error!("Error COMPATIBLE_API_KEY not found in environment variables");
+                info!("COMPATIBLE_API_KEY not found in environment variables");
                 Err(CompatibleChatError::ApiKeyNotFound)
             }
             Err(e) => {
-                error!("Error {:?}", e);
+                error!("Unable to read env COMPATIBLE_API_KEY {:?}", e);
                 Err(CompatibleChatError::EnvError(e))
             }
         }

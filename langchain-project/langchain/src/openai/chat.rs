@@ -23,8 +23,11 @@ pub struct ChatOpenAI {
 
 #[allow(dead_code)]
 impl ChatOpenAI {
-    pub fn new(model: &str) -> Result<Self, OpenAIError> {
-        let api_key = Self::get_api_key()?;
+    pub fn new(model: &str) -> Self {
+        let api_key: String = match Self::get_api_key() {
+            Ok(api_key) => api_key,
+            Err(_) => "not_key".to_string()
+        };
 
         let request = ChatRequest {
             model: model.to_string(),
@@ -42,12 +45,12 @@ impl ChatOpenAI {
             stop: None,
         };
         
-        Ok(Self {
+        Self {
             api_key: api_key,
             request: request,
             timeout: Duration::from_secs(300), // default: 5 minutes
             max_retries: 3,         // default: 3 times
-        })
+        }
     }
 
     pub async fn invoke(
@@ -325,6 +328,11 @@ impl ChatOpenAI {
 
     pub fn with_max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = max_retries;
+        self
+    }
+
+    pub fn with_api_key(mut self, api_key: &str) -> Self {
+        self.api_key = api_key.to_string();
         self
     }
 }

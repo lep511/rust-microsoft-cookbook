@@ -28,7 +28,7 @@ pub struct AdCopy {
 
 async fn marketing_brief() -> Result<String, Box<dyn std::error::Error>> {
 
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
     let file_path = Some("tests/files/sample_marketing_campaign.pdf");
     let upload_data = None;
     let display_name = "campaign.pdf";
@@ -78,7 +78,7 @@ async fn market_research() -> Result<String, Box<dyn std::error::Error>> {
                         - What are the latest phone models and their selling point from the top 2 phone makers?
                         - What is the general public sentiment about mobile phones?";
 
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     let response = llm
         .with_google_search()
@@ -143,7 +143,7 @@ async fn creative_brief(
             new_phone_details
     );
 
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     // Generate schema
     let schema = schemars::schema_for!(MarketingCampaignBrief);
@@ -176,7 +176,7 @@ async fn create_assets(
     countries: &str, 
     creative_brief_content: &str
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
     
     let ad_prompt = format!("Given the marketing campaign brief, create an Instagram ad-copy \
                         for each target market: {} \
@@ -215,7 +215,7 @@ async fn create_storyboard(
     countries: &str, 
     creative_brief_content: &str
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
     
     let short_video_prompt = format!("Given the marketing campaign brief, create a storyboard \
                         for a YouTube Shorts video for target markets: {}. Please localize the \

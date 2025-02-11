@@ -2,7 +2,7 @@ use crate::llmerror::AnthropicError;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use std::fs::File;
 use std::io::Read;
-use log::error;
+use log::{info, error};
 use std::env;
 
 /// Gets the ANTHROPIC_API_KEY from the environment variables
@@ -16,6 +16,22 @@ pub trait GetApiKey {
             }
             Err(e) => {
                 error!("Error {:?}", e);
+                Err(AnthropicError::EnvError(e))
+            }
+        }
+    }
+}
+
+pub trait GetApiKey {
+    fn get_api_key() -> Result<String, AnthropicError> {
+        match env::var("ANTHROPIC_API_KEY") {
+            Ok(key) => Ok(key),
+            Err(env::VarError::NotPresent) => {
+                info!("ANTHROPIC_API_KEY not found in environment variables");
+                Err(AnthropicError::ApiKeyNotFound)
+            }
+            Err(e) => {
+                error!("Unable to read env ANTHROPIC_API_KEY {:?}", e);
                 Err(AnthropicError::EnvError(e))
             }
         }

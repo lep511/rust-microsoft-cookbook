@@ -9,7 +9,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let model = "models/meta/meta-llama-3-70b-instruct/predictions";
     let prefer = "wait";
 
-    let llm = ChatCompatible::new(base_url, model)?;
+    let llm = ChatCompatible::new(base_url, model);
 
     let input_data = json!({
         "top_k":0,

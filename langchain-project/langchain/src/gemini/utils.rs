@@ -3,7 +3,7 @@ use crate::llmerror::GeminiError;
 use crate::gemini::libs::Candidate;
 use serde_json::{json, Value};
 use schemars::schema::RootSchema;
-use log::error;
+use log::{info, error};
 
 /// Gets the API key from the environment variables
 ///
@@ -18,11 +18,11 @@ pub trait GetApiKey {
         match env::var("GEMINI_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                error!("Error GEMINI_API_KEY not found in environment variables");
+                info!("GEMINI_API_KEY not found in environment variables");
                 Err(GeminiError::ApiKeyNotFound)
             }
             Err(e) => {
-                error!("Error {:?}", e);
+                error!("Unable to read env GEMINI_API_KEY {:?}", e);
                 Err(GeminiError::EnvError(e))
             }
         }

@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mime_type_jpeg = "image/jpeg";
     let mime_type_png = "image/png";
     
-    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022");
 
     let response = llm
         .with_image(&base64_string_01, mime_type_jpeg)

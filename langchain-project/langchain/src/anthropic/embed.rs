@@ -7,6 +7,8 @@ use crate::anthropic::libs::{
 };
 use log::error;
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Embed Voyage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct EmbedVoyage {
@@ -17,8 +19,12 @@ pub struct EmbedVoyage {
 
 #[allow(dead_code)]
 impl EmbedVoyage {
-    pub fn new(model: &str) -> Result<Self, AnthropicError> {
-        let api_key = Self::get_api_key()?;
+    pub fn new(model: &str) -> Self {
+        let api_key: String = match Self::get_api_key() {
+            Ok(api_key) => api_key,
+            Err(_) => "not_key".to_string()
+        };
+
         let request = EmbedRequest {
             model: model.to_string(),
             input: None,
@@ -34,11 +40,11 @@ impl EmbedVoyage {
             inputs: None,
         };
 
-        Ok(Self {
+        Self {
             model: model.to_string(),
             request: request,
             api_key: api_key,
-        })
+        }
     }
 
     pub async fn embed_content(
@@ -81,7 +87,14 @@ impl EmbedVoyage {
         self.request.output_dimension = Some(dimensions);
         self
     }
+
+    pub fn with_api_key(mut self, api_key: &str) -> Self {
+        self.api_key = api_key.to_string();
+        self
+    }
 }
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Embed Multi Voyage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -93,8 +106,11 @@ pub struct EmbedMultiVoyage {
 
 #[allow(dead_code)]
 impl EmbedMultiVoyage {
-    pub fn new(model: &str) -> Result<Self, AnthropicError> {
-        let api_key = Self::get_api_key()?;
+    pub fn new(model: &str) -> Self {
+        let api_key: String = match Self::get_api_key() {
+            Ok(api_key) => api_key,
+            Err(_) => "not_key".to_string()
+        };
 
         let request = EmbedRequest {
             model: model.to_string(),
@@ -111,11 +127,11 @@ impl EmbedMultiVoyage {
             input: None,
         };
 
-        Ok(Self {
+        Self {
             model: model.to_string(),
             request: request,
             api_key: api_key,
-        })
+        }
     }
 
     pub async fn embed_content(
@@ -235,6 +251,8 @@ impl EmbedMultiVoyage {
     }
 }
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Embed Rank Voyage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct EmbedRankVoyage {
@@ -245,8 +263,11 @@ pub struct EmbedRankVoyage {
 
 #[allow(dead_code)]
 impl EmbedRankVoyage {
-    pub fn new(model: &str) -> Result<Self, AnthropicError> {
-        let api_key = Self::get_api_key()?;
+    pub fn new(model: &str) -> Self {
+        let api_key: String = match Self::get_api_key() {
+            Ok(api_key) => api_key,
+            Err(_) => "not_key".to_string()
+        };
         
         let request = EmbedRequest {
             model: model.to_string(),
@@ -263,11 +284,11 @@ impl EmbedRankVoyage {
             inputs: None,
         };
 
-        Ok(Self {
+        Self {
             model: model.to_string(),
             request: request,
             api_key: api_key,
-        })
+        }
     }
 
     pub async fn embed_content(

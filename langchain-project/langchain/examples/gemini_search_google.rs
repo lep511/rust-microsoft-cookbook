@@ -4,7 +4,7 @@ use serde_json::json;
 
 async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
 
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     let question = "Who won the Super Bowl this actual year?";
     

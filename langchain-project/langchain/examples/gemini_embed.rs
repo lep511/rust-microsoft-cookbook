@@ -10,8 +10,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // The Embedding model is optimized for creating embeddings 
     // with 768 dimensions for text of up to 2,048 tokens.
-    let llm = EmbedGemini::new("text-embedding-004")?;
-    // let llm = EmbedGemini::new("gemini-2.0-flash-exp")?;
+    let llm = EmbedGemini::new("text-embedding-004");
+    // let llm = EmbedGemini::new("gemini-2.0-flash-exp");
     let input_str = "What is the meaning of life?";
     
     let response = llm

@@ -24,7 +24,7 @@ pub struct Item {
 }
 
 async fn small_documents() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     let prompt = "What's the document type? Reply from the following options: \
         invoice, Bank Statement, Paystub, Form 1040, Form W-9, Form 1099-R.";
@@ -68,7 +68,7 @@ async fn small_documents() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn large_documents() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     let prompt = "Summarize the content of the document for a second year student.";
     let file_path = Some("tests/files/large-document.pdf");
@@ -109,7 +109,7 @@ async fn large_documents() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn invoice_documents() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     let prompt = "Extract the structured data from the following PDF file";
 

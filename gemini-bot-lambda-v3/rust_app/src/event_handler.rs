@@ -97,7 +97,7 @@ pub(crate)async fn function_handler(event: LambdaEvent<EventBridgeEvent>) -> Res
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Gemini Response ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    let llm = ChatGemini::new("gemini-2.0-flash-thinking-exp-01-21")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-thinking-exp-01-21");
 
     let system_prompt = "Pretend that you are a professional medical coder";
 

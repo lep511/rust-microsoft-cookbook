@@ -11,7 +11,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let base_url = "https://api.deepinfra.com/v1/openai/chat/completions";
     let system_prompt = "Respond like a Michelin-starred chef.";
     let model = "deepseek-ai/DeepSeek-R1";
-    let llm = ChatCompatible::new(base_url, model)?;
+    let llm = ChatCompatible::new(base_url, model);
 
     let prompt = String::from("Can you name at least two different techniques to cook lamb?");
 

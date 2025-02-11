@@ -6,7 +6,7 @@ use langchain::gemini::libs::{SafetySetting, HarmCategory, HarmBlock};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = ChatGemini::new("gemini-1.5-pro")?;
+    let llm = ChatGemini::new("gemini-1.5-pro");
 
     let prompt = "I support Martians Soccer Club and I think Jupiterians Football Club sucks! Write a ironic phrase about them.";
 

@@ -13,7 +13,7 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Get Company Name ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     let prompt = "How many shares of Nvidia can I buy with $500?";
 
@@ -73,7 +73,7 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Get Company share ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
     
     let question = format!(
         "What is the current share price of {}",
@@ -105,7 +105,7 @@ async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Final response ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
     
     let final_prompt = format!(
         "{}\n\nInformation about the shares:\n{}\n\nImportant:\n \

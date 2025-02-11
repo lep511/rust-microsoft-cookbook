@@ -9,7 +9,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // claude-3-5-sonnet-20241022
     
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = ChatAnthropic::new("claude-3-5-haiku-20241022")?;
+    let llm = ChatAnthropic::new("claude-3-5-haiku-20241022");
     let response = llm
         .with_max_tokens(1024)
         .with_temperature(0.9)

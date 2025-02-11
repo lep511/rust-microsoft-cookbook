@@ -8,7 +8,7 @@ use env_logger::Env;
 async fn example_url_image() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     // === URL IMAGE ===
-    let llm = EmbedMultiVoyage::new("voyage-multimodal-3")?;
+    let llm = EmbedMultiVoyage::new("voyage-multimodal-3");
     let imag_url = "https://raw.githubusercontent.com/voyage-ai/voyage-multimodal-3/refs/heads/main/images/banana.jpg";
     let llm = llm.with_image_url(imag_url);
 
@@ -31,7 +31,7 @@ async fn example_base64_image() -> Result<(), Box<dyn std::error::Error>> {
     let image_base64 = STANDARD.encode(&buffer_01);
     let media_type = "image/jpeg";
     
-    let llm = EmbedMultiVoyage::new("voyage-multimodal-3")?;
+    let llm = EmbedMultiVoyage::new("voyage-multimodal-3");
     let llm = llm.with_image(&image_base64, media_type);
 
     let message_input = "This is an office with a lot of people working in the evening.";

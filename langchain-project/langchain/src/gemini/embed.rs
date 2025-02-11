@@ -21,8 +21,11 @@ pub struct EmbedGemini {
 
 #[allow(dead_code)]
 impl EmbedGemini {
-    pub fn new(model: &str) -> Result<Self, GeminiError> {
-        let api_key = Self::get_api_key()?;
+    pub fn new(model: &str) -> Self {
+        let api_key: String = match Self::get_api_key() {
+            Ok(api_key) => api_key,
+            Err(_) => "not_key".to_string()
+        };
         
         let base_url = format!(
             "{}/models/{}:embedContent?key={}",
@@ -48,13 +51,13 @@ impl EmbedGemini {
             title: None,
         };
         
-        Ok(Self {
+        Self {
             base_url: base_url,
             model: model.to_string(),
             request: request,
             max_retries: 0,
             timeout: Duration::from_secs(300), // default: 5 minutes
-        })
+        }
     }
 
     pub async fn embed_content(
@@ -128,6 +131,17 @@ impl EmbedGemini {
     
     pub fn with_timeout_sec(mut self, timeout: u64) -> Self {
         self.timeout = Duration::from_secs(timeout);
+        self
+    }
+
+    pub fn with_api_key(mut self, api_key: &str) -> Self {
+        self.base_url = format!(
+            "{}/models/{}:embedContent?key={}",
+            GEMINI_BASE_URL,
+            self.model,
+            api_key,
+        );
+
         self
     }
 }

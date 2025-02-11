@@ -33,8 +33,11 @@ pub struct ChatGemini {
 
 #[allow(dead_code)]
 impl ChatGemini {
-    pub fn new(model: &str) -> Result<Self, GeminiError> {
-        let api_key = Self::get_api_key()?;
+    pub fn new(model: &str) -> Self {
+        let api_key: String = match Self::get_api_key() {
+            Ok(api_key) => api_key,
+            Err(_) => "not_key".to_string()
+        };
         
         let base_url = format!(
             "{}/models/{}:generateContent?key={}",
@@ -66,13 +69,13 @@ impl ChatGemini {
             })  
         };
         
-        Ok(Self {
+        Self {
             base_url: base_url,
             model: model.to_string(),
             request: request,
             timeout: Duration::from_secs(300), // default: 5 minutes
             max_retries: 3,         // default: 3 times
-        })
+        }
     }
 
     pub async fn invoke(
@@ -576,6 +579,17 @@ impl ChatGemini {
             api_key,
         );
         
+        self
+    }
+
+    pub fn with_api_key(mut self, api_key: &str) -> Self {
+        self.base_url = format!(
+            "{}/models/{}:generateContent?key={}",
+            GEMINI_BASE_URL,
+            self.model,
+            api_key,
+        );
+
         self
     }
 }

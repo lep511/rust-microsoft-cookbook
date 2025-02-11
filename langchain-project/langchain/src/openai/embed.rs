@@ -16,20 +16,24 @@ pub struct EmbedOpenAI {
 
 #[allow(dead_code)]
 impl EmbedOpenAI {
-    pub fn new(model: &str) -> Result<Self, OpenAIError> {
-        let api_key = Self::get_api_key()?;
+    pub fn new(model: &str) -> Self {
+        let api_key: String = match Self::get_api_key() {
+            Ok(api_key) => api_key,
+            Err(_) => "not_key".to_string()
+        };
+
         let request = EmbedRequest {
             model: model.to_string(),
             input: "Init message.".to_string(),
             dimensions: None,
         };
 
-        Ok(Self {
+        Self {
             model: model.to_string(),
             request: request,
             timeout: Duration::from_secs(300), // default: 5 minutes
             api_key: api_key,
-        })
+        }
     }
 
     pub async fn embed_content(mut self, input_str: &str) -> Result<EmbedResponse, OpenAIError> {
@@ -69,6 +73,11 @@ impl EmbedOpenAI {
     pub fn with_dimensions(mut self, dimensions: u32) -> Self {
         // Only supported in text-embedding-3 and later models
         self.request.dimensions = Some(dimensions);
+        self
+    }
+
+    pub fn with_api_key(mut self, api_key: &str) -> Self {
+        self.api_key = api_key.to_string();
         self
     }
 }

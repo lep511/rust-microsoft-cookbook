@@ -6,7 +6,7 @@ use env_logger::Env;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = ChatOpenAI::new("gpt-4o")?;
+    let llm = ChatOpenAI::new("gpt-4o");
     
     let prompt = "What is in this image?";
 

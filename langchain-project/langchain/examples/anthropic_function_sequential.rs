@@ -6,7 +6,7 @@ use serde_json::json;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+    let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022");
 
     let tool_data = json!({
         "name":"get_weather",
@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tool_choice = None;
 
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022");
 
     let response = llm
         .with_chat_history(history)

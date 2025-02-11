@@ -4,7 +4,7 @@ use serde_json::json;
 use std::fs;
 
 pub async fn article_summarization() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatAnthropic::new("claude-3-5-haiku-20241022")?;
+    let llm = ChatAnthropic::new("claude-3-5-haiku-20241022");
 
     let file_path = "tests/files/anthropic_web_scraping.txt";
 
@@ -80,7 +80,7 @@ pub async fn article_summarization() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub async fn entity_recognition() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatAnthropic::new("claude-3-5-haiku-20241022")?;
+    let llm = ChatAnthropic::new("claude-3-5-haiku-20241022");
 
     let tool_data = json!({
         "name":"print_entities",
@@ -150,7 +150,7 @@ pub async fn entity_recognition() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub async fn unknown_keys() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatAnthropic::new("claude-3-5-haiku-20241022")?;
+    let llm = ChatAnthropic::new("claude-3-5-haiku-20241022");
 
     let tool_data = json!({
         "name":"print_all_characteristics",

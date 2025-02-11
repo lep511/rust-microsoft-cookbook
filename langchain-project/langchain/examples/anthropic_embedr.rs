@@ -19,7 +19,7 @@ fn get_highest_relevance_score(response: &EmbedResponse) -> Option<(f64, usize)>
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let llm = EmbedRankVoyage::new("rerank-2-lite")?;
+    let llm = EmbedRankVoyage::new("rerank-2-lite");
 
     let doc1 = "Document 1: \
                 One of the most serious constitutional responsibilities a \
@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Question: {}", query);
         println!("Highest relevance score: {} at index: {}", score, index);
 
-        let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022")?;
+        let llm = ChatAnthropic::new("claude-3-5-sonnet-20241022");
         let prompt = format!("Based on the following document. Respond to the query. \
             Query: {query}. \
             Document: {documents}. \

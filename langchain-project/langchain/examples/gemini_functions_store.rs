@@ -5,7 +5,7 @@ use serde_json::json;
 
 async fn example_tools() -> Result<(), Box<dyn std::error::Error>> {
 
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
     
     let function1 = json!({
         "name":"get_product_info",

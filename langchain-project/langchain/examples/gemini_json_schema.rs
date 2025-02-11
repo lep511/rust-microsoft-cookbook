@@ -36,7 +36,7 @@ pub enum Grade {
 
 
 async fn sample_json_response() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     let prompt = "List about 10 cookie recipes, grade them based on popularity";
 
@@ -70,7 +70,7 @@ async fn sample_json_response() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn sample_with_image() -> Result<(), Box<dyn std::error::Error>> {
-    let llm = ChatGemini::new("gemini-2.0-flash-exp")?;
+    let llm = ChatGemini::new("gemini-2.0-flash-exp");
 
     let prompt = "From the image detail the recipe to bake this item, include item names and quantities for the recipe";
 

@@ -2,7 +2,7 @@ use std::env;
 use crate::llmerror::OpenAIError;
 use serde_json::{json, Value};
 use schemars::schema::RootSchema;
-use log::error;
+use log::{info, error};
 
 /// Gets the API key from the environment variables
 ///
@@ -22,11 +22,11 @@ pub trait GetApiKey {
         match env::var("OPENAI_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                error!("Error OPENAI_API_KEY not found in environment variables");
+                info!("OPENAI_API_KEY not found in environment variables");
                 Err(OpenAIError::ApiKeyNotFound)
             }
             Err(e) => {
-                error!("Error {:?}", e);
+                error!("Unable to read env OPENAI_API_KEY {:?}", e);
                 Err(OpenAIError::EnvError(e))
             }
         }

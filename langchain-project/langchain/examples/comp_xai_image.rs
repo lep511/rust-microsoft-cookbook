@@ -8,7 +8,7 @@ pub async fn image_base64() -> Result<(), Box<dyn std::error::Error>> {
 
     let base_url = "https://api.x.ai/v1/chat/completions";
     let model = "grok-2-vision-latest";
-    let llm = ChatCompatible::new(base_url, model)?;
+    let llm = ChatCompatible::new(base_url, model);
 
     let prompt = "What is the approximate year that this photo was taken?";
 
@@ -40,7 +40,7 @@ pub async fn image_url() -> Result<(), Box<dyn std::error::Error>> {
 
     let base_url = "https://api.x.ai/v1/chat/completions";
     let model = "grok-2-vision-latest";
-    let llm = ChatCompatible::new(base_url, model)?;
+    let llm = ChatCompatible::new(base_url, model);
 
     let response = llm
         .with_image_url(image_url)

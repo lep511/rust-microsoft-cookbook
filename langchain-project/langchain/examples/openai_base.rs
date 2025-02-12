@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_timeout_sec(90)
         .with_presence_penalty(1.5)
         .with_frequency_penalty(1.5)
-        .with_n_completion(1)
+        .with_max_retries(1)
         .with_system_prompt(system_prompt)
         .invoke(prompt)
         .await?;

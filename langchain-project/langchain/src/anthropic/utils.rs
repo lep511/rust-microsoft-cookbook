@@ -11,22 +11,6 @@ pub trait GetApiKey {
         match env::var("ANTHROPIC_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                error!("Error ANTHROPIC_API_KEY not found in environment variables");
-                Err(AnthropicError::ApiKeyNotFound)
-            }
-            Err(e) => {
-                error!("Error {:?}", e);
-                Err(AnthropicError::EnvError(e))
-            }
-        }
-    }
-}
-
-pub trait GetApiKey {
-    fn get_api_key() -> Result<String, AnthropicError> {
-        match env::var("ANTHROPIC_API_KEY") {
-            Ok(key) => Ok(key),
-            Err(env::VarError::NotPresent) => {
                 info!("ANTHROPIC_API_KEY not found in environment variables");
                 Err(AnthropicError::ApiKeyNotFound)
             }
@@ -44,11 +28,11 @@ pub trait GetApiKeyVoyage {
         match env::var("VOYAGE_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                error!("Error VOYAGE_API_KEY not found in environment variables");
+                info!("VOYAGE_API_KEY not found in environment variables");
                 Err(AnthropicError::VoyageApiKeyNotFound)
             }
             Err(e) => {
-                error!("Error {:?}", e);
+                error!("Unable to read env VOYAGE_API_KEY {:?}", e);
                 Err(AnthropicError::EnvError(e))
             }
         }

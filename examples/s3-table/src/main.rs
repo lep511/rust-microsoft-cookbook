@@ -1,10 +1,16 @@
+pub mod generate_data;
+
+use generate_data::generate_random_data;
 use aws_sdk_s3tables as s3tables;
-use aws_sdk_athena as athena;
 use aws_sdk_s3tables::Client;
+use aws_sdk_athena as athena;
+use aws_sdk_athena::Client as AthenaClient;
 use aws_sdk_s3tables::types::{
     OpenTableFormat, TableMetadata, IcebergMetadata, 
     SchemaField, IcebergSchema,
 };
+
+const MAX_BYTES: usize = 262144; // 256KB
 
 pub async fn create_namespace(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
     let name_space = "new_space";
@@ -52,7 +58,11 @@ pub async fn create_table(client: &Client, table_bucket_arn: &str) -> Result<(),
         SchemaField::builder()
             .name("value")
             .r#type("int")
-            .build()?
+            .build()?,
+        SchemaField::builder()
+            .name("date")
+            .r#type("timestamp")
+            .build()?,
     ]);
 
     let iceberg_schema = IcebergSchema::builder()
@@ -164,14 +174,35 @@ pub async fn delete_table_bucket(client: &Client, table_bucket_arn: &str) -> Res
     Ok(())
 }
 
-pub async fn insert_with_athena() -> Result<(), athena::Error> {
+pub async fn insert_with_athena(
+    client: &AthenaClient, 
+    table_bucket_arn: &str
+) -> Result<(), athena::Error> {
     let config = aws_config::load_from_env().await;
     let client = athena::Client::new(&config);
 
-    let query = "INSERT INTO \"s3tablescatalog/new-table-bucket-458949\".\"new_space\".\"my_new_table\" \
+    let mut table_bucket = "no_table";
+    let name_space = "new_space";
+    let table_name = "my_new_table";
+    // let values = "(1111, 'ABC', 100, TIMESTAMP '2025-01-15 08:23:45.123456'),(2222, 'XYZ', 200, TIMESTAMP '2025-01-15 08:23:45.123456');";
+    let values_gen = generate_random_data(3000);
+    let values = values_gen.join(",");
+    if values.len() > MAX_BYTES {
+        panic!("Values too big");
+    }
+
+    if let Some(table) = table_bucket_arn.split('/').last() {
+        table_bucket = table;
+    }
+
+    let query = format!("INSERT INTO \"s3tablescatalog/{}\".\"{}\".\"{}\" \
         VALUES \
-            (1111, 'ABC', 100), \
-            (2222, 'XYZ', 200);";
+        {};",
+        table_bucket,
+        name_space,
+        table_name,
+        values,
+    );
 
     let result = client.start_query_execution()
         .query_string(query)
@@ -184,6 +215,23 @@ pub async fn insert_with_athena() -> Result<(), athena::Error> {
         .send()
         .await?;
 
+    // Check status
+    let execution_id = result.query_execution_id().unwrap();
+    println!("Query execution ID: {}", execution_id);
+
+    Ok(())
+}
+
+pub async fn insert_with_athena_handler(
+    client: &AthenaClient, 
+    table_bucket_arn: &str
+) -> Result<(), s3tables::Error> {
+
+    match insert_with_athena(client, table_bucket_arn).await {
+        Ok(_) => println!("Query in progress"),
+        Err(e) => println!("Error: {}", e),
+    }
+
     Ok(())
 }
 
@@ -192,7 +240,8 @@ pub async fn insert_with_athena() -> Result<(), athena::Error> {
 async fn main() -> Result<(), s3tables::Error> {
     let config = aws_config::load_from_env().await;
     let client = Client::new(&config);
-    let table_bucket_arn = "arn:aws:s3tables:us-west-2:491085411627:bucket/my-s3table-data-4958433";
+    let athena_client = AthenaClient::new(&config);
+    let table_bucket_arn = "arn:aws:s3tables:us-east-1:491085411627:bucket/my-s3table-49585733";
 
     // create_namespace(&client, table_bucket_arn).await?;
     // list_namespaces(&client, table_bucket_arn).await?;
@@ -201,13 +250,11 @@ async fn main() -> Result<(), s3tables::Error> {
     // list_tables(&client, table_bucket_arn).await?;
     // check_table(&client, table_bucket_arn).await?;
 
-    match insert_with_athena().await {
-        Ok(_) => println!("Inserted data into table"),
-        Err(e) => println!("Error: {}", e),
-    }
+    insert_with_athena_handler(&athena_client, table_bucket_arn).await?;
 
     // delete_table(&client, table_bucket_arn).await?;
     // delete_namespace(&client, table_bucket_arn).await?;
+    
     // delete_table_bucket(&client, table_bucket_arn).await?;
 
     Ok(())

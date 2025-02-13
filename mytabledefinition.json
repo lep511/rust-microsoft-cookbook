@@ -1,0 +1,17 @@
+{
+    "tableBucketARN": "arn:aws:s3tables:us-east-1:491085411627:bucket/my-table-bucket-49583-223",
+    "namespace": "test_space",
+    "name": "my_table",
+    "format": "ICEBERG",
+    "metadata": {
+        "iceberg": {
+            "schema": {
+                "fields": [
+                     {"name": "id", "type": "int","required": true},
+                     {"name": "name", "type": "string"},
+                     {"name": "value", "type": "int"}
+                ]
+            }
+        }
+    }
+}

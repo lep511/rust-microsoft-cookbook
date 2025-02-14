@@ -1,5 +1,6 @@
 use langchain::assembly::TranscriptAssemblyAI;
 use langchain::assembly::ListTranscriptParameters;
+use env_logger::Env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

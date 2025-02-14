@@ -1,36 +1,67 @@
-use rand::{thread_rng, Rng};
-use chrono::{Utc, TimeZone};
+use chrono::{Utc, TimeZone, NaiveTime};
+use rand::Rng;
+use rand::thread_rng;
 
 pub fn generate_random_data(n_count: i32) -> Vec<String> {
     let mut rng = thread_rng();
-    let chars: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars().collect();
+    let carriers = vec!["WN", "AA", "UA", "DL", "AS"]; // Example carriers
+    let cancel_codes = vec!["A", "B", "C", "D"];
     
     let mut values = Vec::new();
     
     for _ in 0..n_count {
-        let id: i32 = rng.gen_range(1000..9999);
+        // Basic flight info
+        let year = 2008;
+        let month = rng.gen_range(1..=12);
+        let day_of_month = rng.gen_range(1..=28); // Simplified for all months
+        let day_of_week = rng.gen_range(1..=7);
         
-        // Generate 3 random chars
-        let str_val: String = (0..3)
-            .map(|_| chars[rng.gen_range(0..chars.len())])
-            .collect();
+        // Time information
+        let dep_time = rng.gen_range(0..2400) as f32;
+        let crs_dep_time = (dep_time as i32 / 5) * 5; // Rounded to nearest 5
         
-        let number: i32 = rng.gen_range(100..999);
+        // Generate arrival times (typically 1-4 hours after departure)
+        let flight_duration = rng.gen_range(60..240);
+        let arr_time = (dep_time + flight_duration as f32).min(2359.0);
+        let crs_arr_time = ((arr_time as i32) / 5) * 5;
         
-        // Generate random timestamp
-        let timestamp = Utc.with_ymd_and_hms(2025, 1, 15, 
-            rng.gen_range(0..24),
-            rng.gen_range(0..60),
-            rng.gen_range(0..60))
-            .unwrap()
-            .format("%Y-%m-%d %H:%M:%S.%f")
-            .to_string();
+        // Flight details
+        let carrier = carriers[rng.gen_range(0..carriers.len())];
+        let flight_num = rng.gen_range(100..4000);
         
-        values.push(format!("({}, '{}', {}, TIMESTAMP '{}')", 
-            id, str_val, number, timestamp));
+        // Delays and ground operations
+        let taxi_in = rng.gen_range(1..=10) as f32;
+        let taxi_out = rng.gen_range(1..=20) as f32;
+        
+        // Status flags
+        let cancelled = rand::thread_rng().gen_bool(0.1);
+        let cancel_code = cancel_codes[rng.gen_range(0..cancel_codes.len())];
+        let diverted = rand::thread_rng().gen_bool(0.2);
+      
+        // Delays with random NULL values
+        let carrier_delay = if rng.gen_bool(0.1) { None } else { Some(rng.gen_range(1..=1200) as f32) };
+        let weather_delay = if rng.gen_bool(0.1) { None } else { Some(rng.gen_range(1..=1200) as f32) };
+        let nas_delay = if rng.gen_bool(0.1) { None } else { Some(rng.gen_range(1..=1200) as f32) };
+        let security_delay = if rng.gen_bool(0.1) { None } else { Some(rng.gen_range(1..=1200) as f32) };
+        let late_aircraft_delay = if rng.gen_bool(0.1) { None } else { Some(rng.gen_range(1..=1200) as f32) };
+
+        let carrier_delay = format_nullable(carrier_delay);
+        let weather_delay = format_nullable(weather_delay);
+        let nas_delay = format_nullable(nas_delay);
+        let security_delay = format_nullable(security_delay);
+        let late_aircraft_delay = format_nullable(late_aircraft_delay);
+
+        values.push(format!(
+            "({year}, {month}, {day_of_month}, {day_of_week}, {dep_time}, {crs_dep_time}, \
+            {arr_time}, {crs_arr_time}, '{carrier}', {flight_num}, {taxi_in}, {taxi_out}, \
+            {cancelled}, '{cancel_code}', {diverted}, {carrier_delay}, {weather_delay}, \
+            {nas_delay}, {security_delay}, {late_aircraft_delay})"));
     }
-    
-    // println!("{};", values.join(","));
 
     values
+}
+
+// Helper function to format Option<f32> as "NULL" or its value
+fn format_nullable(value: Option<f32>) -> String {
+    value.map_or_else(|| "NULL".to_string(), |v| v.to_string())
 }

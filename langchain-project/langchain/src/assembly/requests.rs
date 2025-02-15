@@ -100,6 +100,28 @@ pub async fn upload_media(
     Ok(upload_url)
 }
 
+pub async fn get_engine(
+    url: &str,
+    api_key: &str,
+) -> Result<String, AssemblyError> {
+    // Creates an HTTPS-capable client using rustls TLS implementation.
+    let client = Client::builder()
+        .use_rustls_tls()
+        .build()?;
+
+    let response = make_get_request(
+        &client,
+        url,
+        api_key,
+    ).await?;
+
+    let response_data = response.json::<serde_json::Value>().await?;
+    print_pre(&response_data, DEBUG_POST);
+
+    let response_string = response_data.to_string();
+    Ok(response_string)
+}
+
 /// Makes an HTTP POST request to the Assembly API endpoint
 ///
 /// Sends a request with the specified parameters and handles authentication and headers
@@ -137,6 +159,19 @@ pub async fn make_request(
         .header("Authorization", api_key)
         .header("Content-Type", "application/json")
         .body(request_body.to_vec())
+        .send()
+        .await?)
+}
+
+pub async fn make_get_request(
+    client: &Client,
+    url: &str,
+    api_key: &str,
+) -> Result<Response, reqwest::Error> {
+    Ok(client
+        .request(reqwest::Method::GET, url)
+        .header("Authorization", api_key)
+        .header("Content-Type", "application/json")
         .send()
         .await?)
 }

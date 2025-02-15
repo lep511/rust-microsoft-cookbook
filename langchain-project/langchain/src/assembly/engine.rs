@@ -1,15 +1,15 @@
 use crate::assembly::utils::GetApiKey;
 use crate::assembly::libs::{
     TranscriptRequest, TranscriptResponse, GetTranscriptResponse,
-    ListTranscriptParameters, ListTranscriptResponse,
+    ListTranscriptParameters, ListTranscriptResponse, PiiType,
 };
 use crate::assembly::requests::{
     upload_media, request_engine, get_engine,
 };
-use crate::assembly::ASSEMBLYAI_BASE_URL;
+use crate::assembly::{ASSEMBLYAI_BASE_URL, SPEECH_ACCEPT_MODEL};
 use crate::llmerror::AssemblyError;
 use std::time::Duration;
-use url::Url;
+use reqwest::Url;
 use log::error;
 
 #[allow(dead_code)]
@@ -183,7 +183,7 @@ impl TranscriptAssemblyAI {
         };
         
         let response = get_engine(
-            &base_url,
+            &base_url.to_string(),
             &self.api_key,        
         ).await;
 
@@ -216,19 +216,19 @@ impl TranscriptAssemblyAI {
         self
     }
 
-    // pub fn with_speech_model(mut self, speech_model: &str) -> Self {
-    //     if !SPEECH_ACCEPT_MODEL.contains(&speech_model) {
-    //         error!("Error Speech model not accepted");
-    //         return self;
-    //     }
-    //     self.request.speech_model = Some(speech_model.to_string());
-    //     self
-    // }
+    pub fn with_speech_model(mut self, speech_model: &str) -> Self {
+        if !SPEECH_ACCEPT_MODEL.contains(&speech_model) {
+            error!("Error Speech model not accepted");
+            return self;
+        }
+        self.request.speech_model = Some(speech_model.to_string());
+        self
+    }
 
-    // pub fn with_redact_pii_policies(mut self, redact_pii_policies: Vec<PiiType>) -> Self {
-    //     self.request.redact_pii_policies = Some(redact_pii_policies);
-    //     self
-    // }
+    pub fn with_redact_pii_policies(mut self, redact_pii_policies: Vec<PiiType>) -> Self {
+        self.request.redact_pii_policies = Some(redact_pii_policies);
+        self
+    }
 
     pub fn with_audio_end_at(mut self, audio_end_at: u32) -> Self {
         self.request.audio_end_at = Some(audio_end_at);

@@ -15,6 +15,8 @@ use aws_sdk_s3tables::types::{
 
 const MAX_BYTES: usize = 262144; // 256KB
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CREATE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 pub async fn create_namespace(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
     let name_space = "flight";
 
@@ -184,6 +186,8 @@ pub async fn list_tables(client: &Client, table_bucket_arn: &str) -> Result<(), 
     Ok(())
 }
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CHECK ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 pub async fn check_table(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
 
     let table_name = "flight_data";
@@ -203,46 +207,7 @@ pub async fn check_table(client: &Client, table_bucket_arn: &str) -> Result<(), 
     Ok(())
 }
 
-pub async fn delete_table(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
-
-    let table_name = "flight_data";
-    let name_space = "flight";
-
-    let table = client.delete_table()
-                .table_bucket_arn(table_bucket_arn)
-                .namespace(name_space)
-                .name(table_name)
-                .send().await?;
-
-    println!("Table deleted: {}", table_name);
-
-    Ok(())
-}
-
-pub async fn delete_namespace(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
-
-    let name_space = "flight";
-    let namespace = client.delete_namespace()
-                .table_bucket_arn(table_bucket_arn)
-                .namespace(name_space)
-                .send().await?;
-
-    println!("Namespace deleted: {}", name_space);
-
-    Ok(())
-}
-
-#[allow(dead_code)]
-pub async fn delete_table_bucket(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
-
-    let table = client.delete_table_bucket()
-                .table_bucket_arn(table_bucket_arn)
-                .send().await?;
-
-    println!("Table bucket deleted: {}", table_bucket_arn);
-
-    Ok(())
-}
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INSERT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub async fn insert_with_athena(
     client: &AthenaClient, 
@@ -351,6 +316,184 @@ pub async fn insert_with_athena_handler(
     Ok(())
 }
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ QUERY ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub async fn query_handler(
+    client: &AthenaClient,
+    table_bucket_arn: &str,
+    query_fparam: &str,
+    query_lparam: &str,
+) -> Result<(), athena::Error> {
+    let config = aws_config::load_from_env().await;
+    let client = athena::Client::new(&config);
+
+    let name_space = "flight";
+    let table_name = "flight_data";
+    let mut table_bucket = "no_table";
+    let mut query_success = false;
+
+    if let Some(table) = table_bucket_arn.split('/').last() {
+        table_bucket = table;
+    }
+
+    let query = format!("{} FROM \"s3tablescatalog/{}\".\"{}\".\"{}\" {};",
+        query_fparam,
+        table_bucket,
+        name_space,
+        table_name,
+        query_lparam,
+    );
+
+    let result = client.start_query_execution()
+        .query_string(query)
+        // Add output location configuration
+        .result_configuration(
+            athena::types::ResultConfiguration::builder()
+                .output_location("s3://data-lake-bucket-raw-49583/")
+                .build()
+        )
+        .send()
+        .await?;
+
+    // Set query execution ID
+    let query_execution_id = result.query_execution_id().unwrap();
+    println!("Query execution ID: {}", query_execution_id);
+
+    // Polling for query execution completion
+    loop {
+        let response = client
+            .get_query_execution()
+            .query_execution_id(query_execution_id)
+            .send()
+            .await?;
+
+        if let Some(query_execution) = response.query_execution {
+            if let Some(status) = query_execution.status {
+                if let Some(state) = status.state {
+                    match state {
+                        QueryExecutionState::Succeeded => {
+                            if let Some(query) = query_execution.query {
+                                println!("Query execution succeeded.");
+                                println!("File csv: {}", query_execution.result_configuration.unwrap().output_location.unwrap());
+                            } else {
+                                println!("Query not found in execution details.");
+                            }
+                            query_success = true;
+                            break;
+                        }
+                        QueryExecutionState::Failed | QueryExecutionState::Cancelled => {
+                            if let Some(query) = query_execution.query {
+                                println!("Query execution failed or was cancelled.");
+                                println!("The SQL query is: {}", query);
+                            } else {
+                                println!("Query not found in execution details.");
+                            }
+                            break;
+                        }
+                        _ => {
+                            println!("Query is still running. Waiting...");
+                            sleep(Duration::from_secs(7)).await;
+                        }
+                    }
+                }
+            }
+        } else {
+            println!("Query execution not found.");
+            break;
+        }
+    }
+
+    if query_success {
+        let results = client.get_query_results()
+            .query_execution_id(query_execution_id)
+            .send()
+            .await?;
+
+        if let Some(result_set) = results.result_set() {
+            for row in result_set.rows() {
+                // Each row can have multiple cells (columns).
+                let row_data: Vec<String> = row.data()
+                    .iter()
+                    .map(|datum| datum.var_char_value().unwrap_or("").to_string())
+                    .collect();
+                println!("{:?}", row_data);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn query_with_athena(
+    client: &AthenaClient,
+    table_bucket_arn: &str,
+) -> Result<(), s3tables::Error> {
+
+    let query_fparam = "SELECT CASE \
+            WHEN unique_carrier = 'UA' THEN 'United Airlines' \
+            WHEN unique_carrier = 'WN' THEN 'Southwest Airlines' \
+            WHEN unique_carrier = 'AS' THEN 'Alaska Airlines' \
+            WHEN unique_carrier = 'AA' THEN 'American Airlines' \
+            WHEN unique_carrier = 'DL' THEN 'Delta Air Lines' \
+            ELSE unique_carrier  \
+        END AS airline_name, \
+        COUNT(*) AS total_cancelled";
+
+    let query_lparam = "WHERE cancelled \
+        GROUP BY 1
+        ORDER BY total_cancelled DESC";
+
+    match query_handler(client, table_bucket_arn, query_fparam, query_lparam).await {
+        Ok(_) => println!("Stop."),
+        Err(e) => println!("Error: {}", e),
+    }
+
+    Ok(())
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub async fn delete_table(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
+
+    let table_name = "flight_data";
+    let name_space = "flight";
+
+    let table = client.delete_table()
+                .table_bucket_arn(table_bucket_arn)
+                .namespace(name_space)
+                .name(table_name)
+                .send().await?;
+
+    println!("Table deleted: {}", table_name);
+
+    Ok(())
+}
+
+pub async fn delete_namespace(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
+
+    let name_space = "flight";
+    let namespace = client.delete_namespace()
+                .table_bucket_arn(table_bucket_arn)
+                .namespace(name_space)
+                .send().await?;
+
+    println!("Namespace deleted: {}", name_space);
+
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub async fn delete_table_bucket(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
+
+    let table = client.delete_table_bucket()
+                .table_bucket_arn(table_bucket_arn)
+                .send().await?;
+
+    println!("Table bucket deleted: {}", table_bucket_arn);
+
+    Ok(())
+}
+
 #[::tokio::main]
 async fn main() -> Result<(), s3tables::Error> {
     let config = aws_config::load_from_env().await;
@@ -365,7 +508,9 @@ async fn main() -> Result<(), s3tables::Error> {
     // list_tables(&client, table_bucket_arn).await?;
     // check_table(&client, table_bucket_arn).await?;
 
-    insert_with_athena_handler(&athena_client, table_bucket_arn).await?;
+    // insert_with_athena_handler(&athena_client, table_bucket_arn).await?;
+
+    query_with_athena(&athena_client, table_bucket_arn).await?;
 
     // delete_table(&client, table_bucket_arn).await?;
     // delete_namespace(&client, table_bucket_arn).await?;

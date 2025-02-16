@@ -6,7 +6,7 @@ use crate::openai::{
     OPENAI_BASE_URL, OPENAI_EMBED_URL, RETRY_BASE_DELAY,
     DEBUG_PRE, DEBUG_POST,
 };
-use crate::llmerror::OpenAIError;
+use crate::openai::error::OpenAIError;
 use crate::openai::libs::{
     ChatRequest, EmbedRequest, ErrorResponse, ChatResponse,
 };

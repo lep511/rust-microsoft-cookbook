@@ -1,7 +1,7 @@
 use crate::openai::requests::request_embed;
 use crate::openai::libs::{EmbedRequest, EmbedResponse};
 use crate::openai::utils::GetApiKey;
-use crate::llmerror::OpenAIError;
+use crate::openai::error::OpenAIError;
 use std::time::Duration;
 use log::error;
 

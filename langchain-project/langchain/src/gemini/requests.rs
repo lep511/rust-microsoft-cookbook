@@ -7,7 +7,7 @@ use crate::gemini::libs::{ChatRequest, Part, Content, ChatResponse};
 use crate::gemini::libs::{CacheRequest, InlineData, EmbedRequest};
 use crate::gemini::utils::print_pre;
 use crate::gemini::{DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY};
-use crate::llmerror::GeminiError;
+use crate::gemini::error::GeminiError;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde_json::json;

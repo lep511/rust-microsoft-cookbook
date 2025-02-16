@@ -2,6 +2,7 @@ use std::time::Duration;
 
 pub mod chat;
 pub mod embed;
+pub mod error;
 pub mod libs;
 pub mod utils;
 pub mod requests;

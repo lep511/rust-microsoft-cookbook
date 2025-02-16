@@ -6,7 +6,7 @@ use crate::anthropic::utils::{
     GetApiKey, read_file_data,
 };
 use crate::anthropic::requests::request_chat;
-use crate::llmerror::AnthropicError;
+use crate::anthropic::error::AnthropicError;
 use serde_json::Value;
 use std::time::Duration;
 use log::error;

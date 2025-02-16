@@ -1,4 +1,4 @@
-use crate::llmerror::GeminiError;
+use crate::gemini::error::GeminiError;
 use crate::gemini::utils::GetApiKey;
 use crate::gemini::libs::{
     Content, Part, EmbedResponse,EmbedRequest, TaskType

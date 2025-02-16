@@ -1,4 +1,4 @@
-use crate::llmerror::AssemblyError;
+use crate::assembly::error::AssemblyError;
 use log::{info, error};
 use std::env;
 

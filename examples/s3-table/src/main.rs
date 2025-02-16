@@ -1,6 +1,7 @@
 #[allow(dead_code)]
 pub mod generate_data;
-
+pub mod compatible;
+use log::{info, error};
 use generate_data::generate_random_data;
 use tokio::time::{sleep, Duration};
 use aws_sdk_s3tables as s3tables;
@@ -12,6 +13,9 @@ use aws_sdk_s3tables::types::{
     OpenTableFormat, TableMetadata, IcebergMetadata, 
     SchemaField, IcebergSchema,
 };
+use compatible::chat::ChatCompatible;
+use compatible::libs::ChatResponse;
+use env_logger::Env;
 
 const MAX_BYTES: usize = 262144; // 256KB
 
@@ -25,7 +29,7 @@ pub async fn create_namespace(client: &Client, table_bucket_arn: &str) -> Result
                 .namespace(name_space)
                 .send().await?;
 
-    println!("Namespace created: {}", name_space);
+    info!("Namespace created: {}", name_space);
     
     Ok(())
 }
@@ -255,7 +259,7 @@ pub async fn insert_with_athena(
 
     // Set query execution ID
     let query_execution_id = result.query_execution_id().unwrap();
-    println!("Query execution ID: {}", query_execution_id);
+    info!("Query execution ID: {}", query_execution_id);
 
     // Polling for query execution completion
     loop {
@@ -271,31 +275,31 @@ pub async fn insert_with_athena(
                     match state {
                         QueryExecutionState::Succeeded => {
                             if let Some(query) = query_execution.query {
-                                println!("Query execution succeeded.");
+                                info!("Query execution succeeded.");
                                 // println!("The SQL query is: {}", query);
                             } else {
-                                println!("Query not found in execution details.");
+                                error!("Query not found in execution details.");
                             }
                             break;
                         }
                         QueryExecutionState::Failed | QueryExecutionState::Cancelled => {
                             if let Some(query) = query_execution.query {
-                                println!("Query execution failed or was cancelled.");
-                                println!("The SQL query is: {}", query);
+                                error!("Query execution failed or was cancelled.");
+                                info!("The SQL query is: {}", query);
                             } else {
-                                println!("Query not found in execution details.");
+                                error!("Query not found in execution details.");
                             }
                             break;
                         }
                         _ => {
-                            println!("Query is still running. Waiting...");
+                            info!("Query is still running. Waiting...");
                             sleep(Duration::from_secs(7)).await;
                         }
                     }
                 }
             }
         } else {
-            println!("Query execution not found.");
+            error!("Query execution not found.");
             break;
         }
     }
@@ -309,8 +313,8 @@ pub async fn insert_with_athena_handler(
 ) -> Result<(), s3tables::Error> {
 
     match insert_with_athena(client, table_bucket_arn).await {
-        Ok(_) => println!("Stop."),
-        Err(e) => println!("Error: {}", e),
+        Ok(_) => (),
+        Err(e) => error!("Error: {}", e),
     }
 
     Ok(())
@@ -357,7 +361,7 @@ pub async fn query_handler(
 
     // Set query execution ID
     let query_execution_id = result.query_execution_id().unwrap();
-    println!("Query execution ID: {}", query_execution_id);
+    info!("Query execution ID: {}", query_execution_id);
 
     // Polling for query execution completion
     loop {
@@ -373,32 +377,32 @@ pub async fn query_handler(
                     match state {
                         QueryExecutionState::Succeeded => {
                             if let Some(query) = query_execution.query {
-                                println!("Query execution succeeded.");
-                                println!("File csv: {}", query_execution.result_configuration.unwrap().output_location.unwrap());
+                                info!("Query execution succeeded.");
+                                info!("File csv: {}", query_execution.result_configuration.unwrap().output_location.unwrap());
                             } else {
-                                println!("Query not found in execution details.");
+                                error!("Query not found in execution details.");
                             }
                             query_success = true;
                             break;
                         }
                         QueryExecutionState::Failed | QueryExecutionState::Cancelled => {
                             if let Some(query) = query_execution.query {
-                                println!("Query execution failed or was cancelled.");
-                                println!("The SQL query is: {}", query);
+                                error!("Query execution failed or was cancelled.");
+                                info!("The SQL query is: {}", query);
                             } else {
-                                println!("Query not found in execution details.");
+                                error!("Query not found in execution details.");
                             }
                             break;
                         }
                         _ => {
-                            println!("Query is still running. Waiting...");
+                            info!("Query is still running. Waiting...");
                             sleep(Duration::from_secs(7)).await;
                         }
                     }
                 }
             }
         } else {
-            println!("Query execution not found.");
+            error!("Query execution not found.");
             break;
         }
     }
@@ -409,6 +413,8 @@ pub async fn query_handler(
             .send()
             .await?;
 
+        let mut table_data: Vec<Vec<String>> = Vec::new();
+        
         if let Some(result_set) = results.result_set() {
             for row in result_set.rows() {
                 // Each row can have multiple cells (columns).
@@ -417,8 +423,46 @@ pub async fn query_handler(
                     .map(|datum| datum.var_char_value().unwrap_or("").to_string())
                     .collect();
                 println!("{:?}", row_data);
+                table_data.push(row_data);
             }
         }
+
+        let base_url = "https://api.x.ai/v1/chat/completions";
+        let model = "grok-2-latest";
+        let llm = ChatCompatible::new(base_url, model);
+    
+        let prompt = format!(
+            "According to the information in this table, which are the airlines with the most \
+            cancelled flights? Do not provide information about the origin of the data. \
+            Table: \n {:?}",
+            table_data,
+        );
+       
+        let response = llm
+            .with_max_retries(0)
+            .invoke(&prompt)
+            .await;
+
+        match response {
+            Ok(response) => {
+                match response.choices {
+                    Some(candidates) => {
+                        for candidate in candidates {
+                            #[allow(irrefutable_let_patterns)]
+                            if let Some(message) = candidate.message {
+                                if let Some(content) = message.content {
+                                    println!("{}", content);
+                                }
+                            }
+                        }
+                    }
+                    None => println!("No response choices available"),
+                };
+            }
+            Err(e) => {
+                error!("Error: {}", e);
+            }
+        } 
     }
 
     Ok(())
@@ -444,8 +488,8 @@ pub async fn query_with_athena(
         ORDER BY total_cancelled DESC";
 
     match query_handler(client, table_bucket_arn, query_fparam, query_lparam).await {
-        Ok(_) => println!("Stop."),
-        Err(e) => println!("Error: {}", e),
+        Ok(_) => (),
+        Err(e) => error!("Error: {}", e),
     }
 
     Ok(())
@@ -464,7 +508,7 @@ pub async fn delete_table(client: &Client, table_bucket_arn: &str) -> Result<(),
                 .name(table_name)
                 .send().await?;
 
-    println!("Table deleted: {}", table_name);
+    info!("Table deleted: {}", table_name);
 
     Ok(())
 }
@@ -477,7 +521,7 @@ pub async fn delete_namespace(client: &Client, table_bucket_arn: &str) -> Result
                 .namespace(name_space)
                 .send().await?;
 
-    println!("Namespace deleted: {}", name_space);
+    info!("Namespace deleted: {}", name_space);
 
     Ok(())
 }
@@ -489,13 +533,14 @@ pub async fn delete_table_bucket(client: &Client, table_bucket_arn: &str) -> Res
                 .table_bucket_arn(table_bucket_arn)
                 .send().await?;
 
-    println!("Table bucket deleted: {}", table_bucket_arn);
+    info!("Table bucket deleted: {}", table_bucket_arn);
 
     Ok(())
 }
 
 #[::tokio::main]
 async fn main() -> Result<(), s3tables::Error> {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let config = aws_config::load_from_env().await;
     let client = Client::new(&config);
     let athena_client = AthenaClient::new(&config);

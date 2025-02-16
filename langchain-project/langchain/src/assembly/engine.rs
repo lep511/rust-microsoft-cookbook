@@ -7,7 +7,7 @@ use crate::assembly::requests::{
     upload_media, request_engine, get_engine,
 };
 use crate::assembly::{ASSEMBLYAI_BASE_URL, SPEECH_ACCEPT_MODEL};
-use crate::llmerror::AssemblyError;
+use crate::assembly::error::AssemblyError;
 use std::time::Duration;
 use reqwest::Url;
 use log::error;

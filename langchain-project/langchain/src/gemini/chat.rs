@@ -2,7 +2,7 @@ use futures::pin_mut;
 use futures::StreamExt;
 use log::error;
 use async_stream::stream;
-use crate::llmerror::GeminiError;
+use crate::gemini::error::GeminiError;
 use crate::gemini::utils::{
     GetApiKey, get_mime_type, get_base64_bytes_length
 };

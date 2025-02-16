@@ -1,6 +1,6 @@
 use crate::anthropic::requests::request_embed;
 use crate::anthropic::utils::GetApiKeyVoyage;
-use crate::llmerror::AnthropicError;
+use crate::anthropic::error::AnthropicError;
 use crate::anthropic::libs::{
     EmbedRequest, Content, InputEmbed, EmbedContent,
     EmbedResponse, AnthropicEmbedEndpoint

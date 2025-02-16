@@ -1,5 +1,5 @@
 use std::env;
-use crate::llmerror::OpenAIError;
+use crate::openai::error::OpenAIError;
 use serde_json::{json, Value};
 use schemars::schema::RootSchema;
 use log::{info, error};

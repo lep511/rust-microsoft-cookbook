@@ -1,4 +1,4 @@
-use crate::llmerror::LangsmithError;
+use crate::langsmith::error::LangsmithError;
 use std::env;
 use log::{info, error};
 

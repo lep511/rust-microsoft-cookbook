@@ -1,5 +1,5 @@
 use std::env;
-use crate::llmerror::GeminiError;
+use crate::gemini::error::GeminiError;
 use crate::gemini::libs::Candidate;
 use serde_json::{json, Value};
 use schemars::schema::RootSchema;

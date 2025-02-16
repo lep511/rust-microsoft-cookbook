@@ -1,4 +1,4 @@
-use crate::llmerror::AnthropicError;
+use crate::anthropic::error::AnthropicError;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use std::fs::File;
 use std::io::Read;

@@ -7,7 +7,7 @@ use crate::openai::libs::{
     ChatRequest, InputContent, ResponseFormat,
     Message, Role, ChatResponse, ImageUrl,
 };
-use crate::llmerror::OpenAIError;
+use crate::openai::error::OpenAIError;
 use std::time::Duration;
 use log::error;
 

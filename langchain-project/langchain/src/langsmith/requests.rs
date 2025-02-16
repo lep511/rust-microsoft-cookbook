@@ -3,7 +3,7 @@ use log::error;
 use crate::langsmith::libs::{LangsmithRequest, ErrorResponse};
 use crate::langsmith::utils::print_pre;
 use crate::langsmith::{LANGSMITH_BASE_URL, DEBUG_PRE, DEBUG_POST};
-use crate::llmerror::LangsmithError;
+use crate::langsmith::error::LangsmithError;
 use serde_json::Value;
 
 pub async fn request_langsmith(

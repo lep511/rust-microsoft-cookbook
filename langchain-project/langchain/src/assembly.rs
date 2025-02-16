@@ -2,6 +2,7 @@ use std::time::Duration;
 
 pub mod engine;
 pub mod libs;
+pub mod error;
 pub mod requests;
 pub mod utils;
 

@@ -4,7 +4,7 @@ use crate::langsmith::libs::{
 };
 use crate::langsmith::utils::GetApiKey;
 use crate::langsmith::requests::request_langsmith;
-use crate::llmerror::LangsmithError;
+use crate::langsmith::error::LangsmithError;
 use serde_json::Value;
 use log::error;
 

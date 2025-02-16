@@ -5,7 +5,7 @@ use crate::assembly::utils::print_pre;
 use crate::assembly::{
     DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY,
 };
-use crate::llmerror::AssemblyError;
+use crate::assembly::error::AssemblyError;
 use std::time::Duration;
 use std::collections::HashMap;
 use tokio::time::sleep;

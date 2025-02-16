@@ -9,7 +9,7 @@ use crate::anthropic::{
     ANTHROPIC_VERSION, ANTHROPIC_BASE_URL, DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY,
     ANTHROPIC_EMBED_URL, ANTHROPIC_EMBEDMUL_URL, ANTHROPIC_EMBEDRANK_URL
 };
-use crate::llmerror::AnthropicError;
+use crate::anthropic::error::AnthropicError;
 use std::time::Duration;
 use serde_json::Value;
 use tokio::time::sleep;

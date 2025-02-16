@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub mod generate_data;
 
 use generate_data::generate_random_data;
@@ -14,7 +15,6 @@ use aws_sdk_s3tables::types::{
 
 const MAX_BYTES: usize = 262144; // 256KB
 
-#[allow(dead_code)]
 pub async fn create_namespace(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
     let name_space = "flight";
 
@@ -43,7 +43,6 @@ pub async fn list_namespaces(client: &Client, table_bucket_arn: &str) -> Result<
     Ok(())
 }
 
-#[allow(dead_code)]
 pub async fn create_table(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
 
     let table_name = "flight_data";
@@ -130,8 +129,8 @@ pub async fn create_table(client: &Client, table_bucket_arn: &str) -> Result<(),
             .r#type("float")
             .build()?,
         SchemaField::builder()
-            .name("late_aircraft_delay")
-            .r#type("float")
+            .name("flight_date")
+            .r#type("timestamp")
             .build()?,
     ]);
 
@@ -166,7 +165,6 @@ pub async fn create_table(client: &Client, table_bucket_arn: &str) -> Result<(),
     Ok(())
 }
 
-#[allow(dead_code)]
 pub async fn list_tables(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
 
     let name_space = "flight";
@@ -186,7 +184,6 @@ pub async fn list_tables(client: &Client, table_bucket_arn: &str) -> Result<(), 
     Ok(())
 }
 
-#[allow(dead_code)]
 pub async fn check_table(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
 
     let table_name = "flight_data";
@@ -206,7 +203,6 @@ pub async fn check_table(client: &Client, table_bucket_arn: &str) -> Result<(), 
     Ok(())
 }
 
-#[allow(dead_code)]
 pub async fn delete_table(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
 
     let table_name = "flight_data";
@@ -223,7 +219,6 @@ pub async fn delete_table(client: &Client, table_bucket_arn: &str) -> Result<(),
     Ok(())
 }
 
-#[allow(dead_code)]
 pub async fn delete_namespace(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
 
     let name_space = "flight";
@@ -249,7 +244,6 @@ pub async fn delete_table_bucket(client: &Client, table_bucket_arn: &str) -> Res
     Ok(())
 }
 
-#[allow(dead_code)]
 pub async fn insert_with_athena(
     client: &AthenaClient, 
     table_bucket_arn: &str
@@ -261,12 +255,13 @@ pub async fn insert_with_athena(
     let name_space = "flight";
     let table_name = "flight_data";
     
-    // #### Generate Data #####
-    let values_gen = generate_random_data(100);
+    // ################## Generate Data #########################
+    let values_gen = generate_random_data(1000);
+    // ##########################################################
     
     let values = values_gen.join(",");
     if values.len() > MAX_BYTES {
-        panic!("Values too big");
+        panic!("Query exceeds maximum allowed size 256 kb");
     }
 
     if let Some(table) = table_bucket_arn.split('/').last() {
@@ -343,7 +338,6 @@ pub async fn insert_with_athena(
     Ok(())
 }
 
-#[allow(dead_code)]
 pub async fn insert_with_athena_handler(
     client: &AthenaClient, 
     table_bucket_arn: &str
@@ -356,7 +350,6 @@ pub async fn insert_with_athena_handler(
 
     Ok(())
 }
-
 
 #[::tokio::main]
 async fn main() -> Result<(), s3tables::Error> {

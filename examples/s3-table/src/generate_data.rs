@@ -5,7 +5,7 @@ use rand::rng;
 #[allow(dead_code)]
 pub fn generate_random_data(n_count: i32) -> Vec<String> {
     let mut rng = rng();
-    let carriers = vec!["WN", "AA", "UA", "DL", "AS"]; // Example carriers
+    let carriers = vec!["WN", "AA", "UA", "DL", "AS", "B6", "NK", "F9", "HA", "VX"]; // Example carriers
     let cancel_codes = vec!["A", "B", "C", "D"];
     
     let mut values = Vec::new();
@@ -44,16 +44,15 @@ pub fn generate_random_data(n_count: i32) -> Vec<String> {
         let weather_delay = if rng.random_bool(0.1) { None } else { Some(rng.random_range(1..=1200) as f32) };
         let nas_delay = if rng.random_bool(0.1) { None } else { Some(rng.random_range(1..=1200) as f32) };
         let security_delay = if rng.random_bool(0.1) { None } else { Some(rng.random_range(1..=1200) as f32) };
-        let late_aircraft_delay = if rng.random_bool(0.1) { None } else { Some(rng.random_range(1..=1200) as f32) };
 
         let carrier_delay = format_nullable(carrier_delay);
         let weather_delay = format_nullable(weather_delay);
         let nas_delay = format_nullable(nas_delay);
         let security_delay = format_nullable(security_delay);
         let flight_date = Utc.with_ymd_and_hms(
-            rng.random_range(2008..=2023),
-            rng.random_range(1..=12),
-            rng.random_range(1..=28),
+            year,
+            month,
+            day_of_month,
             rng.random_range(0..24),
             rng.random_range(0..60),
             rng.random_range(0..60))

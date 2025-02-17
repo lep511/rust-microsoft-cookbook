@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 pub mod generate_data;
 pub mod compatible;
-use log::{info, error};
+use log::{info, warn, error};
 use generate_data::generate_random_data;
 use tokio::time::{sleep, Duration};
 use aws_sdk_s3tables as s3tables;
@@ -423,7 +423,7 @@ pub async fn query_handler(
                     .iter()
                     .map(|datum| datum.var_char_value().unwrap_or("").to_string())
                     .collect();
-                println!("{:?}", row_data);
+                // println!("{:?}", row_data);
                 table_data.push(row_data);
             }
         }
@@ -477,13 +477,14 @@ pub async fn query_with_athena(
 
     let prompt = format!(
         "According to the information in this table, which are the airlines with the least \
-        cancelled flights? Do not provide information about the origin of the data. \
+        cancelled flights? Do not provide information about the origin of the data or \
+        reference to the table.\n\n \
         Table: \n {:?}",
         table_data,
     );
    
     let response = llm
-        .with_max_retries(0)
+        .with_max_retries(3)
         .invoke(&prompt)
         .await;
 
@@ -500,7 +501,7 @@ pub async fn query_with_athena(
                         }
                     }
                 }
-                None => println!("No response choices available"),
+                None => warn!("No response choices available"),
             };
         }
         Err(e) => {
@@ -522,7 +523,7 @@ pub async fn query_with_llm(
     let llm = ChatCompatible::new(base_url, model);
 
     let prompt = format!(
-        "Write a query in AWS Athena to search this table {}. Response only with SQL QUERY. \
+        "Write a query in AWS Athena to search this table {}. Do not use any language other than English in SQL code. Response only with SQL QUERY. \
         my_table: \
         \"year\",\"month\",\"day_of_month\",\"day_of_week\",\"deptime\",\"crs_deptime\",\"arr_time\",\"crs_arr_time\",\"unique_carrier\",\"flight_num\",\"taxi_in\",\"taxi_out\",\"cancelled\",\"cancellation_code\",\"diverted\",\"carrier_delay\",\"weather_delay\",\"nas_delay\",\"security_delay\",\"flight_date\" \
         \"2000\",\"1\",\"22\",\"6\",\"1490.0\",\"1490\",\"1650.0\",\"1650\",\"AA\",\"387\",\"3.0\",\"10.0\",\"false\",\"A\",\"false\",\"21.0\",\"699.0\",\"1162.0\",\"326.0\",\"2000-01-22 01:04:59.000000\"\n \
@@ -549,13 +550,13 @@ pub async fn query_with_llm(
                         #[allow(irrefutable_let_patterns)]
                         if let Some(message) = candidate.message {
                             if let Some(content) = message.content {
-                                println!("{}", content);
+                                // println!("{}", content);
                                 query.push_str(&content);
                             }
                         }
                     }
                 }
-                None => println!("No response choices available"),
+                None => warn!("No response choices available"),
             };
         }
         Err(e) => {
@@ -585,18 +586,56 @@ pub async fn query_with_llm(
 
     let (query_fparam, query_lparam) = (parts[0], parts[1]);
 
-    match query_handler(
+    let table_data = match query_handler(
         client, 
         table_bucket_arn, 
         query_fparam, 
         query_lparam,
     ).await {
-        Ok(_) => (),
+        Ok(result) => result,
         Err(e) => {
             error!("Error: {}", e);
             return Ok(());
         }
-    }
+    };
+
+    let llm = ChatCompatible::new(base_url, model);
+
+    let prompt = format!(
+        "According to the information in this table, answer this query: {}\n \
+        Do not provide information about the origin of the data or \
+        reference to the table. If there is no data in the table it responds \
+        that you cannot answer the query.\n\n \
+        Table: \n {:?}",
+        query_text,
+        table_data,
+    );
+
+    let response = llm
+        .with_max_retries(3)
+        .invoke(&prompt)
+        .await;
+
+    match response {
+        Ok(response) => {
+            match response.choices {
+                Some(candidates) => {
+                    for candidate in candidates {
+                        #[allow(irrefutable_let_patterns)]
+                        if let Some(message) = candidate.message {
+                            if let Some(content) = message.content {
+                                println!("{}", content);
+                            }
+                        }
+                    }
+                }
+                None => warn!("No response choices available"),
+            };
+        }
+        Err(e) => {
+            error!("Error: {}", e);
+        }
+    } 
 
     Ok(())
 }

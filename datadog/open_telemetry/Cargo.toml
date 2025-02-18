@@ -3,6 +3,11 @@ name = "open_telemetry"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]] # Bin to run mix
+name = "mix"
+path = "src/mix_data.rs"
+doc = false
+
 [dependencies]
 opentelemetry = { version = "0.28", features = ["metrics"] }
 opentelemetry_sdk = { version = "0.28", features = ["metrics", "rt-tokio"] }

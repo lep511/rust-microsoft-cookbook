@@ -1,0 +1,8 @@
+## Cómo supervisar sus aplicaciones Rust con OpenTelemetry
+
+La gran seguridad de memoria y la eficiente ejecución de código de **Rust** lo convierten en la mejor opción para construir sistemas robustos y de alto rendimiento. Pero incluso con sus potentes garantías en torno a la gestión de la memoria y la seguridad de los subprocesos, las aplicaciones **Rust** en entornos de producción todavía pueden enfrentarse a desafíos tales como picos de latencia, contención de recursos y cuellos de botella inesperados. Por este motivo, es esencial monitorizar las aplicaciones **Rust** para garantizar que cumplen las expectativas de rendimiento y siguen siendo fiables bajo carga. El reto para los ingenieros, sin embargo, es que hay muy poca información disponible -especialmente información concreta y probada en laboratorio- que proporcione una orientación clara sobre este tema.
+
+El objetivo de esta guía es abordar este vacío de información. Datadog se basa en OpenTelemetry (OTel) para obtener visibilidad a nivel de código sobre el rendimiento de los servicios **Rust**.
+
+### Instrumentación OTel
+Aunque en esta guía se utiliza Datadog como plataforma de observabilidad, la gran mayoría de la información no es específica de Datadog. El Protocolo OpenTelemetry (OTLP) define una forma estándar para que una aplicación envíe datos de telemetría. Da la casualidad de que en estos ejemplos, el agente Datadog se encuentra en el extremo receptor de estas señales neutrales del proveedor.

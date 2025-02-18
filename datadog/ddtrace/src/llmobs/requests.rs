@@ -57,7 +57,7 @@ pub async fn make_request(
 ) -> Result<Response, reqwest::Error> {
     Ok(client
         .post(url)
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("DD-API-KEY", api_key)
         .header("Content-Type", "application/json")
         .body(request_body.to_vec())
         .send()

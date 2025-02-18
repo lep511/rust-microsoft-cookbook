@@ -1,0 +1,19 @@
+[package]
+name = "glommio-start"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+glommio = "0.9.0"
+byte-unit = "5.1.4"
+yansi = "~0.5.1"
+clap = "4.5.3"
+fastrand = "1.4.0"
+futures = "~0.3.5"
+futures-lite = "1.11.1"
+
+hyper = { version = "1.2.0", features = ["full"] }
+num_cpus = "1.13.0"
+sys-info = "~0.8.0"
+http-body-util = "0.1.0"
+serde_json = "1.0.114"

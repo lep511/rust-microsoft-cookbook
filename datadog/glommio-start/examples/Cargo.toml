@@ -1,0 +1,66 @@
+[package]
+name = "examples"
+version = "0.0.0"
+license = "Apache-2.0 OR MIT"
+publish = false
+edition = "2021"
+
+[dev-dependencies]
+byte-unit = "5.1.4"
+yansi = "~0.5.1"
+clap = "4.5.3"
+fastrand = "1.4.0"
+futures = "~0.3.5"
+futures-lite = "1.11.1"
+glommio = { path = "../glommio" }
+
+# hyper and tokio for the hyper example. We just need the traits from Tokio
+hyper = { version = "1.2.0", features = ["full"] }
+num_cpus = "1.13.0"
+sys-info = "~0.8.0"
+http-body-util = "0.1.0"
+serde_json = "1.0.114"
+
+[[example]]
+name = "echo"
+path = "echo.rs"
+
+[[example]]
+name = "hello_world"
+path = "hello_world.rs"
+
+[[example]]
+name = "ping_pong"
+path = "ping_pong.rs"
+
+[[example]]
+name = "defer"
+path = "defer.rs"
+
+[[example]]
+name = "cooperative_preempt"
+path = "cooperative_preempt.rs"
+
+[[example]]
+name = "deadline"
+path = "deadline_writer.rs"
+
+[[example]]
+name = "storage"
+path = "storage.rs"
+
+[[example]]
+name = "channel_mesh"
+path = "sharding.rs"
+
+[[example]]
+name = "gate"
+path = "gate.rs"
+
+[[example]]
+name = "hyper_server"
+path = "hyper_server.rs"
+
+[[example]]
+name = "hyper_client"
+path = "hyper_client.rs"

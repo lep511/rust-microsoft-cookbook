@@ -1,15 +1,15 @@
 [package]
-name = "aurora-dsql"
+name = "dsql-aurora-create"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-lambda_http = "0.13.0"
+lambda_http = "0.14.0"
 aws-config = "1.5.10"
 aws-sdk-dsql = "1.0.0"
 sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls" , "postgres", "uuid"] }
 anyhow = { version = "1", features = ["backtrace"] }
-rand = "0.8"
+rand = "0.9.0"
 aws-sigv4 = "1"
 url = "2.5"
 uuid = { version = "1.11", features = ["v4"] }

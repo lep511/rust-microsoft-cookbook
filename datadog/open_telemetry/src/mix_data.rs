@@ -1,5 +1,5 @@
 use opentelemetry::{global, KeyValue};
-use opentelemetry_sdk::metrics::{SdkMeterProvider, PeriodicReader};
+use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::Resource;
 use reqwest::Client;
 use serde_json::json;
@@ -18,7 +18,7 @@ impl DatadogExporter {
         DatadogExporter {
             api_key,
             client: Client::new(),
-            base_url: "https://api.datadoghq.com/api/v1".to_string(),
+            base_url: "https://api.us5.datadoghq.com/api/v1".to_string(),
         }
     }
 
@@ -35,7 +35,7 @@ impl DatadogExporter {
 
         // Convert OpenTelemetry attributes to Datadog tags
         let tags = attributes.iter()
-            .map(|kv| format!("{}:{}", kv.key, kv.value.as_str().unwrap_or("unknown")))
+            .map(|kv| format!("{}:{}", kv.key, kv.value.as_str()))
             .collect::<Vec<String>>();
 
         let payload = json!({
@@ -67,7 +67,7 @@ impl DatadogExporter {
     }
 }
 
-fn init_meter_provider(dd_api_key: String) -> SdkMeterProvider {
+fn init_meter_provider() -> SdkMeterProvider {
     let provider = SdkMeterProvider::builder()
         .with_resource(
             Resource::builder()
@@ -86,7 +86,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .expect("DATADOG_API_KEY must be set");
     
     // Initialize the MeterProvider
-    let meter_provider = init_meter_provider(dd_api_key.clone());
+    let meter_provider = init_meter_provider();
     let dd_exporter = DatadogExporter::new(dd_api_key);
 
     // Create a meter

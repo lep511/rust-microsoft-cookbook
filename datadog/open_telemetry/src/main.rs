@@ -5,7 +5,7 @@ use reqwest::Client;
 use serde_json::json;
 use std::error::Error;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::vec;
+use std::{env, vec};
 
 struct DatadogClient {
     api_key: String,
@@ -18,7 +18,7 @@ impl DatadogClient {
         DatadogClient {
             api_key,
             client: Client::new(),
-            base_url: "https://api.datadoghq.com/api/v1".to_string(),
+            base_url: "https://api.us5.datadoghq.com/api/v1".to_string(),
         }
     }
 
@@ -90,6 +90,7 @@ impl DatadogClient {
             .await?;
 
         if !response.status().is_success() {
+            println!("Failed to send metrics");
             return Err(format!(
                 "Failed to send metrics: {} - {}",
                 response.status(),
@@ -120,9 +121,17 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    let dd_api_key = env::var("DATADOG_API_KEY")
+        .expect("DATADOG_API_KEY must be set");
 
-    let dd_client = DatadogClient::new("YOUR_API_KEY".to_string());
-    
+    let dd_client = DatadogClient::new(dd_api_key);
+   
+    dd_client.send_metric(
+        "rwapp.requests.count",
+        42.0,
+        vec!["environment:production".to_string(), "region:us-east".to_string()]
+    ).await?;
+
     // Send a single metric
     dd_client.send_metric(
         "app.requests.count",
@@ -137,6 +146,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ("app.disk.free", 50000.0, vec!["host:server1".to_string()]),
     ];
     dd_client.send_batch_metrics(metrics).await?;
+
 
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

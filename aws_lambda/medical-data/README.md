@@ -1,6 +1,6 @@
 # Introduction
 
-gemini-telegram is a Rust project that implements an AWS Lambda function in Rust.
+medical-data is a Rust project that implements an AWS Lambda function in Rust.
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@ gemini-telegram is a Rust project that implements an AWS Lambda function in Rust
 
 ## Building
 
-To build the project for production, run `cargo lambda build --release --arm64`. Remove the `--release` flag to build for development.
+To build the project for production, run `cargo lambda build --release`. Remove the `--release` flag to build for development.
 
 Read more about building your lambda function in [the Cargo Lambda documentation](https://www.cargo-lambda.info/commands/build.html).
 
@@ -39,7 +39,7 @@ For generic events, where you define the event data structure, you can create a 
 }
 ```
 
-Then, run `cargo lambda invoke --data-file event_text.json` to invoke the function with the data in `event_text.json`.
+Then, run `cargo lambda invoke --data-file ./data.json` to invoke the function with the data in `data.json`.
 
 For HTTP events, you can also call the function directly with cURL or any other HTTP client. For example:
 

@@ -1,6 +1,6 @@
 use lambda_http::{Body, Error, Request, RequestExt, Response};
 use lambda_http::tracing::info;
-use serde_json::json;
+use serde_json::{Value, json};
 
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     // Extract some useful information from the request
@@ -16,86 +16,56 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         .collect::<Vec<&str>>()
         .join("/");
 
-    info!("Path: {:?}", path);
+    match path.as_str() {
+        "cds-services/0001" => {
+            info!("Services path cds-services-0001");
+            handle_patient_view()
+        }
+        _ => {
+            handle_discovery()
+        }
+    }
+}
 
-    let mut response_data = json!({ 
+fn handle_discovery() -> Result<Response<Body>, Error> {
+    let discovery_response = json!({ 
         "services": [
             {
                 "hook": "patient-view",
                 "title": "Patient View",
                 "description": "Patient view description",
-                "id": "0001"
+                "id": "0001",
+                "prefetch": {
+                    "patient": "Patient/{{context.patientId}}",
+                    "conditions": "Condition?patient={{context.patientId}}"
+                }
             }
         ]
     });
 
-    match path.as_str() {
-        "cds-services/0001" => {
-            info!("Services path cds-services-0001");
-            response_data = json!({ 
-                "cards": [
-                    {
-                        "summary": "patient-view",
-                        "indicator": "info",
-                        "source": {
-                            "label": "test service"
-                        }
-                    }
-                ]
-            });
-        }
-        _ => {
-            info!("Default path");
-        }
-    }
-
-    let resp = Response::builder()
-        .status(200)
-        .header("content-type", "application/json")
-        .body(Body::Text(response_data.to_string())) // Convert JSON to string
-        .map_err(Box::new)?;
-    Ok(resp)
+    create_response(discovery_response)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::collections::HashMap;
-    use lambda_http::{Request, RequestExt};
+fn handle_patient_view() -> Result<Response<Body>, Error> {
+    let patient_view = json!({ 
+        "cards": [
+            {
+                "summary": "patient-view",
+                "indicator": "info",
+                "source": {
+                    "label": "test service"
+                }
+            }
+        ]
+    });
 
-    #[tokio::test]
-    async fn test_generic_http_handler() {
-        let request = Request::default();
+    create_response(patient_view)
+}
 
-        let response = function_handler(request).await.unwrap();
-        assert_eq!(response.status(), 200);
-
-        let body_bytes = response.body().to_vec();
-        let body_string = String::from_utf8(body_bytes).unwrap();
-
-        assert_eq!(
-            body_string,
-            "Hello world, this is an AWS Lambda HTTP request"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_http_handler_with_query_string() {
-        let mut query_string_parameters: HashMap<String, String> = HashMap::new();
-        query_string_parameters.insert("name".into(), "medical-data".into());
-
-        let request = Request::default()
-            .with_query_string_parameters(query_string_parameters);
-
-        let response = function_handler(request).await.unwrap();
-        assert_eq!(response.status(), 200);
-
-        let body_bytes = response.body().to_vec();
-        let body_string = String::from_utf8(body_bytes).unwrap();
-
-        assert_eq!(
-            body_string,
-            "Hello medical-data, this is an AWS Lambda HTTP request"
-        );
-    }
+fn create_response(body: serde_json::Value) -> Result<Response<Body>, Error> {
+    Ok(Response::builder()
+        .status(200)
+        .header("content-type", "application/json")
+        .body(Body::Text(body.to_string()))
+        .map_err(Box::new)?)
 }

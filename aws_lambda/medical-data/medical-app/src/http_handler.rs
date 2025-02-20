@@ -87,7 +87,14 @@ fn handle_patient_view(hook_data: &Body) -> Result<Response<Body>, Error> {
                 "indicator": "info",
                 "source": {
                     "label": "test service"
-                }
+                },
+                "links": [
+                    {
+                        "label": "My App",
+                        "url": "https://7tyg9r9mt8.execute-api.us-east-1.amazonaws.com/Dev/launch",
+                        "type": "smart"
+                    }
+                ]
             }
         ]
     });

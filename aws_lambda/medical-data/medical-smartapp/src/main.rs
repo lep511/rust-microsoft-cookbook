@@ -1,6 +1,7 @@
 use lambda_http::{run, service_fn, tracing, Error};
 mod http_handler;
 mod http_page;
+mod oidc_request;
 use http_handler::function_handler;
 
 #[tokio::main]

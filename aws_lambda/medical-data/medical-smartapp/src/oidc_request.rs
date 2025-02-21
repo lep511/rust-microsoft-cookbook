@@ -52,32 +52,3 @@ pub async fn make_authenticated_request(
     println!("Body: {}", response.text().await?);
     Ok(())
 }
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let client = Client::new();
-    let token_endpoint = "https://provider.example.com/oauth2/token";
-    let client_id = "your_client_id";
-    let client_secret = "your_client_secret";
-    let redirect_uri = "http://localhost:8080/callback";
-    let code = "authorization_code_from_redirect";
-
-    let tokens = exchange_code_for_tokens(
-        &client,
-        token_endpoint,
-        client_id,
-        client_secret,
-        redirect_uri,
-        code,
-    ).await?;
-
-    println!("Access Token: {}", tokens.access_token);
-
-    // Use the Access Token for Authenticated Requests
-    let protected_url = "https://api.example.com/protected-resource";
-    let access_token = "your_access_token";
-
-    make_authenticated_request(&client, protected_url, access_token).await?;
-
-    Ok(())
-}

@@ -91,7 +91,7 @@ fn handle_patient_view(hook_data: &Body) -> Result<Response<Body>, Error> {
                 "links": [
                     {
                         "label": "My App",
-                        "url": "https://7tyg9r9mt8.execute-api.us-east-1.amazonaws.com/Dev/launch",
+                        "url": "https://7tyg9r9mt8.execute-api.us-east-1.amazonaws.com/medical/launch",
                         "type": "smart"
                     }
                 ]

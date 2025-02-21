@@ -1,0 +1,7 @@
+[package]
+name = "url-parameters"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+url = "2.5.4"

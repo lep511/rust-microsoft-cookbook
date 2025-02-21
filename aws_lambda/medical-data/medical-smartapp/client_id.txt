@@ -1,1 +1,7 @@
+/callback
 20695ad477e1401b8592f23ad607a396
+
+/patient
+59f15b09594443c8ad2a5b85257ccb3e
+sec:
+r9mtE_rvfIpadTecwfIHouZzhgr7FQ

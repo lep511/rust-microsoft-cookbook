@@ -262,7 +262,10 @@ impl ChatOpenAI {
         }];
 
         let new_message = Message {
-            role: Role::Developer,
+            role: match self.request.model.as_str() {
+                "o1-mini" => Role::User,
+                _ => Role::Developer,
+            },
             content: content.clone(),
             recipient: None,
             end_turn: None,

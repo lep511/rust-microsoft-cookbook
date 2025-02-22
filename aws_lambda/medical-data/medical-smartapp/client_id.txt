@@ -1,11 +1,1 @@
-/callback
-20695ad477e1401b8592f23ad607a396
-
-/patient
-59f15b09594443c8ad2a5b85257ccb3e
-sec:
-r9mtE_rvfIpadTecwfIHouZzhgr7FQ
-
-
---last app
-11c6183baac34f58b8264b235dacea79
+export CLIENT_ID="79c680d281464dcaa0e82c2ee848cd57"

@@ -7,6 +7,7 @@ use crate::oidc_request::{
 };
 use lambda_http::tracing::{error, info};
 use url::Url;
+use std::env;
 
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     info!("Event: {:?}", event);
@@ -15,12 +16,15 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     //     .and_then(|params| params.first("name"))
     //     .unwrap_or("world");
 
+    // Get Smart App callback
+    let redirect_uri = env::var("REDIRECT_URI").expect("REDIRECT_URI must be set");
+    let client_id = env::var("CLIENT_ID").expect("CLIENT_ID must be set");
     let url_str = event.uri().to_string();
-
-    let (iss, launch) = match extract_query_params(&url_str) {
-        Ok((iss, launch)) => (iss, launch),
+    
+    let (resource, version) = match extract_resource_ver(&url_str) {
+        Ok(resource) => resource,
         Err(e) => {
-            error!("Error extracting query parameters: {}", e);
+            error!("Error extracting resource and version: {}", e);
             return Ok(Response::builder()
                 .status(404)
                 .header("content-type", "text/html")
@@ -29,8 +33,36 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         }
     };
 
-    info!("iss: {}", iss);
-    info!("launch: {}", launch);
+    if version == "v1" {
+        match resource.as_str() {
+            "launch" => {
+                info!("Resource: {}", resource);
+                let (iss, launch) = match extract_query_params(&url_str) {
+                    Ok((iss, launch)) => (iss, launch),
+                    Err(e) => {
+                        error!("Error extracting query parameters: {}", e);
+                        return Ok(Response::builder()
+                            .status(404)
+                            .header("content-type", "text/html")
+                            .body("<!DOCTYPE html><html><head><title>Not Found</title></head><body><h1>Not Found.</h1></body></html>".into())
+                            .map_err(Box::new)?);
+                    }
+                };
+            
+                info!("iss: {}", iss);
+                info!("launch: {}", launch);
+            }
+            "callback" => {
+                info!("Callback resource: {}", resource);
+            }
+            "patient" => {
+                info!("Patient resource: {}", resource);
+            }
+            _ => {
+                error!("Resource not found: {}", resource);
+            }
+        }
+    }
 
     // let client = Client::builder()
     //     .use_rustls_tls()
@@ -94,4 +126,27 @@ fn extract_query_params(
         .ok_or("Missing 'launch' parameter")?;
 
     Ok((iss, launch))
+}
+
+fn extract_resource_ver(
+    url_str: &str
+) -> Result<(String, String), Box<dyn std::error::Error>> {
+    // Parse the URL
+    let url = Url::parse(url_str)?;
+
+    // Get resource
+    let resource = url
+        .path_segments()
+        .and_then(|mut segments| segments.nth(1))
+        .ok_or("Invalid URL format")?
+        .to_string();
+
+    // Get version
+    let version = url
+        .path_segments()
+        .and_then(|mut segments| segments.next())
+        .ok_or("Invalid URL format")?
+        .to_string();
+
+    Ok((resource, version))
 }

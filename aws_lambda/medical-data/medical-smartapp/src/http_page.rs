@@ -131,3 +131,71 @@ pub fn get_http_page() -> String {
     "#.to_string();
     response
 }
+
+pub fn get_connect_page(link: &str) -> String {
+    let response = format!(
+        r#"
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Connect to Meldrx</title>
+            <style>
+                body {{
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    margin: 0;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    background-color: #f5f5f5;
+                }}
+
+                .connect-btn {{
+                    padding: 12px 24px;
+                    font-size: 16px;
+                    border: none;
+                    border-radius: 6px;
+                    background-color: #007AFF;
+                    color: white;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    outline: none;
+                }}
+
+                .connect-btn:hover {{
+                    background-color: #0056b3;
+                    transform: translateY(-1px);
+                }}
+
+                .connect-btn:active {{
+                    transform: translateY(1px);
+                }}
+
+                .status {{
+                    margin-top: 20px;
+                    text-align: center;
+                    color: #666;
+                }}
+            </style>
+        </head>
+        <body>
+            <div>
+                <button class="connect-btn" onclick="connectMeldrx()">Connect to Meldrx</button>
+                <div id="status" class="status"></div>
+            </div>
+
+            <script>
+                function connectMeldrx() {{
+                    const authUrl = "{link}";
+                    window.location.href = authUrl;
+                }}
+            </script>
+        </body>
+        </html>
+    "#,
+        link = link
+    );
+    response
+}

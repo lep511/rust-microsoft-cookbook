@@ -1,9 +1,8 @@
-use reqwest::Client;
 use lambda_http::{Body, Error, Request, RequestExt, Response};
 use rand::Rng;
 use sha2::{Sha256, Digest};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use crate::http_page::get_http_page;
+use crate::http_page::{get_http_page, get_connect_page};
 use crate::oidc_request::{
     get_auth_endpoint,
 };
@@ -31,6 +30,8 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         }
     };
 
+    let mut message = String::new();
+
     if version == "v1" {
         match resource.as_str() {
             "launch" => {
@@ -51,14 +52,24 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 info!("iss: {}", iss);
                 info!("launch: {}", launch);
                 
+                let auth_endpoint = match get_auth_endpoint(&iss).await {
+                    Ok(auth_endpoint) => auth_endpoint,
+                    Err(e) => {
+                        error!("Error getting auth endpoint: {}", e);
+                        return Ok(Response::builder()
+                            .status(404)
+                            .header("content-type", "text/html")
+                            .body("<!DOCTYPE html><html><head><title>Not Found</title></head><body><h1>Not Found.</h1></body></html>".into())
+                            .map_err(Box::new)?);
+                    }
+                };
+
                 // Generate the code_verifier
                 let code_verifier = generate_code_verifier();
                 let code_challenge = generate_code_challenge(&code_verifier);
 
-                let auth_endpoint = get_auth_endpoint(&iss);
-
                 // Parse the base endpoint URL
-                let base_url = Url::parse(auth_endpoint)?;
+                let base_url = Url::parse(&auth_endpoint)?;
 
                 // Create a mutable URL for building the query
                 let mut url = base_url.clone();
@@ -69,57 +80,28 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     .append_pair("client_id", &client_id)
                     .append_pair("scope", "launch openid patient/*.*")
                     .append_pair("redirect_uri", &redirect_uri)
-                    .append_pair("launch", &launch)
                     .append_pair("code_challenge", &code_challenge)
                     .append_pair("code_challenge_method", "S256");
 
                 // Convert to string
                 let link = url.to_string();
-
+                message = get_connect_page(&link);
             }
             "callback" => {
                 info!("Resource: {}", resource);
+                message = get_http_page();
             }
             "patient" => {
                 info!("Resource: {}", resource);
+                message = get_http_page();
             }
             _ => {
                 error!("Resource not found: {}", resource);
+                message = get_http_page();
             }
         }
     }
 
-    // let client = Client::builder()
-    //     .use_rustls_tls()
-    //     .build()?;
-
-    let message = get_http_page();
-
-    // let token_endpoint = "https://provider.example.com/oauth2/token";
-    // let client_id = "your_client_id";
-    // let client_secret = "your_client_secret";
-    // let redirect_uri = "http://localhost:8080/callback";
-    // let code = "authorization_code_from_redirect";
-
-    // let tokens = exchange_code_for_tokens(
-    //     &client,
-    //     token_endpoint,
-    //     client_id,
-    //     client_secret,
-    //     redirect_uri,
-    //     code,
-    // ).await?;
-
-    // println!("Access Token: {}", tokens.access_token);
-
-    // // Use the Access Token for Authenticated Requests
-    // let protected_url = "https://api.example.com/protected-resource";
-    // let access_token = "your_access_token";
-
-    // make_authenticated_request(&client, protected_url, access_token).await?;
-
-    // Return something that implements IntoResponse.
-    // It will be serialized to the right response event automatically by the runtime
     let resp = Response::builder()
         .status(200)
         .header("content-type", "text/html")

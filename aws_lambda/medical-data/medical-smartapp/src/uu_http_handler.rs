@@ -1,19 +1,35 @@
-use reqwest::Client;
 use lambda_http::{Body, Error, Request, RequestExt, Response};
-use rand::Rng;
-use sha2::{Sha256, Digest};
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use crate::http_page::get_http_page;
-use crate::oidc_request::{
-    get_auth_endpoint,
-};
 use lambda_http::tracing::{error, info};
+use anyhow::anyhow;
+use openidconnect::{
+    AccessTokenHash,
+    AuthenticationFlow,
+    AuthorizationCode,
+    ClientId,
+    ClientSecret,
+    CsrfToken,
+    IssuerUrl,
+    Nonce,
+    OAuth2TokenResponse,
+    PkceCodeChallenge,
+    RedirectUrl,
+    Scope,
+    TokenResponse,
+};
+use openidconnect::core::{
+  CoreAuthenticationFlow,
+  CoreClient,
+  CoreProviderMetadata,
+  CoreResponseType,
+  CoreUserInfoClaims,
+};
+use openidconnect::reqwest;
 use url::Url;
 use std::env;
 
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     info!("Event: {:?}", event);
-    
+
     // Get Smart App callback
     let redirect_uri = env::var("REDIRECT_URI").expect("REDIRECT_URI must be set");
     let client_id = env::var("CLIENT_ID").expect("CLIENT_ID must be set");
@@ -35,7 +51,6 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         match resource.as_str() {
             "launch" => {
                 info!("Resource: {}", resource);
-                // Get the IssuerUrl and Launch
                 let (iss, launch) = match extract_query_params(&url_str) {
                     Ok((iss, launch)) => (iss, launch),
                     Err(e) => {
@@ -50,38 +65,13 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             
                 info!("iss: {}", iss);
                 info!("launch: {}", launch);
-                
-                // Generate the code_verifier
-                let code_verifier = generate_code_verifier();
-                let code_challenge = generate_code_challenge(&code_verifier);
-
-                let auth_endpoint = get_auth_endpoint(&iss);
-
-                // Parse the base endpoint URL
-                let base_url = Url::parse(auth_endpoint)?;
-
-                // Create a mutable URL for building the query
-                let mut url = base_url.clone();
-
-                // Add all query parameters
-                url.query_pairs_mut()
-                    .append_pair("response_type", "code")
-                    .append_pair("client_id", &client_id)
-                    .append_pair("scope", "launch openid patient/*.*")
-                    .append_pair("redirect_uri", &redirect_uri)
-                    .append_pair("launch", &launch)
-                    .append_pair("code_challenge", &code_challenge)
-                    .append_pair("code_challenge_method", "S256");
-
-                // Convert to string
-                let link = url.to_string();
 
             }
             "callback" => {
-                info!("Resource: {}", resource);
+                info!("Callback resource: {}", resource);
             }
             "patient" => {
-                info!("Resource: {}", resource);
+                info!("Patient resource: {}", resource);
             }
             _ => {
                 error!("Resource not found: {}", resource);
@@ -89,43 +79,36 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         }
     }
 
-    // let client = Client::builder()
-    //     .use_rustls_tls()
-    //     .build()?;
-
     let message = get_http_page();
 
-    // let token_endpoint = "https://provider.example.com/oauth2/token";
-    // let client_id = "your_client_id";
-    // let client_secret = "your_client_secret";
-    // let redirect_uri = "http://localhost:8080/callback";
-    // let code = "authorization_code_from_redirect";
-
-    // let tokens = exchange_code_for_tokens(
-    //     &client,
-    //     token_endpoint,
-    //     client_id,
-    //     client_secret,
-    //     redirect_uri,
-    //     code,
-    // ).await?;
-
-    // println!("Access Token: {}", tokens.access_token);
-
-    // // Use the Access Token for Authenticated Requests
-    // let protected_url = "https://api.example.com/protected-resource";
-    // let access_token = "your_access_token";
-
-    // make_authenticated_request(&client, protected_url, access_token).await?;
-
-    // Return something that implements IntoResponse.
-    // It will be serialized to the right response event automatically by the runtime
     let resp = Response::builder()
         .status(200)
         .header("content-type", "text/html")
         .body(message.into())
         .map_err(Box::new)?;
     Ok(resp)
+}
+
+async fn oidc_connect(
+    client_id: &str,
+    redirect_uri: &str,
+    iss: &str,
+    launch: &str,
+) -> Result<(), anyhow::Error> {
+    let http_client = reqwest::blocking::ClientBuilder::new()
+        // Following redirects opens the client up to SSRF vulnerabilities.
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("Client should build");
+    
+    // Use OpenID Connect Discovery to fetch the provider metadata.
+    let provider_metadata = CoreProviderMetadata::discover(
+        &IssuerUrl::new("https://accounts.example.com".to_string())?,
+        &http_client,
+    )?;
+    
+
+    Ok(())
 }
 
 fn extract_query_params(
@@ -176,15 +159,64 @@ fn extract_resource_ver(
     Ok((resource, version))
 }
 
-fn generate_code_verifier() -> String {
-    let mut rng = rand::rng();
-    let random_bytes: Vec<u8> = (0..32).map(|_| rng.random()).collect(); // 32 bytes = 43 chars after encoding
-    URL_SAFE_NO_PAD.encode(&random_bytes)
-}
 
-fn generate_code_challenge(code_verifier: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(code_verifier.as_bytes());
-    let hash = hasher.finalize();
-    URL_SAFE_NO_PAD.encode(&hash)
+async fn x_openid_connect(
+    client_id: &str,
+    redirect_uri: &str,
+    iss: &str,
+    launch: &str,
+) -> Result<(), anyhow::Error> {
+    let issuer_url = IssuerUrl::new(iss.to_string()).expect("Invalid issuer URL");
+    let client_id = ClientId::new(client_id.to_string());
+    let client_secret = ClientSecret::new("secret".to_string());
+    let redirect_url = RedirectUrl::new(redirect_uri.to_string()).expect("Invalid redirect URL");
+
+    let provider_metadata = CoreProviderMetadata::discover(&issuer_url, reqwest::async_http_client)
+        .await
+        .map_err(|e| anyhow!("Failed to discover OpenID Provider: {}", e))?;
+
+    let client = CoreClient::from_provider_metadata(
+        provider_metadata,
+        client_id,
+        Some(client_secret),
+    );
+
+    let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
+
+    let (auth_url, csrf_state, nonce) = client
+        .authorize_url(
+            AuthenticationFlow::<CoreAuthenticationFlow>::AuthorizationCode,
+            CsrfToken::new_random,
+            Nonce::new_random,
+            [Scope::OpenId, Scope::Profile].to_vec(),
+            Some(pkce_challenge),
+            Some(redirect_url.clone()),
+        )
+        .url();
+
+    // Redirect the user to the authorization URL
+    info!("Redirecting to: {}", auth_url);
+
+    // Simulate user authentication and obtain the authorization code
+    let authorization_code = AuthorizationCode::new("authorization_code".to_string());
+
+    // Exchange the authorization code for an access token
+    let token_response = client
+        .exchange_code(authorization_code)
+        .request_async(reqwest::async_http_client)
+        .await
+        .map_err(|e| anyhow!("Failed to exchange code for token: {}", e))?;
+
+    // Use the access token to make authenticated requests to the resource server
+    let user_info: CoreUserInfoClaims = client
+        .user_info(token_response.access_token(), None)
+        .map_err(|e| anyhow!("Failed to get user info: {}", e))?
+        .request_async(reqwest::async_http_client)
+        .await
+        .map_err(|e| anyhow!("Failed to get user info: {}", e))?;
+
+    info!("User Info: {:?}", user_info);
+
+    Ok(())
+
 }

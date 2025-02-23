@@ -132,70 +132,138 @@ pub fn get_http_page() -> String {
     response
 }
 
-pub fn get_connect_page(link: &str) -> String {
-    let response = format!(
-        r#"
+pub fn get_connect_page(auth_link: &str) -> String {
+    let support_link = "XXXXXXXXXXXXXXX";
+    let privacy_link = "XXXXXXXXXXXXXXX";
+    let terms_link = "XXXXXXXXXXX";
+    
+    let response = r#"
         <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Connect to Meldrx</title>
+            <title>Authorize App - MeldRx</title>
             <style>
-                body {{
+                body {
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+                    background-color: #f8fafc;
+                    margin: 0;
+                    padding: 0;
                     display: flex;
+                    flex-direction: column;
                     justify-content: center;
                     align-items: center;
                     min-height: 100vh;
-                    margin: 0;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    background-color: #f5f5f5;
-                }}
-
-                .connect-btn {{
-                    padding: 12px 24px;
-                    font-size: 16px;
-                    border: none;
-                    border-radius: 6px;
-                    background-color: #007AFF;
-                    color: white;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    outline: none;
-                }}
-
-                .connect-btn:hover {{
-                    background-color: #0056b3;
-                    transform: translateY(-1px);
-                }}
-
-                .connect-btn:active {{
-                    transform: translateY(1px);
-                }}
-
-                .status {{
-                    margin-top: 20px;
+                    color: #1e293b;
+                }
+                .container {
+                    max-width: 600px;
+                    width: 90%;
+                    padding: 48px;
+                    background-color: white;
+                    border-radius: 16px;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
                     text-align: center;
-                    color: #666;
-                }}
+                    margin: 20px;
+                }
+                h1 {
+                    font-size: 28px;
+                    margin-bottom: 16px;
+                    color: #0f172a;
+                    font-weight: 600;
+                }
+                p {
+                    font-size: 16px;
+                    margin-bottom: 24px;
+                    color: #475569;
+                    line-height: 1.6;
+                }
+                .button {
+                    display: inline-block;
+                    padding: 14px 32px;
+                    background-color: #3b82f6;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 500;
+                    transition: all 0.2s ease;
+                }
+                .button:hover {
+                    background-color: #2563eb;
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+                }
+                .footer {
+                    margin-top: 24px;
+                    padding: 16px;
+                    text-align: center;
+                    font-size: 14px;
+                    color: #64748b;
+                }
+                .footer a {
+                    color: #3b82f6;
+                    text-decoration: none;
+                }
+                .footer a:hover {
+                    text-decoration: underline;
+                }
+                .security-badge {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-top: 24px;
+                    color: #64748b;
+                    font-size: 14px;
+                }
+                .security-badge svg {
+                    margin-right: 8px;
+                }
+                @media (max-width: 600px) {
+                    .container {
+                        padding: 32px 24px;
+                        width: 85%;
+                    }
+                    h1 {
+                        font-size: 24px;
+                    }
+                    p {
+                        font-size: 15px;
+                    }
+                    .button {
+                        font-size: 15px;
+                        padding: 12px 24px;
+                        width: 100%;
+                        box-sizing: border-box;
+                    }
+                }
             </style>
         </head>
         <body>
-            <div>
-                <button class="connect-btn" onclick="connectMeldrx()">Connect to Meldrx</button>
-                <div id="status" class="status"></div>
+            <div class="container">
+                <h1>Authorize App for MeldRx</h1>
+                <p>Authorize the application to access your healthcare data via MeldRx. Your data will be handled securely and in compliance with HIPAA regulations.</p>
+                <a href="<authorize>" class="button">Authorize App</a>
+                <div class="security-badge">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 0L2 2V7.5C2 11.5 4.5 15 8 16C11.5 15 14 11.5 14 7.5V2L8 0Z" fill="\#64748b"/>
+                    </svg>
+                    Secure HIPAA-Compliant Authorization
+                </div>
             </div>
-
-            <script>
-                function connectMeldrx() {{
-                    const authUrl = "{link}";
-                    window.location.href = authUrl;
-                }}
-            </script>
+            <footer class="footer">
+                <p>&copy; 2025 MeldRx. All rights reserved.<br>
+                Need help? <a href="<support>">Contact Support</a> | <a href="<privacy>">Privacy Policy</a> | <a href="<terms>">Terms of Service</a></p>
+            </footer>
         </body>
         </html>
-    "#,
-        link = link
-    );
-    response
+    "#;
+
+    let response_fmt = response.replace("<authorize>", auth_link)
+        .replace("<support>", support_link)
+        .replace("<privacy>", privacy_link)
+        .replace("<terms>", terms_link);
+
+    response_fmt
 }

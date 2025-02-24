@@ -14,7 +14,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     let redirect_uri = env::var("REDIRECT_URI").expect("REDIRECT_URI must be set");
     let client_id = env::var("CLIENT_ID").expect("CLIENT_ID must be set");
     let url_str = event.uri().to_string();
-    let scope = "launch meldrx-api openid patient/*.read";
+    let scope = "meldrx-api cds profile openid launch patient/*.*";
     let code_verifier = "Q4XqM0pPdsNHwhdEpt6eVAil7djAzhf6zMRAmbb8d-4".to_string();
     let code_challenge = "scOFvF4mB7t-R5egnefSgn0W_hL4HAzYKG-zDs_mWgM".to_string();
     
@@ -129,7 +129,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 info!("iss: {}", iss);
                 info!("code: {}", code);
             }
-            "patient" => {
+            "tasks" => {
                 info!("Resource: {}", resource);
                 message = get_http_page();
             }

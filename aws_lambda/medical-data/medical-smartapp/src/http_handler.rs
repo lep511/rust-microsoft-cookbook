@@ -14,7 +14,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     let redirect_uri = env::var("REDIRECT_URI").expect("REDIRECT_URI must be set");
     let client_id = env::var("CLIENT_ID").expect("CLIENT_ID must be set");
     let url_str = event.uri().to_string();
-    let scope = "launch openid patient/*.*";
+    let scope = "launch meldrx-api openid patient/*.read";
     let code_verifier = "Q4XqM0pPdsNHwhdEpt6eVAil7djAzhf6zMRAmbb8d-4".to_string();
     let code_challenge = "scOFvF4mB7t-R5egnefSgn0W_hL4HAzYKG-zDs_mWgM".to_string();
     
@@ -37,7 +37,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             "launch" => {
                 info!("Resource: {}", resource);
                 // Get the IssuerUrl and Launch
-                let (iss, launch) = match extract_query_params(&url_str) {
+                let (iss, launch) = match extract_query_params(&url_str, "iss", "launch") {
                     Ok((iss, launch)) => (iss, launch),
                     Err(e) => {
                         error!("Error extracting query parameters: {}", e);
@@ -117,6 +117,17 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         
                 info!("Token: {:?}", token);
                 message = get_http_page();
+
+                // Get the IssuerUrl and Code
+                let (iss, code) = match extract_query_params(&url_str, "iss", "code") {
+                    Ok((iss, code)) => (iss, code),
+                    Err(e) => {
+                        println!("Error extracting query parameters: {}", e);
+                        ("none".to_string(), "none".to_string())
+                    }
+                };
+                info!("iss: {}", iss);
+                info!("code: {}", code);
             }
             "patient" => {
                 info!("Resource: {}", resource);
@@ -138,7 +149,9 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
 }
 
 fn extract_query_params(
-    url_str: &str
+    url_str: &str,
+    param1: &str,
+    param2: &str,
 ) -> Result<(String, String), Box<dyn std::error::Error>> {
     // Parse the URL
     let url = Url::parse(url_str)?;
@@ -149,13 +162,13 @@ fn extract_query_params(
     // Extract 'iss' and 'launch' values
     let iss = query_pairs
         .iter()
-        .find(|(key, _)| key == "iss")
+        .find(|(key, _)| key == param1)
         .map(|(_, value)| value.to_string())
         .ok_or("Missing 'iss' parameter")?;
 
     let launch = query_pairs
         .iter()
-        .find(|(key, _)| key == "launch")
+        .find(|(key, _)| key == param2)
         .map(|(_, value)| value.to_string())
         .ok_or("Missing 'launch' parameter")?;
 

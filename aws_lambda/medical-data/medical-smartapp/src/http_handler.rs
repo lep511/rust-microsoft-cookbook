@@ -3,6 +3,7 @@ use crate::http_page::{get_http_page, get_connect_page};
 use crate::oidc_request::{
     get_auth_endpoint, get_token_accesss,
 };
+use crate::oidc_database::get_session_token;
 use lambda_http::tracing::{error, info};
 use url::Url;
 use std::env;
@@ -10,9 +11,12 @@ use std::env;
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     info!("Event: {:?}", event);
     
-    // Get Smart App callback
+    // Get environment variables
     let redirect_uri = env::var("REDIRECT_URI").expect("REDIRECT_URI must be set");
     let client_id = env::var("CLIENT_ID").expect("CLIENT_ID must be set");
+    let table_name = env::var("TABLE_NAME").expect("TABLE_NAME must be set");
+
+    // Get Smart App callback
     let url_str = event.uri().to_string();
     let scope = "meldrx-api cds profile openid launch patient/*.*";
     let code_verifier = "Q4XqM0pPdsNHwhdEpt6eVAil7djAzhf6zMRAmbb8d-4".to_string();
@@ -97,23 +101,41 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     .map(|(_, value)| value.into_owned())
                     .ok_or("Missing 'code' parameter")?;
 
-                let token = match get_token_accesss(
-                    &client_id,
-                    &code, 
-                    &code_verifier,
-                    &redirect_uri,
-                    &scope,
+                // Extract the session state parameter
+                    let session_state = parsed_url.query_pairs()
+                    .find(|(key, _)| key == "session_state")
+                    .map(|(_, value)| value.into_owned())
+                    .ok_or("Missing 'session_state' parameter")?;
+
+                let mut token = String::new();
+
+                match get_session_token(
+                    &session_state, 
+                    &table_name
                 ).await {
-                    Ok(token) => token,
-                    Err(e) => {
-                        error!("Error getting token: {}", e);
-                        return Ok(Response::builder()
-                            .status(404)
-                            .header("content-type", "application/json")
-                            .body("{\"error\": \"Error getting token\"}".into())
-                            .map_err(Box::new)?);
-                    }
-                };
+                    Ok(g_token) => token = g_token,
+                    Err(e) => info!("Error checking session state: {}", e),
+                }
+
+                if token == "nan".to_string() {
+                    token = match get_token_accesss(
+                        &client_id,
+                        &code, 
+                        &code_verifier,
+                        &redirect_uri,
+                        &scope,
+                    ).await {
+                        Ok(token) => token,
+                        Err(e) => {
+                            error!("Error getting token: {}", e);
+                            return Ok(Response::builder()
+                                .status(404)
+                                .header("content-type", "application/json")
+                                .body("{\"error\": \"Error getting token\"}".into())
+                                .map_err(Box::new)?);
+                        }
+                    };
+                }
         
                 info!("Token: {:?}", token);
                 message = get_http_page();

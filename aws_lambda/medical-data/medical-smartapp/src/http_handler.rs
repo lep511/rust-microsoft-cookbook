@@ -1,8 +1,9 @@
 use lambda_http::{Body, Error, Request, RequestExt, Response};
 use crate::http_page::{get_http_page, get_connect_page, get_error_page};
-use crate::oidc_request::{get_token_accesss};
-use crate::oidc_database::get_session_token;
+use crate::oidc_request::{TokenResponse, get_token_accesss};
+use crate::oidc_database::{SessionData, get_session_token, save_session_token};
 use lambda_http::tracing::{error, info};
+use chrono::{Duration, Utc, DateTime};
 use url::Url;
 use std::env;
 
@@ -108,7 +109,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     .unwrap_or_else(|| "nan".to_string());
 
                 // Extract the session state parameter
-                    let session_state = parsed_url.query_pairs()
+                let session_state = parsed_url.query_pairs()
                     .find(|(key, _)| key == "session_state")
                     .map(|(_, value)| value.into_owned())
                     .unwrap_or_else(|| "nan".to_string());
@@ -123,6 +124,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                         .map_err(Box::new)?);
                 }
 
+                // Set token mutable
                 let mut token = String::new();
 
                 match get_session_token(
@@ -134,7 +136,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 }
 
                 if token == "nan".to_string() {
-                    token = match get_token_accesss(
+                    let token_resp: TokenResponse = match get_token_accesss(
                         &client_id,
                         &code, 
                         &code_verifier,
@@ -152,10 +154,44 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                                 .map_err(Box::new)?);
                         }
                     };
+
+                    token = token_resp.access_token.clone();
+
+                    // Get current UTC time
+                    let now = Utc::now();
+                    
+                    // Set timestamp RFC 3339 format
+                    let timestamp = now.to_rfc3339();
+
+                    let expires_in = token_resp.expires_in
+                        .unwrap_or_else(|| 3600);
+
+                    let later = now + Duration::seconds(expires_in.into());
+                    let expiry_timestamp = later.to_rfc3339();
+
+                    let refresh_token = "XXXXXXXXX".to_string();
+
+                    let session_data = SessionData {
+                        session_state: session_state,
+                        access_token: token.clone(),
+                        timestamp: timestamp,
+                        expiry_timestamp: expiry_timestamp,
+                        expires_in: expires_in,
+                        refresh_token: Some(refresh_token),
+                        scope: Some(scope.to_string()),
+                        token_type: token_resp.token_type,
+                        id_token: token_resp.id_token,
+                    };
+               
+                    match save_session_token(
+                        &session_data,                  
+                        &table_name
+                    ).await {
+                        Ok(_) => info!("Session data saved to Dynamo successfully"),
+                        Err(e) => error!("Error saving session data to Dynamo: {:?}", e),
+                    }
                 }
         
-                info!("Token: {:?}", token);
-
                 // Get the IssuerUrl and Code
                 let (iss, code) = match extract_query_params(&url_str, "iss", "code") {
                     Ok((iss, code)) => (iss, code),

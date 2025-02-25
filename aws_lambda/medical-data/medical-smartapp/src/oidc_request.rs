@@ -4,9 +4,9 @@ use reqwest::Method;
 use serde_json::Value;
 use url::Url;
 use thiserror::Error;
-use lambda_http::tracing::error;
+use lambda_http::tracing::{info, error};
 use std::collections::HashMap;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[allow(dead_code)]
 #[derive(Error, Debug)]
@@ -25,7 +25,7 @@ pub enum AuthEndpointError {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TokenResponse {
     pub access_token: String,
     pub expires_in: Option<i32>,
@@ -82,7 +82,7 @@ pub async fn get_token_accesss(
     code_verifier: &str,
     redirect_uri: &str,
     scope: &str,
-) -> Result<String, AuthEndpointError> {
+) -> Result<TokenResponse, AuthEndpointError> {
     // Creates an HTTPS-capable client using rustls TLS implementation.
     let client = Client::builder()
         .use_rustls_tls()
@@ -93,15 +93,6 @@ pub async fn get_token_accesss(
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", HeaderValue::from_static("application/x-www-form-urlencoded"));
     headers.insert("Accept", HeaderValue::from_static("application/json"));
-
-    // let json_body = json!({
-    //     "client_id": client_id,
-    //     "code": code,
-    //     "grant_type": "authorization_code",
-    //     "code_verifier": code_verifier,
-    //     "redirect_uri": redirect_uri,
-    //     "scope": scope
-    // });
 
     let mut params = HashMap::new();
     params.insert("client_id", client_id);
@@ -117,8 +108,9 @@ pub async fn get_token_accesss(
 
     let response = request.send().await?;
     let body = response.text().await?;
+    info!("Token response: {}", body);
 
-    let token: TokenResponse = match serde_json::from_str(&body) {
+    let token_response: TokenResponse = match serde_json::from_str(&body) {
         Ok(token) => token,
         Err(e) => {
             error!("Error parsing token response: {}", e);
@@ -126,5 +118,5 @@ pub async fn get_token_accesss(
         }
     };
 
-    Ok(token.access_token)
+    Ok(token_response)
 }

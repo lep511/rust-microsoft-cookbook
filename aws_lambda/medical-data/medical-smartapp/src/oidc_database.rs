@@ -1,17 +1,19 @@
 use aws_sdk_dynamodb as dynamodb;
 use serde::{Deserialize, Serialize};
-use chrono::{Duration, Utc, DateTime};
+use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SessionData {
     pub session_state: String,
     pub access_token: String,
     pub timestamp: String,
     pub expiry_timestamp: String,
-    pub expires_at: i64,
+    pub expires_in: i32,
     pub refresh_token: Option<String>,
     pub scope: Option<String>,
     pub token_type: Option<String>,
+    pub id_token: Option<String>,
 }
 
 pub async fn get_session_token(
@@ -39,68 +41,56 @@ pub async fn get_session_token(
     Ok("nan".to_string())
 }
 
-// pub async fn save_session_token(
-//     session_state: &str,
-//     access_token: &str,
-//     expires_at: i64,
-//     scope: &str,
-//     token_type: &str,
-//     refresh_token: &str,
-//     table_name: &str,
-// ) -> Result<(), dynamodb::Error> {
-//     let config = aws_config::load_from_env().await;
-//     let client = dynamodb::Client::new(&config);
+pub async fn save_session_token(
+    session_data: &SessionData,
+    table_name: &str,
+) -> Result<(), dynamodb::Error> {
+    let config = aws_config::load_from_env().await;
+    let client = dynamodb::Client::new(&config);
 
-//     // Get current UTC time
-//     let now = Utc::now();
+    let session_state = dynamodb::types::AttributeValue::S(session_data.session_state.clone());
+    let access_token = dynamodb::types::AttributeValue::S(session_data.access_token.clone());
+    let timestamp = dynamodb::types::AttributeValue::S(session_data.timestamp.clone());
+    let expiry_timestamp = dynamodb::types::AttributeValue::S(session_data.expiry_timestamp.clone());
+    let expires_in = dynamodb::types::AttributeValue::N(session_data.expires_in.to_string());
+    let refresh_token = match &session_data.refresh_token {
+        Some(refresh_token) => dynamodb::types::AttributeValue::S(refresh_token.clone()),
+        None => dynamodb::types::AttributeValue::S("".to_string()),
+    };
+    let scope = match &session_data.scope {
+        Some(scope) => dynamodb::types::AttributeValue::S(scope.clone()),
+        None => dynamodb::types::AttributeValue::S("".to_string()),
+    };
+    let token_type = match &session_data.token_type {
+        Some(token_type) => dynamodb::types::AttributeValue::S(token_type.clone()),
+        None => dynamodb::types::AttributeValue::S("".to_string()),
+    };
+    let id_token = match &session_data.id_token {
+        Some(id_token) => dynamodb::types::AttributeValue::S(id_token.clone()),
+        None => dynamodb::types::AttributeValue::S("".to_string()),
+    };
+
+    let mut item = HashMap::new();
     
-//     // Set timestamp RFC 3339 format
-//     let timestamp = now.to_rfc3339();
+    // Use the session_state as the primary key
+    item.insert("session_state".to_string(), session_state);
+    item.insert("access_token".to_string(), access_token);
+    item.insert("timestamp".to_string(), timestamp);
+    item.insert("expiry_timestamp".to_string(), expiry_timestamp);
+    item.insert("expires_in".to_string(), expires_in);
+    item.insert("refresh_token".to_string(), refresh_token);
+    item.insert("scope".to_string(), scope);
+    item.insert("token_type".to_string(), token_type);
+    item.insert("id_token".to_string(), id_token);
 
+    // Send the PutItem request to DynamoDB
+    client
+        .put_item()
+        .table_name(table_name)
+        .set_item(Some(item))
+        .send()
+        .await?;
 
-
-
-
-//     let item = dynamodb::types::AttributeValue::M(
-//         [
-//             (
-//                 "session_state".to_string(),
-//                 dynamodb::types::AttributeValue::S(session_data.session_state.clone()),
-//             ),
-//             (
-//                 "access_token".to_string(),
-//                 dynamodb::types::AttributeValue::S(session_data.access_token.clone()),
-//             ),
-//             (
-//                 "timestamp".to_string(),
-//                 dynamodb::types::AttributeValue::S(session_data.timestamp.clone()),
-//             ),
-//             (
-//                 "expiry_timestamp".to_string(),
-//                 dynamodb::types::AttributeValue::S(session_data.expiry_timestamp.clone()),
-//             ),
-//             (
-//                 "expires_at".to_string(),
-//                 dynamodb::types::AttributeValue::N(session_data.expires_at.to_string()),
-//             ),
-//             (
-//                 "last_updated".to_string(),
-//                 dynamodb::types::AttributeValue::S(
-//                     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
-//                 ),
-//             ),
-//         ]
-//         .into_iter()
-//         .collect(),
-//     );
-
-//     client
-//         .put_item()
-//         .table_name(table_name)
-//         .item("session_state", item)
-//         .send()
-//         .await?;
-
-//     Ok(())
-// }
+    Ok(())
+}
 

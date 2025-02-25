@@ -1,8 +1,6 @@
 use lambda_http::{Body, Error, Request, RequestExt, Response};
-use crate::http_page::{get_http_page, get_connect_page};
-use crate::oidc_request::{
-    get_auth_endpoint, get_token_accesss,
-};
+use crate::http_page::{get_http_page, get_connect_page, get_error_page};
+use crate::oidc_request::{get_token_accesss};
 use crate::oidc_database::get_session_token;
 use lambda_http::tracing::{error, info};
 use url::Url;
@@ -21,20 +19,20 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     let scope = "meldrx-api cds profile openid launch patient/*.*";
     let code_verifier = "Q4XqM0pPdsNHwhdEpt6eVAil7djAzhf6zMRAmbb8d-4".to_string();
     let code_challenge = "scOFvF4mB7t-R5egnefSgn0W_hL4HAzYKG-zDs_mWgM".to_string();
+    let auth_endpoint = "https://app.meldrx.com/connect/authorize";
     
     let (resource, version) = match extract_resource_ver(&url_str) {
         Ok(resource) => resource,
         Err(e) => {
             error!("Error extracting resource and version: {}", e);
+            let message = get_error_page("E101");
             return Ok(Response::builder()
                 .status(404)
-                .header("content-type", "application/json")
-                .body("{\"error\": \"Error extracting resource and version\"}".into())
+                .header("content-type", "text/html")
+                .body(message.into())
                 .map_err(Box::new)?);
         }
     };
-
-    let mut message = String::new();
 
     if version == "v1" {
         match resource.as_str() {
@@ -45,10 +43,11 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     Ok((iss, launch)) => (iss, launch),
                     Err(e) => {
                         error!("Error extracting query parameters: {}", e);
+                        let message = get_error_page("E102");
                         return Ok(Response::builder()
                             .status(404)
-                            .header("content-type", "application/json")
-                            .body("{\"error\": \"Error extracting query parameters\"}".into())
+                            .header("content-type", "text/html")
+                            .body(message.into())
                             .map_err(Box::new)?);
                     }
                 };
@@ -56,24 +55,25 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 info!("iss: {}", iss);
                 info!("launch: {}", launch);
                 
-                let auth_endpoint = match get_auth_endpoint(&iss).await {
-                    Ok(auth_endpoint) => auth_endpoint,
-                    Err(e) => {
-                        error!("Error getting auth endpoint: {}", e);
-                        return Ok(Response::builder()
-                            .status(404)
-                            .header("content-type", "application/json")
-                            .body("{\"error\": \"Error getting auth endpoint\"}".into())
-                            .map_err(Box::new)?);
-                    }
-                };
+                // let auth_endpoint = match get_auth_endpoint(&iss).await {
+                //     Ok(auth_endpoint) => auth_endpoint,
+                //     let message = get_error_page("E103");
+                //     Err(e) => {
+                //         error!("Error getting auth endpoint: {}", e);
+                //         return Ok(Response::builder()
+                //             .status(404)
+                //             .header("content-type", "text/html")
+                //             .body(message.into())
+                //             .map_err(Box::new)?);
+                //     }
+                // };
 
                 // Generate the CodeVerifier and CodeChallenge
                 // let code_verifier = generate_code_verifier();
                 // let code_challenge = generate_code_challenge(&code_verifier);
 
                 // Parse the base endpoint URL
-                let base_url = Url::parse(&auth_endpoint)?;
+                let base_url = Url::parse(auth_endpoint)?;
 
                 // Create a mutable URL for building the query
                 let mut url = base_url.clone();
@@ -89,7 +89,13 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
 
                 // Convert to string
                 let link = url.to_string();
-                message = get_connect_page(&link);
+                let message = get_connect_page(&link);
+
+                return Ok(Response::builder()
+                    .status(200)
+                    .header("content-type", "text/html")
+                    .body(message.into())
+                    .map_err(Box::new)?);
             }
             "callback" => {
                 info!("Resource: {}", resource);
@@ -99,13 +105,23 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 let code = parsed_url.query_pairs()
                     .find(|(key, _)| key == "code")
                     .map(|(_, value)| value.into_owned())
-                    .ok_or("Missing 'code' parameter")?;
+                    .unwrap_or_else(|| "nan".to_string());
 
                 // Extract the session state parameter
                     let session_state = parsed_url.query_pairs()
                     .find(|(key, _)| key == "session_state")
                     .map(|(_, value)| value.into_owned())
-                    .ok_or("Missing 'session_state' parameter")?;
+                    .unwrap_or_else(|| "nan".to_string());
+
+                if code == "nan" || session_state == "nan" {
+                    error!("Code or session state not found");
+                    let message = get_error_page("E104");
+                    return Ok(Response::builder()
+                        .status(404)
+                        .header("content-type", "text/html")
+                        .body(message.into())
+                        .map_err(Box::new)?);
+                }
 
                 let mut token = String::new();
 
@@ -128,17 +144,17 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                         Ok(token) => token,
                         Err(e) => {
                             error!("Error getting token: {}", e);
+                            let message = get_error_page("E105");
                             return Ok(Response::builder()
                                 .status(404)
-                                .header("content-type", "application/json")
-                                .body("{\"error\": \"Error getting token\"}".into())
+                                .header("content-type", "text/html")
+                                .body(message.into())
                                 .map_err(Box::new)?);
                         }
                     };
                 }
         
                 info!("Token: {:?}", token);
-                message = get_http_page();
 
                 // Get the IssuerUrl and Code
                 let (iss, code) = match extract_query_params(&url_str, "iss", "code") {
@@ -150,20 +166,26 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 };
                 info!("iss: {}", iss);
                 info!("code: {}", code);
+
+                let message = get_http_page();
+                return Ok(Response::builder()
+                    .status(200)
+                    .header("content-type", "text/html")
+                    .body(message.into())
+                    .map_err(Box::new)?);
             }
             "tasks" => {
                 info!("Resource: {}", resource);
-                message = get_http_page();
             }
             _ => {
                 error!("Resource not found: {}", resource);
-                message = get_http_page();
             }
         }
     }
 
+    let message = get_error_page("E909");
     let resp = Response::builder()
-        .status(200)
+        .status(404)
         .header("content-type", "text/html")
         .body(message.into())
         .map_err(Box::new)?;

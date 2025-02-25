@@ -64,7 +64,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     }
                 };
 
-                // Generate the code_verifier
+                // Generate the CodeVerifier and CodeChallenge
                 // let code_verifier = generate_code_verifier();
                 // let code_challenge = generate_code_challenge(&code_verifier);
 

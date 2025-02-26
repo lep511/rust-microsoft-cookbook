@@ -7,10 +7,7 @@ use std::collections::HashMap;
 pub struct SessionData {
     pub session_state: String,
     pub access_token: String,
-    pub timestamp: String,
-    pub expiry_timestamp: String,
     pub expires_in: i32,
-    pub refresh_token: Option<String>,
     pub scope: Option<String>,
     pub token_type: Option<String>,
     pub id_token: Option<String>,
@@ -50,13 +47,7 @@ pub async fn save_session_token(
 
     let session_state = dynamodb::types::AttributeValue::S(session_data.session_state.clone());
     let access_token = dynamodb::types::AttributeValue::S(session_data.access_token.clone());
-    let timestamp = dynamodb::types::AttributeValue::S(session_data.timestamp.clone());
-    let expiry_timestamp = dynamodb::types::AttributeValue::S(session_data.expiry_timestamp.clone());
     let expires_in = dynamodb::types::AttributeValue::N(session_data.expires_in.to_string());
-    let refresh_token = match &session_data.refresh_token {
-        Some(refresh_token) => dynamodb::types::AttributeValue::S(refresh_token.clone()),
-        None => dynamodb::types::AttributeValue::S("".to_string()),
-    };
     let scope = match &session_data.scope {
         Some(scope) => dynamodb::types::AttributeValue::S(scope.clone()),
         None => dynamodb::types::AttributeValue::S("".to_string()),
@@ -75,10 +66,7 @@ pub async fn save_session_token(
     // Use the session_state as the primary key
     item.insert("session_state".to_string(), session_state);
     item.insert("access_token".to_string(), access_token);
-    item.insert("timestamp".to_string(), timestamp);
-    item.insert("expiry_timestamp".to_string(), expiry_timestamp);
     item.insert("expires_in".to_string(), expires_in);
-    item.insert("refresh_token".to_string(), refresh_token);
     item.insert("scope".to_string(), scope);
     item.insert("token_type".to_string(), token_type);
     item.insert("id_token".to_string(), id_token);

@@ -3,7 +3,6 @@ use crate::http_page::{get_http_page, get_connect_page, get_error_page};
 use crate::oidc_request::{TokenResponse, get_token_accesss};
 use crate::oidc_database::{SessionData, get_session_token, save_session_token};
 use lambda_http::tracing::{error, info};
-use chrono::{Duration, Utc, DateTime};
 use url::Url;
 use std::env;
 
@@ -86,6 +85,8 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     .append_pair("scope", scope)
                     .append_pair("redirect_uri", &redirect_uri)
                     .append_pair("code_challenge", &code_challenge)
+                    .append_pair("launch", &launch)
+                    .append_pair("aud", &iss)
                     .append_pair("code_challenge_method", "S256");
 
                 // Convert to string
@@ -157,27 +158,13 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
 
                     token = token_resp.access_token.clone();
 
-                    // Get current UTC time
-                    let now = Utc::now();
-                    
-                    // Set timestamp RFC 3339 format
-                    let timestamp = now.to_rfc3339();
-
                     let expires_in = token_resp.expires_in
                         .unwrap_or_else(|| 3600);
-
-                    let later = now + Duration::seconds(expires_in.into());
-                    let expiry_timestamp = later.to_rfc3339();
-
-                    let refresh_token = "XXXXXXXXX".to_string();
 
                     let session_data = SessionData {
                         session_state: session_state,
                         access_token: token.clone(),
-                        timestamp: timestamp,
-                        expiry_timestamp: expiry_timestamp,
                         expires_in: expires_in,
-                        refresh_token: Some(refresh_token),
                         scope: Some(scope.to_string()),
                         token_type: token_resp.token_type,
                         id_token: token_resp.id_token,

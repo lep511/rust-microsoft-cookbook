@@ -1,7 +1,7 @@
 use lambda_http::{Body, Error, Request, RequestExt, Response};
 use crate::http_page::{get_http_page, get_connect_page, get_error_page};
 use crate::oidc_request::{
-    TokenResponse, get_token_accesss, get_auth_endpoint, 
+    TokenResponse, get_token_accesss, get_param_endpoint, 
 };
 use crate::oidc_database::{SessionData, get_session_token, save_session_token};
 use lambda_http::tracing::{error, info};
@@ -10,6 +10,12 @@ use std::env;
 
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     info!("Event: {:?}", event);
+
+    let request_context = RequestExt::request_context(&event);
+    info!("Request context: {:?}", request_context);
+
+    let params = event.query_string_parameters();
+    info!("Query string parameters: {:?}", params);
     
     // Get environment variables
     let redirect_uri = env::var("REDIRECT_URI").expect("REDIRECT_URI must be set");
@@ -39,19 +45,18 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         match resource.as_str() {
             "launch" => {
                 info!("Resource: {}", resource);
-                let parsed_url = Url::parse(&url_str)?;
                 // Get the IssuerUrl and Launch
-                let (iss, launch, client_id) = extract_query_params(
-                    parsed_url, 
-                    "iss", 
-                    "launch", 
-                    "client"
-                );
+                let iss = params.first("iss").unwrap_or("nan").to_string();
+                let launch = params.first("launch").unwrap_or("nan").to_string();
+                // let client_id = params.first("client_id").unwrap_or("nan").to_string();
             
                 info!("iss: {}", iss);
                 info!("launch: {}", launch);
                 
-                let auth_endpoint = match get_auth_endpoint(&iss).await {
+                let auth_endpoint = match get_param_endpoint(
+                    &iss, 
+                    "authorization_endpoint",
+                ).await {
                     Ok(auth_endpoint) => auth_endpoint,
                     Err(e) => {
                         let message = get_error_page("E103");
@@ -97,25 +102,11 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             }
             "callback" => {
                 info!("Resource: {}", resource);
-                let parsed_url = Url::parse(&url_str)?;
 
                 // Extract parameters
-                let (code, session_state, iss) = extract_query_params(
-                    parsed_url, 
-                    "code", 
-                    "session_state", 
-                    "iss"
-                );
-
-                if code == "nan" || session_state == "nan" {
-                    error!("Code or session state not found");
-                    let message = get_error_page("E104");
-                    return Ok(Response::builder()
-                        .status(404)
-                        .header("content-type", "text/html")
-                        .body(message.into())
-                        .map_err(Box::new)?);
-                }
+                let code = params.first("code").unwrap_or("nan").to_string();
+                let session_state = params.first("session_state").unwrap_or("nan").to_string();
+                let iss = params.first("iss").unwrap_or("nan").to_string();
 
                 info!("code: {}", code);
                 info!("session_state: {}", session_state);
@@ -133,8 +124,28 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 }
 
                 if token == "nan".to_string() {
+                    // ToDo - Imrpove this line
+                    let fmt_iss = format!("{}/api/fhir/1", iss);
+                    
+                    let token_endpoint = match get_param_endpoint(
+                        &fmt_iss, 
+                        "token_endpoint",
+                    ).await {
+                        Ok(t_endpoint) => t_endpoint,
+                        Err(e) => {
+                            let message = get_error_page("E109");
+                            error!("Error getting token endpoint: {}", e);
+                            return Ok(Response::builder()
+                                .status(404)
+                                .header("content-type", "text/html")
+                                .body(message.into())
+                                .map_err(Box::new)?);
+                        }
+                    };
+                    
                     let token_resp: TokenResponse = match get_token_accesss(
                         &client_id,
+                        &token_endpoint,
                         &code, 
                         &code_verifier,
                         &redirect_uri,
@@ -198,36 +209,6 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         .body(message.into())
         .map_err(Box::new)?;
     Ok(resp)
-}
-
-pub fn extract_query_params(
-    url: Url,
-    param1: &str,
-    param2: &str,
-    param3: &str
-) -> (String, String, String) {
-    // Get the query pairs as a HashMap-like structure
-    let query_pairs: Vec<_> = url.query_pairs().collect();
-
-    let ex_param1 = query_pairs
-        .iter()
-        .find(|(key, _)| key == param1)
-        .map(|(_, value)| value.to_string())
-        .unwrap_or_else(|| "nan".to_string());
-
-    let ex_param2 = query_pairs
-        .iter()
-        .find(|(key, _)| key == param2)
-        .map(|(_, value)| value.to_string())
-        .unwrap_or_else(|| "nan".to_string());
-
-    let ex_param3 = query_pairs
-        .iter()
-        .find(|(key, _)| key == param3)
-        .map(|(_, value)| value.to_string())
-        .unwrap_or_else(|| "nan".to_string());
-
-    (ex_param1, ex_param2, ex_param3)
 }
 
 pub fn extract_resource_ver(

@@ -46,7 +46,10 @@ pub struct TokenResponse {
 /// ```
 /// let auth_url = get_auth_endpoint("https://example.com/fhir").await?;
 /// ```
-pub async fn get_auth_endpoint(iss: &str) -> Result<String, AuthEndpointError> {
+pub async fn get_param_endpoint(
+    iss: &str, 
+    param: &str
+) -> Result<String, AuthEndpointError> {
     // Construct the well-known URL
     let config_url = format!("{}/.well-known/smart-configuration", iss);
 
@@ -64,20 +67,21 @@ pub async fn get_auth_endpoint(iss: &str) -> Result<String, AuthEndpointError> {
         .json()
         .await?;
 
-    // Extract authorization endpoint
-    let auth_endpoint = response["authorization_endpoint"]
+    // Extract requested endpoint
+    let param_endpoint = response[param]
         .as_str()
         .ok_or(AuthEndpointError::MissingAuthEndpoint)?;
 
     // Validate the authorization endpoint URL
-    Url::parse(auth_endpoint)
-        .map_err(|_| AuthEndpointError::InvalidAuthEndpoint(auth_endpoint.to_string()))?;
+    Url::parse(param_endpoint)
+        .map_err(|_| AuthEndpointError::InvalidAuthEndpoint(param_endpoint.to_string()))?;
 
-    Ok(auth_endpoint.to_string())
+    Ok(param_endpoint.to_string())
 }
 
 pub async fn get_token_accesss(
     client_id: &str,
+    token_endpoint: &str,
     code: &str,
     code_verifier: &str,
     redirect_uri: &str,
@@ -87,8 +91,6 @@ pub async fn get_token_accesss(
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
-
-    let token_endpoint = "https://app.meldrx.com/connect/token";
 
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", HeaderValue::from_static("application/x-www-form-urlencoded"));

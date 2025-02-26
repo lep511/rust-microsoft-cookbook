@@ -6,17 +6,18 @@ use std::collections::HashMap;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SessionData {
     pub session_state: String,
-    pub access_token: String,
-    pub expires_in: i32,
+    pub access_token: Option<String>,
+    pub expires_in: Option<i32>,
     pub scope: Option<String>,
     pub token_type: Option<String>,
     pub id_token: Option<String>,
+    pub iss: Option<String>,
 }
 
-pub async fn get_session_token(
+pub async fn get_session_data(
     session_state: &str,
     table_name: &str,
-) -> Result<String, dynamodb::Error> {
+) -> Result<Option<SessionData>, dynamodb::Error> {
     let config = aws_config::load_from_env().await;
     let client = dynamodb::Client::new(&config);
 
@@ -28,17 +29,22 @@ pub async fn get_session_token(
         .await?;
 
     if let Some(item) = result.item() {
-        if let Some(access_token) = item.get("access_token") {
-            if let dynamodb::types::AttributeValue::S(access_token) = access_token {
-                return Ok(access_token.to_string());
-            }
-        }
+        let session_data = SessionData {
+            session_state: session_state.to_string(),
+            access_token: item.get("access_token").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
+            expires_in: item.get("expires_in").and_then(|av| av.as_n().ok().and_then(|n| n.parse::<i32>().ok())),
+            scope: item.get("scope").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
+            token_type: item.get("token_type").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
+            id_token: item.get("id_token").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
+            iss: item.get("iss").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
+        };
+        Ok(Some(session_data))
+    } else {
+        Ok(None)
     }
-
-    Ok("nan".to_string())
 }
 
-pub async fn save_session_token(
+pub async fn save_to_dynamo(
     session_data: &SessionData,
     table_name: &str,
 ) -> Result<(), dynamodb::Error> {
@@ -46,8 +52,14 @@ pub async fn save_session_token(
     let client = dynamodb::Client::new(&config);
 
     let session_state = dynamodb::types::AttributeValue::S(session_data.session_state.clone());
-    let access_token = dynamodb::types::AttributeValue::S(session_data.access_token.clone());
-    let expires_in = dynamodb::types::AttributeValue::N(session_data.expires_in.to_string());
+    let access_token = match &session_data.access_token {
+        Some(access_token) => dynamodb::types::AttributeValue::S(access_token.clone()),
+        None => dynamodb::types::AttributeValue::S("".to_string()),
+    };
+    let expires_in = match session_data.expires_in {
+        Some(expires_in) => dynamodb::types::AttributeValue::N(expires_in.to_string()),
+        None => dynamodb::types::AttributeValue::S("".to_string()),
+    };
     let scope = match &session_data.scope {
         Some(scope) => dynamodb::types::AttributeValue::S(scope.clone()),
         None => dynamodb::types::AttributeValue::S("".to_string()),
@@ -60,6 +72,10 @@ pub async fn save_session_token(
         Some(id_token) => dynamodb::types::AttributeValue::S(id_token.clone()),
         None => dynamodb::types::AttributeValue::S("".to_string()),
     };
+    let iss = match &session_data.iss {
+        Some(iss) => dynamodb::types::AttributeValue::S(iss.clone()),
+        None => dynamodb::types::AttributeValue::S("".to_string()),
+    };
 
     let mut item = HashMap::new();
     
@@ -70,6 +86,7 @@ pub async fn save_session_token(
     item.insert("scope".to_string(), scope);
     item.insert("token_type".to_string(), token_type);
     item.insert("id_token".to_string(), id_token);
+    item.insert("iss".to_string(), iss);
 
     // Send the PutItem request to DynamoDB
     client

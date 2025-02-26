@@ -1,6 +1,8 @@
 use lambda_http::{Body, Error, Request, RequestExt, Response};
 use crate::http_page::{get_http_page, get_connect_page, get_error_page};
-use crate::oidc_request::{TokenResponse, get_token_accesss};
+use crate::oidc_request::{
+    TokenResponse, get_token_accesss, get_auth_endpoint, 
+};
 use crate::oidc_database::{SessionData, get_session_token, save_session_token};
 use lambda_http::tracing::{error, info};
 use url::Url;
@@ -19,7 +21,6 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     let scope = "meldrx-api cds profile openid launch patient/*.*";
     let code_verifier = "Q4XqM0pPdsNHwhdEpt6eVAil7djAzhf6zMRAmbb8d-4".to_string();
     let code_challenge = "scOFvF4mB7t-R5egnefSgn0W_hL4HAzYKG-zDs_mWgM".to_string();
-    let auth_endpoint = "https://app.meldrx.com/connect/authorize";
     
     let (resource, version) = match extract_resource_ver(&url_str) {
         Ok(resource) => resource,
@@ -38,12 +39,23 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         match resource.as_str() {
             "launch" => {
                 info!("Resource: {}", resource);
+                let parsed_url = Url::parse(&url_str)?;
                 // Get the IssuerUrl and Launch
-                let (iss, launch) = match extract_query_params(&url_str, "iss", "launch") {
-                    Ok((iss, launch)) => (iss, launch),
+                let (iss, launch, client_id) = extract_query_params(
+                    parsed_url, 
+                    "iss", 
+                    "launch", 
+                    "client"
+                );
+            
+                info!("iss: {}", iss);
+                info!("launch: {}", launch);
+                
+                let auth_endpoint = match get_auth_endpoint(&iss).await {
+                    Ok(auth_endpoint) => auth_endpoint,
                     Err(e) => {
-                        error!("Error extracting query parameters: {}", e);
-                        let message = get_error_page("E102");
+                        let message = get_error_page("E103");
+                        error!("Error getting auth endpoint: {}", e);
                         return Ok(Response::builder()
                             .status(404)
                             .header("content-type", "text/html")
@@ -51,29 +63,13 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                             .map_err(Box::new)?);
                     }
                 };
-            
-                info!("iss: {}", iss);
-                info!("launch: {}", launch);
-                
-                // let auth_endpoint = match get_auth_endpoint(&iss).await {
-                //     Ok(auth_endpoint) => auth_endpoint,
-                //     let message = get_error_page("E103");
-                //     Err(e) => {
-                //         error!("Error getting auth endpoint: {}", e);
-                //         return Ok(Response::builder()
-                //             .status(404)
-                //             .header("content-type", "text/html")
-                //             .body(message.into())
-                //             .map_err(Box::new)?);
-                //     }
-                // };
 
                 // Generate the CodeVerifier and CodeChallenge
                 // let code_verifier = generate_code_verifier();
                 // let code_challenge = generate_code_challenge(&code_verifier);
 
                 // Parse the base endpoint URL
-                let base_url = Url::parse(auth_endpoint)?;
+                let base_url = Url::parse(&auth_endpoint)?;
 
                 // Create a mutable URL for building the query
                 let mut url = base_url.clone();
@@ -89,7 +85,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     .append_pair("aud", &iss)
                     .append_pair("code_challenge_method", "S256");
 
-                // Convert to string
+                // Convert Url to string
                 let link = url.to_string();
                 let message = get_connect_page(&link);
 
@@ -103,17 +99,13 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 info!("Resource: {}", resource);
                 let parsed_url = Url::parse(&url_str)?;
 
-                // Extract the code parameter
-                let code = parsed_url.query_pairs()
-                    .find(|(key, _)| key == "code")
-                    .map(|(_, value)| value.into_owned())
-                    .unwrap_or_else(|| "nan".to_string());
-
-                // Extract the session state parameter
-                let session_state = parsed_url.query_pairs()
-                    .find(|(key, _)| key == "session_state")
-                    .map(|(_, value)| value.into_owned())
-                    .unwrap_or_else(|| "nan".to_string());
+                // Extract parameters
+                let (code, session_state, iss) = extract_query_params(
+                    parsed_url, 
+                    "code", 
+                    "session_state", 
+                    "iss"
+                );
 
                 if code == "nan" || session_state == "nan" {
                     error!("Code or session state not found");
@@ -124,6 +116,10 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                         .body(message.into())
                         .map_err(Box::new)?);
                 }
+
+                info!("code: {}", code);
+                info!("session_state: {}", session_state);
+                info!("iss: {}", iss);
 
                 // Set token mutable
                 let mut token = String::new();
@@ -179,17 +175,6 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     }
                 }
         
-                // Get the IssuerUrl and Code
-                let (iss, code) = match extract_query_params(&url_str, "iss", "code") {
-                    Ok((iss, code)) => (iss, code),
-                    Err(e) => {
-                        println!("Error extracting query parameters: {}", e);
-                        ("none".to_string(), "none".to_string())
-                    }
-                };
-                info!("iss: {}", iss);
-                info!("code: {}", code);
-
                 let message = get_http_page();
                 return Ok(Response::builder()
                     .status(200)
@@ -215,34 +200,37 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     Ok(resp)
 }
 
-fn extract_query_params(
-    url_str: &str,
+pub fn extract_query_params(
+    url: Url,
     param1: &str,
     param2: &str,
-) -> Result<(String, String), Box<dyn std::error::Error>> {
-    // Parse the URL
-    let url = Url::parse(url_str)?;
-
+    param3: &str
+) -> (String, String, String) {
     // Get the query pairs as a HashMap-like structure
     let query_pairs: Vec<_> = url.query_pairs().collect();
 
-    // Extract 'iss' and 'launch' values
-    let iss = query_pairs
+    let ex_param1 = query_pairs
         .iter()
         .find(|(key, _)| key == param1)
         .map(|(_, value)| value.to_string())
-        .ok_or("Missing 'iss' parameter")?;
+        .unwrap_or_else(|| "nan".to_string());
 
-    let launch = query_pairs
+    let ex_param2 = query_pairs
         .iter()
         .find(|(key, _)| key == param2)
         .map(|(_, value)| value.to_string())
-        .ok_or("Missing 'launch' parameter")?;
+        .unwrap_or_else(|| "nan".to_string());
 
-    Ok((iss, launch))
+    let ex_param3 = query_pairs
+        .iter()
+        .find(|(key, _)| key == param3)
+        .map(|(_, value)| value.to_string())
+        .unwrap_or_else(|| "nan".to_string());
+
+    (ex_param1, ex_param2, ex_param3)
 }
 
-fn extract_resource_ver(
+pub fn extract_resource_ver(
     url_str: &str
 ) -> Result<(String, String), Box<dyn std::error::Error>> {
     // Parse the URL

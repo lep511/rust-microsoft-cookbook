@@ -1,21 +1,79 @@
 use aws_sdk_dynamodb as dynamodb;
+use aws_sdk_dynamodb::types::AttributeValue;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SessionData {
-    pub session_state: String,
+    pub pk: String,
     pub access_token: Option<String>,
     pub expires_in: Option<i32>,
     pub scope: Option<String>,
     pub token_type: Option<String>,
     pub id_token: Option<String>,
+    pub session_state: Option<String>,
+    pub client_id: Option<String>,
+    pub code_verifier: Option<String>,
+    pub code_challenge: Option<String>,
     pub iss: Option<String>,
 }
 
+impl SessionData {
+    // Convert SessionData to DynamoDB item
+    fn to_item(&self) -> HashMap<String, AttributeValue> {
+        let mut item = HashMap::new();
+        
+        // Always include primary key
+        item.insert("pk".to_string(), AttributeValue::S(self.pk.clone()));
+        
+        // Add optional fields only if they exist
+        if let Some(token) = &self.access_token {
+            item.insert("access_token".to_string(), AttributeValue::S(token.clone()));
+        }
+        
+        if let Some(exp) = self.expires_in {
+            item.insert("expires_in".to_string(), AttributeValue::N(exp.to_string()));
+        }
+        
+        if let Some(scope) = &self.scope {
+            item.insert("scope".to_string(), AttributeValue::S(scope.clone()));
+        }
+        
+        if let Some(token_type) = &self.token_type {
+            item.insert("token_type".to_string(), AttributeValue::S(token_type.clone()));
+        }
+        
+        if let Some(id_token) = &self.id_token {
+            item.insert("id_token".to_string(), AttributeValue::S(id_token.clone()));
+        }
+        
+        if let Some(session_state) = &self.session_state {
+            item.insert("session_state".to_string(), AttributeValue::S(session_state.clone()));
+        }
+        
+        if let Some(client_id) = &self.client_id {
+            item.insert("client_id".to_string(), AttributeValue::S(client_id.clone()));
+        }
+        
+        if let Some(code_verifier) = &self.code_verifier {
+            item.insert("code_verifier".to_string(), AttributeValue::S(code_verifier.clone()));
+        }
+        
+        if let Some(code_challenge) = &self.code_challenge {
+            item.insert("code_challenge".to_string(), AttributeValue::S(code_challenge.clone()));
+        }
+        
+        if let Some(iss) = &self.iss {
+            item.insert("iss".to_string(), AttributeValue::S(iss.clone()));
+        }
+        
+        item
+    }
+}
+
 pub async fn get_session_data(
-    session_state: &str,
+    pk: &str,
     table_name: &str,
 ) -> Result<Option<SessionData>, dynamodb::Error> {
     let config = aws_config::load_from_env().await;
@@ -24,18 +82,22 @@ pub async fn get_session_data(
     let result = client
         .get_item()
         .table_name(table_name)
-        .key("session_state", dynamodb::types::AttributeValue::S(session_state.to_string()))
+        .key("pk", dynamodb::types::AttributeValue::S(pk.to_string()))
         .send()
         .await?;
 
     if let Some(item) = result.item() {
         let session_data = SessionData {
-            session_state: session_state.to_string(),
+            pk: pk.to_string(),
             access_token: item.get("access_token").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
             expires_in: item.get("expires_in").and_then(|av| av.as_n().ok().and_then(|n| n.parse::<i32>().ok())),
             scope: item.get("scope").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
             token_type: item.get("token_type").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
             id_token: item.get("id_token").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
+            session_state: item.get("session_state").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
+            client_id: item.get("client_id").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
+            code_verifier: item.get("code_verifier").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
+            code_challenge: item.get("code_challenge").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
             iss: item.get("iss").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
         };
         Ok(Some(session_data))
@@ -51,42 +113,8 @@ pub async fn save_to_dynamo(
     let config = aws_config::load_from_env().await;
     let client = dynamodb::Client::new(&config);
 
-    let session_state = dynamodb::types::AttributeValue::S(session_data.session_state.clone());
-    let access_token = match &session_data.access_token {
-        Some(access_token) => dynamodb::types::AttributeValue::S(access_token.clone()),
-        None => dynamodb::types::AttributeValue::S("".to_string()),
-    };
-    let expires_in = match session_data.expires_in {
-        Some(expires_in) => dynamodb::types::AttributeValue::N(expires_in.to_string()),
-        None => dynamodb::types::AttributeValue::S("".to_string()),
-    };
-    let scope = match &session_data.scope {
-        Some(scope) => dynamodb::types::AttributeValue::S(scope.clone()),
-        None => dynamodb::types::AttributeValue::S("".to_string()),
-    };
-    let token_type = match &session_data.token_type {
-        Some(token_type) => dynamodb::types::AttributeValue::S(token_type.clone()),
-        None => dynamodb::types::AttributeValue::S("".to_string()),
-    };
-    let id_token = match &session_data.id_token {
-        Some(id_token) => dynamodb::types::AttributeValue::S(id_token.clone()),
-        None => dynamodb::types::AttributeValue::S("".to_string()),
-    };
-    let iss = match &session_data.iss {
-        Some(iss) => dynamodb::types::AttributeValue::S(iss.clone()),
-        None => dynamodb::types::AttributeValue::S("".to_string()),
-    };
-
-    let mut item = HashMap::new();
-    
-    // Use the session_state as the primary key
-    item.insert("session_state".to_string(), session_state);
-    item.insert("access_token".to_string(), access_token);
-    item.insert("expires_in".to_string(), expires_in);
-    item.insert("scope".to_string(), scope);
-    item.insert("token_type".to_string(), token_type);
-    item.insert("id_token".to_string(), id_token);
-    item.insert("iss".to_string(), iss);
+    // Convert SessionData to DynamoDB item
+    let item = session_data.to_item();
 
     // Send the PutItem request to DynamoDB
     client
@@ -98,4 +126,3 @@ pub async fn save_to_dynamo(
 
     Ok(())
 }
-

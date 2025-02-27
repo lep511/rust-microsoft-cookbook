@@ -32,6 +32,7 @@ pub struct TokenResponse {
     pub token_type: Option<String>,
     pub scope: Option<String>,
     pub id_token: Option<String>,
+    pub patient: Option<String>,
 }
 
 /// Fetches the authorization endpoint from a SMART on FHIR issuer's configuration

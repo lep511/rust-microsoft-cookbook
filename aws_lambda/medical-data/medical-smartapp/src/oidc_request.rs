@@ -1,8 +1,7 @@
-use reqwest::Client;
+use reqwest::blocking::Client;
 use reqwest::{self, header::{HeaderMap, HeaderValue}};
 use reqwest::Method;
 use serde_json::Value;
-use url::Url;
 use thiserror::Error;
 use lambda_http::tracing::{info, error};
 use std::collections::HashMap;
@@ -19,9 +18,15 @@ pub enum AuthEndpointError {
     
     #[error("Missing or invalid authorization_endpoint in response")]
     MissingAuthEndpoint,
+
+    #[error("Missing or invalid token_endpoint in response")]
+    MissingTokenEndpoint,
     
     #[error("Invalid authorization endpoint URL: {0}")]
     InvalidAuthEndpoint(String),
+
+    #[error("{0}")]
+    GenericError(String),
 }
 
 #[allow(dead_code)]
@@ -35,49 +40,40 @@ pub struct TokenResponse {
     pub patient: Option<String>,
 }
 
-/// Fetches the authorization endpoint from a SMART on FHIR issuer's configuration
-///
-/// # Arguments
-/// * `iss` - The base URL of the SMART on FHIR issuer
-///
-/// # Returns
-/// * `Result<String, AuthEndpointError>` - The authorization endpoint URL if successful
-///
-/// # Example
-/// ```
-/// let auth_url = get_auth_endpoint("https://example.com/fhir").await?;
-/// ```
-pub async fn get_param_endpoint(
-    iss: &str, 
-    param: &str
-) -> Result<String, AuthEndpointError> {
-    // Construct the well-known URL
-    let config_url = format!("{}/.well-known/smart-configuration", iss);
-
-    // Create client with reasonable defaults
-    let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()?;
-
-    // Fetch and parse configuration
-    let response: Value = client
-        .get(config_url)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
-
-    // Extract requested endpoint
-    let param_endpoint = response[param]
-        .as_str()
-        .ok_or(AuthEndpointError::MissingAuthEndpoint)?;
-
-    // Validate the authorization endpoint URL
-    Url::parse(param_endpoint)
-        .map_err(|_| AuthEndpointError::InvalidAuthEndpoint(param_endpoint.to_string()))?;
-
-    Ok(param_endpoint.to_string())
+pub async fn discover_endpoints(
+    iss: &str
+) -> Result<(String, String), AuthEndpointError> {
+    let client = Client::new();
+    
+    // First try SMART configuration
+    let smart_config_url = format!("{}/.well-known/smart-configuration", iss.trim_end_matches('/'));
+    let response = client.get(&smart_config_url).send()?;
+    
+    if response.status().is_success() {
+        let config: Value = response.json()?;
+        let auth_endpoint = config["authorization_endpoint"].as_str()
+            .ok_or(AuthEndpointError::MissingAuthEndpoint)?;
+        let token_endpoint = config["token_endpoint"].as_str()
+            .ok_or(AuthEndpointError::MissingTokenEndpoint)?;
+        
+        return Ok((auth_endpoint.to_string(), token_endpoint.to_string()));
+    }
+    
+    // Fallback to OAuth configuration
+    let oauth_config_url = format!("{}/.well-known/oauth-authorization-server", iss.trim_end_matches('/'));
+    let response = client.get(&oauth_config_url).send()?;
+    
+    if response.status().is_success() {
+        let config: Value = response.json()?;
+        let auth_endpoint = config["authorization_endpoint"].as_str()
+            .ok_or(AuthEndpointError::MissingAuthEndpoint)?;
+        let token_endpoint = config["token_endpoint"].as_str()
+            .ok_or(AuthEndpointError::MissingTokenEndpoint)?;
+        
+        return Ok((auth_endpoint.to_string(), token_endpoint.to_string()));
+    }
+    
+    Err(AuthEndpointError::GenericError("Could not discover authorization endpoints".into()))
 }
 
 pub async fn get_token_accesss(
@@ -89,7 +85,7 @@ pub async fn get_token_accesss(
     scope: &str,
 ) -> Result<TokenResponse, AuthEndpointError> {
     // Creates an HTTPS-capable client using rustls TLS implementation.
-    let client = Client::builder()
+    let client = reqwest::Client::builder()
         .use_rustls_tls()
         .build()?;
 

@@ -2,7 +2,7 @@ use lambda_http::{Body, Error, Request, RequestExt, Response};
 use lambda_http::request::RequestContext;
 use crate::http_page::{get_http_page, get_connect_page, get_error_page};
 use crate::oidc_request::{
-    TokenResponse, get_token_accesss, get_param_endpoint, 
+    TokenResponse, get_token_accesss, discover_endpoints, 
 };
 use crate::oidc_database::{SessionData, get_session_data, save_to_dynamo};
 use lambda_http::tracing::{error, info};
@@ -46,25 +46,37 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         _ => "unknown".to_string(),
     };
 
-
-
     match route_key.as_str() {
         // ~~~~~~~~~~~~~~~~~~~~ LAUNCH ~~~~~~~~~~~~~~~~~~~~~~~~~~
         "GET /launch" => {
             info!("Route key: {}", route_key);
             // Get the IssuerUrl and Launch
-            let iss = params.first("iss").unwrap_or_default();
+            let issuer = params.first("iss").unwrap_or_default();
             let launch = params.first("launch").unwrap_or_default();
             let client_id = params.first("client").unwrap_or_default();
                         
-            let auth_endpoint = match get_param_endpoint(
-                iss, 
-                "authorization_endpoint",
-            ).await {
-                Ok(auth_endpoint) => auth_endpoint,
+            // let auth_endpoint = match get_param_endpoint(
+            //     issuer, 
+            //     "authorization_endpoint",
+            // ).await {
+            //     Ok(auth_endpoint) => auth_endpoint,
+            //     Err(e) => {
+            //         let message = get_error_page("E103");
+            //         error!("Error getting auth endpoint: {}", e);
+            //         return Ok(Response::builder()
+            //             .status(404)
+            //             .header("content-type", "text/html")
+            //             .body(message.into())
+            //             .map_err(Box::new)?);
+            //     }
+            // };
+
+            // Discover auth endpoints
+            let (auth_endpoint, token_endpoint) = match discover_endpoints(issuer).await {
+                Ok(endpoints) => endpoints,
                 Err(e) => {
                     let message = get_error_page("E103");
-                    error!("Error getting auth endpoint: {}", e);
+                    error!("Error getting auth endpoints: {}", e);
                     return Ok(Response::builder()
                         .status(404)
                         .header("content-type", "text/html")
@@ -94,7 +106,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 .append_pair("redirect_uri", &redirect_uri)
                 .append_pair("code_challenge", &code_challenge)
                 .append_pair("launch", launch)
-                .append_pair("aud", iss)
+                .append_pair("aud", issuer)
                 .append_pair("state", &state)
                 .append_pair("code_challenge_method", "S256");
 
@@ -110,7 +122,9 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 client_id: Some(client_id.to_string()),
                 code_verifier: Some(code_verifier.clone()),
                 code_challenge: Some(code_challenge.clone()),
-                iss: Some(iss.to_string()),
+                auth_endpoint: Some(auth_endpoint.clone()),
+                token_endpoint: Some(token_endpoint.clone()),
+                iss: Some(issuer.to_string()),
             };
         
             match save_to_dynamo(
@@ -137,44 +151,39 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             // Extract parameters
             let code = params.first("code").unwrap_or_default();
             let session_state = params.first("session_state").unwrap_or_default();
-            let state = params.first("state").unwrap_or_default();
+            let state = match params.first("state") {
+                Some(state) if !state.is_empty() => state,
+                _ => {
+                    error!("State not found in parameters");
+                    let message = get_error_page("E102");
+                    return Ok(Response::builder()
+                        .status(404)
+                        .header("content-type", "text/html")
+                        .body(message.into())
+                        .map_err(Box::new)?);
+                }
+            };           
 
-            if state.is_empty() {
-                error!("State not found in parameters");
-                let message = get_error_page("E102");
-                return Ok(Response::builder()
-                    .status(404)
-                    .header("content-type", "text/html")
-                    .body(message.into())
-                    .map_err(Box::new)?);
-            }
-
-            let mut iss = String::new();
+            let mut issuer = String::new();
             let mut token = String::new();
             let mut client_id = String::new();
             let mut code_verifier = String::new();
             let mut code_challenge = String::new();
+            let mut auth_endpoint = String::new();
+            let mut token_endpoint = String::new();
 
             match get_session_data(
                 state, 
                 &table_name
             ).await {
-                Ok(Some(session_data)) => {
-                    if let Some(acc_token) = session_data.access_token {
-                        token = acc_token.clone();
-                    }
-                    if let Some(acc_iss) = session_data.iss {
-                        iss = acc_iss.clone();
-                    }
-                    if let Some(acc_client_id) = session_data.client_id {
-                        client_id = acc_client_id.clone();
-                    }
-                    if let Some(acc_code_challenge) = session_data.code_challenge {
-                        code_challenge = acc_code_challenge.clone();
-                    }
-                    if let Some(acc_code_verifier) = session_data.code_verifier {
-                        code_verifier = acc_code_verifier.clone();
-                    }
+                Ok(Some(sd)) => {
+                    if let Some(av) = sd.access_token { token = av.clone(); }
+                    if let Some(av) = sd.iss { issuer = av.clone(); }
+                    if let Some(av) = sd.client_id { client_id = av.clone(); }
+                    if let Some(av) = sd.code_challenge { code_challenge = av.clone(); }
+                    if let Some(av) = sd.code_verifier { code_verifier = av.clone(); }
+                    if let Some(av) = sd.auth_endpoint { auth_endpoint = av.clone(); }
+                    if let Some(av) = sd.token_endpoint { token_endpoint = av.clone(); }
                 },
                 Ok(None) => error!("No session data found"),
                 Err(e) => error!("Error retrieving session data: {:?}", e),
@@ -188,23 +197,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             }
 
             if token.is_empty() {
-                info!("Token not found, getting new token");
-                let token_endpoint = match get_param_endpoint(
-                    &iss, 
-                    "token_endpoint",
-                ).await {
-                    Ok(t_endpoint) => t_endpoint,
-                    Err(e) => {
-                        let message = get_error_page("E109");
-                        error!("Error getting token endpoint: {}", e);
-                        return Ok(Response::builder()
-                            .status(404)
-                            .header("content-type", "text/html")
-                            .body(message.into())
-                            .map_err(Box::new)?);
-                    }
-                };
-                
+                info!("Token not found, getting new token");               
                 let token_resp: TokenResponse = match get_token_accesss(
                     &client_id,
                     &token_endpoint,
@@ -241,7 +234,9 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     client_id: Some(client_id.clone()),
                     code_verifier: Some(code_verifier.clone()),
                     code_challenge: Some(code_challenge.clone()),
-                    iss: Some(iss.clone()),
+                    auth_endpoint: Some(auth_endpoint.clone()),
+                    token_endpoint: Some(token_endpoint.clone()),
+                    iss: Some(issuer.clone()),
                 };
             
                 match save_to_dynamo(

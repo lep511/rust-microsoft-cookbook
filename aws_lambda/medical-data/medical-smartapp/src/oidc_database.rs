@@ -16,6 +16,8 @@ pub struct SessionData {
     pub client_id: Option<String>,
     pub code_verifier: Option<String>,
     pub code_challenge: Option<String>,
+    pub auth_endpoint: Option<String>,
+    pub token_endpoint: Option<String>,
     pub iss: Option<String>,
 }
 
@@ -31,43 +33,39 @@ impl SessionData {
         if let Some(token) = &self.access_token {
             item.insert("access_token".to_string(), AttributeValue::S(token.clone()));
         }
-        
         if let Some(exp) = self.expires_in {
             item.insert("expires_in".to_string(), AttributeValue::N(exp.to_string()));
         }
-        
         if let Some(scope) = &self.scope {
             item.insert("scope".to_string(), AttributeValue::S(scope.clone()));
         }
-        
         if let Some(token_type) = &self.token_type {
             item.insert("token_type".to_string(), AttributeValue::S(token_type.clone()));
         }
-        
         if let Some(id_token) = &self.id_token {
             item.insert("id_token".to_string(), AttributeValue::S(id_token.clone()));
         }
-        
         if let Some(session_state) = &self.session_state {
             item.insert("session_state".to_string(), AttributeValue::S(session_state.clone()));
         }
-        
         if let Some(client_id) = &self.client_id {
             item.insert("client_id".to_string(), AttributeValue::S(client_id.clone()));
         }
-        
         if let Some(code_verifier) = &self.code_verifier {
             item.insert("code_verifier".to_string(), AttributeValue::S(code_verifier.clone()));
         }
-        
         if let Some(code_challenge) = &self.code_challenge {
             item.insert("code_challenge".to_string(), AttributeValue::S(code_challenge.clone()));
         }
-        
+        if let Some(auth_endpoint) = &self.auth_endpoint {
+            item.insert("auth_endpoint".to_string(), AttributeValue::S(auth_endpoint.clone()));
+        }
+        if let Some(token_endpoint) = &self.token_endpoint {
+            item.insert("token_endpoint".to_string(), AttributeValue::S(token_endpoint.clone()));
+        }
         if let Some(iss) = &self.iss {
             item.insert("iss".to_string(), AttributeValue::S(iss.clone()));
         }
-        
         item
     }
 }
@@ -98,6 +96,8 @@ pub async fn get_session_data(
             client_id: item.get("client_id").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
             code_verifier: item.get("code_verifier").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
             code_challenge: item.get("code_challenge").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
+            auth_endpoint: item.get("auth_endpoint").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
+            token_endpoint: item.get("token_endpoint").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
             iss: item.get("iss").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
         };
         Ok(Some(session_data))

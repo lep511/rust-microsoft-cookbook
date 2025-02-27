@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct SessionData {
     pub pk: String,
     pub access_token: Option<String>,
@@ -19,6 +19,8 @@ pub struct SessionData {
     pub auth_endpoint: Option<String>,
     pub token_endpoint: Option<String>,
     pub iss: Option<String>,
+    pub session_timeout: Option<i64>,
+    pub patient: Option<String>,
 }
 
 impl SessionData {
@@ -66,8 +68,22 @@ impl SessionData {
         if let Some(iss) = &self.iss {
             item.insert("iss".to_string(), AttributeValue::S(iss.clone()));
         }
+        if let Some(session_timeout) = self.session_timeout {
+            item.insert("session_timeout".to_string(), AttributeValue::N(session_timeout.to_string()));
+        }
+        if let Some(patient) = &self.patient {
+            item.insert("patient".to_string(), AttributeValue::S(patient.clone()));
+        }
         item
     }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+pub struct ClientData {
+    pub client_id: String,
+    pub pk: String,
+    pub session_timeout: i64,
 }
 
 pub async fn get_session_data(
@@ -99,11 +115,52 @@ pub async fn get_session_data(
             auth_endpoint: item.get("auth_endpoint").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
             token_endpoint: item.get("token_endpoint").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
             iss: item.get("iss").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
+            session_timeout: item.get("session_timeout").and_then(|av| av.as_n().ok().and_then(|n| n.parse::<i64>().ok())),
+            patient: item.get("patient").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
         };
         Ok(Some(session_data))
     } else {
         Ok(None)
     }
+}
+
+pub async fn get_client_data(
+    pk_value: &str,
+    table_name: &str,
+    index_name: &str,
+) -> Result<Option<ClientData>, dynamodb::Error> {
+    let config = aws_config::load_from_env().await;
+    let client = dynamodb::Client::new(&config);
+    let pk_name = "client_id";
+
+    // Build query request
+    let result = client
+        .query()
+        .table_name(table_name)
+        .index_name(index_name)
+        .key_condition_expression("#pk = :pk_val")
+        .expression_attribute_names("#pk", pk_name)
+        .expression_attribute_values(":pk_val", AttributeValue::S(pk_value.to_string()))
+        .send()
+        .await?;
+
+    // Get the items from the result
+    let items = result.items();
+    
+    // Check if there are any items
+    if !items.is_empty() {
+        // Get the first item
+        if let Some(item) = items.first() {
+            let client_data = ClientData {
+                client_id: item.get("client_id").and_then(|av| av.as_s().ok().map(|s| s.to_string())).unwrap_or_default(),
+                pk: pk_value.to_string(),
+                session_timeout: item.get("session_timeout").and_then(|av| av.as_n().ok().and_then(|n| n.parse::<i64>().ok())).unwrap_or_default(),
+            };
+            return Ok(Some(client_data));
+        }
+    }
+    
+    Ok(None)
 }
 
 pub async fn save_to_dynamo(

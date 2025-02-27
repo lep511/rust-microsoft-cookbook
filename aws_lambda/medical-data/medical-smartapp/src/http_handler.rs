@@ -4,7 +4,9 @@ use crate::http_page::{get_http_page, get_connect_page, get_error_page};
 use crate::oidc_request::{
     TokenResponse, get_token_accesss, discover_endpoints, 
 };
-use crate::oidc_database::{SessionData, get_session_data, save_to_dynamo};
+use crate::oidc_database::{
+    SessionData, get_session_data, save_to_dynamo, get_client_data,
+};
 use lambda_http::tracing::{error, info};
 use rand::Rng;
 use sha2::{Sha256, Digest};
@@ -12,25 +14,26 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use url::Url;
 use std::env;
 
+// Constant for the session length
+const SESSION_LENGTH: i64 = 6 * 60 * 60 * 1000; // 6 hours
+
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     info!("Event: {:?}", event);
-
-    let req_ext = RequestExt::request_context(&event);
-    info!("Request context: {:?}", req_ext);
-
+    let request_cont = event.request_context();
     let params = event.query_string_parameters();
     info!("Query string parameters: {:?}", params);
     
-    // Get table name from environment variables
+    // Get table name
     let table_name = env::var("TABLE_NAME").expect("TABLE_NAME must be set");
+
+    // Get index name
+    let index_name = env::var("INDEX_NAME").expect("INDEX_NAME must be set");
 
     // Get Smart App callback
     let scope = "meldrx-api cds profile openid launch patient/*.*";
     
-    let request = event.request_context();
-
     // Extract domain name
-    let domain_name = match &request {
+    let domain_name = match &request_cont {
         RequestContext::ApiGatewayV2(ctx) => {
             ctx.domain_name.clone().unwrap_or_else(|| "unknown".to_string())
         },
@@ -38,8 +41,14 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     };
     let redirect_uri = format!("https://{}/callback", domain_name);
 
+    // Extract actual time epoch
+    let actual_time_epoch = match &request_cont {
+        RequestContext::ApiGatewayV2(ctx) => { ctx.time_epoch },
+        _ => 0,
+    };
+
     // Extract route_key from the request context    
-    let route_key = match &request {
+    let route_key = match &request_cont {
         RequestContext::ApiGatewayV2(ctx) => {
             ctx.route_key.clone().unwrap_or_else(|| "unknown".to_string())
         },
@@ -54,29 +63,44 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             let issuer = params.first("iss").unwrap_or_default();
             let launch = params.first("launch").unwrap_or_default();
             let client_id = params.first("client").unwrap_or_default();
-                        
-            // let auth_endpoint = match get_param_endpoint(
-            //     issuer, 
-            //     "authorization_endpoint",
-            // ).await {
-            //     Ok(auth_endpoint) => auth_endpoint,
-            //     Err(e) => {
-            //         let message = get_error_page("E103");
-            //         error!("Error getting auth endpoint: {}", e);
-            //         return Ok(Response::builder()
-            //             .status(404)
-            //             .header("content-type", "text/html")
-            //             .body(message.into())
-            //             .map_err(Box::new)?);
-            //     }
-            // };
+
+            // Checking if client_id exists in the database
+            let mut session_timeout: i64 = 0;
+            let mut state: String = String::new();
+
+            match get_client_data(
+                &client_id, 
+                &table_name,
+                &index_name
+            ).await {
+                Ok(Some(sd)) => {
+                    state = sd.pk.clone();
+                    session_timeout = sd.session_timeout.clone();
+                },
+                Ok(None) => info!("No client data found."),
+                Err(e) => error!("Error retrieving client data: {:?}[E301]", e),
+            }
+
+            if session_timeout != 0 {
+                if actual_time_epoch < session_timeout {
+                    info!("Session is still valid");
+                    let message = get_http_page();
+                    return Ok(Response::builder()
+                        .status(200)
+                        .header("content-type", "text/html")
+                        .body(message.into())
+                        .map_err(Box::new)?);
+                } else {
+                    info!("Session has expired");
+                }
+            }
 
             // Discover auth endpoints
             let (auth_endpoint, token_endpoint) = match discover_endpoints(issuer).await {
                 Ok(endpoints) => endpoints,
                 Err(e) => {
                     let message = get_error_page("E103");
-                    error!("Error getting auth endpoints: {}", e);
+                    error!("Error getting auth endpoints: {} [E103]", e);
                     return Ok(Response::builder()
                         .status(404)
                         .header("content-type", "text/html")
@@ -96,7 +120,28 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             let mut url = base_url.clone();
 
             // Generate a random alphanumeric string
-            let state = generate_random_state(16);
+            state = generate_random_state(16);
+
+            // Save state to DynamoDB
+            let state_data = SessionData {
+                pk: state.clone(),
+                client_id: client_id.to_string().into(),
+                code_verifier: code_verifier.into(),
+                code_challenge: code_challenge.clone().into(),
+                auth_endpoint: auth_endpoint.into(),
+                token_endpoint: token_endpoint.into(),
+                iss: issuer.to_string().into(),
+                session_timeout: (actual_time_epoch + SESSION_LENGTH).into(),
+                ..Default::default()
+            };
+
+            match save_to_dynamo(
+                &state_data,                  
+                &table_name
+            ).await {
+                Ok(_) => info!("Session data saved to Dynamo successfully"),
+                Err(e) => error!("Error saving session data to Dynamo: {:?} [E303]", e),
+            }
 
             // Add all query parameters
             url.query_pairs_mut()
@@ -109,32 +154,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 .append_pair("aud", issuer)
                 .append_pair("state", &state)
                 .append_pair("code_challenge_method", "S256");
-
-            // Save state to DynamoDB
-            let state_data = SessionData {
-                pk: state.clone(),
-                access_token: None,
-                expires_in: None,
-                scope: None,
-                token_type: None,
-                id_token: None,
-                session_state: None,
-                client_id: Some(client_id.to_string()),
-                code_verifier: Some(code_verifier.clone()),
-                code_challenge: Some(code_challenge.clone()),
-                auth_endpoint: Some(auth_endpoint.clone()),
-                token_endpoint: Some(token_endpoint.clone()),
-                iss: Some(issuer.to_string()),
-            };
         
-            match save_to_dynamo(
-                &state_data,                  
-                &table_name
-            ).await {
-                Ok(_) => info!("Session data saved to Dynamo successfully"),
-                Err(e) => error!("Error saving session data to Dynamo: {:?}", e),
-            }
-
             // Convert Url to string
             let link = url.to_string();
             let message = get_connect_page(&link);
@@ -154,7 +174,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             let state = match params.first("state") {
                 Some(state) if !state.is_empty() => state,
                 _ => {
-                    error!("State not found in parameters");
+                    error!("State not found in parameters [E102]");
                     let message = get_error_page("E102");
                     return Ok(Response::builder()
                         .status(404)
@@ -171,6 +191,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             let mut code_challenge = String::new();
             let mut auth_endpoint = String::new();
             let mut token_endpoint = String::new();
+            let mut session_timeout: i64 = 0;
 
             match get_session_data(
                 state, 
@@ -184,16 +205,10 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     if let Some(av) = sd.code_verifier { code_verifier = av.clone(); }
                     if let Some(av) = sd.auth_endpoint { auth_endpoint = av.clone(); }
                     if let Some(av) = sd.token_endpoint { token_endpoint = av.clone(); }
+                    if let Some(av) = sd.session_timeout { session_timeout = av; }
                 },
-                Ok(None) => error!("No session data found"),
-                Err(e) => error!("Error retrieving session data: {:?}", e),
-            }
-
-            // Verify the code verifier matches the challenge
-            if verify_code_challenge(&code_verifier, &code_challenge) {
-                info!("Server: Verification successful!");
-            } else {
-                error!("Server: Verification failed!");
+                Ok(None) => error!("No session data found [E311]"),
+                Err(e) => error!("Error retrieving session data: {:?} [E312]", e),
             }
 
             if token.is_empty() {
@@ -208,7 +223,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 ).await {
                     Ok(token) => token,
                     Err(e) => {
-                        error!("Error getting token: {}", e);
+                        error!("Error getting token: {} [E331]", e);
                         let message = get_error_page("E105");
                         return Ok(Response::builder()
                             .status(404)
@@ -220,8 +235,6 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
 
                 token = token_resp.access_token.clone();
                 let patient = token_resp.patient.clone().unwrap_or_default();
-
-                info!("Patient: {}", patient);
 
                 let session_data = SessionData {
                     pk: state.to_string(),
@@ -237,6 +250,8 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     auth_endpoint: Some(auth_endpoint.clone()),
                     token_endpoint: Some(token_endpoint.clone()),
                     iss: Some(issuer.clone()),
+                    session_timeout: Some(session_timeout),
+                    patient: Some(patient.clone()),
                 };
             
                 match save_to_dynamo(
@@ -244,7 +259,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     &table_name
                 ).await {
                     Ok(_) => info!("Session data saved to Dynamo successfully"),
-                    Err(e) => error!("Error saving session data to Dynamo: {:?}", e),
+                    Err(e) => error!("Error saving session data to Dynamo: {:?} [E332]", e),
                 }
             }
     
@@ -260,7 +275,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             info!("Route key: {}", route_key);
         }
         _ => {
-            error!("Route key not found: {}", route_key);
+            error!("Route key not found: {} [E341]", route_key);
         }
     }
 
@@ -300,11 +315,11 @@ fn generate_code_challenge(code_verifier: &str) -> String {
     URL_SAFE_NO_PAD.encode(&hash)
 }
 
-/// Verify that a code verifier matches a previously created challenge
-fn verify_code_challenge(
-    code_verifier: &str, 
-    expected_challenge: &str
-) -> bool {
-    let calculated_challenge = generate_code_challenge(code_verifier);
-    calculated_challenge == expected_challenge
-}
+// Verify that a code verifier matches a previously created challenge
+// fn verify_code_challenge(
+//     code_verifier: &str, 
+//     expected_challenge: &str
+// ) -> bool {
+//     let calculated_challenge = generate_code_challenge(code_verifier);
+//     calculated_challenge == expected_challenge
+// }

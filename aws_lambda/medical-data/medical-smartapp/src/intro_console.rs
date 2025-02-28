@@ -4,7 +4,6 @@ use crate::http_page::get_main_page;
 use serde_json::Value;
 
 pub async fn main_console_page(
-    domain_name: &str,
     state: &str,
     table_name: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -30,8 +29,11 @@ pub async fn main_console_page(
     let patients_json: Value = serde_json::from_str(&patients)
         .map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let url_patients = format!("https://{}/tasks", domain_name);
-    let html = get_main_page(&patients_json, &url_patients);
+    let html = get_main_page(
+        &patients_json,
+        &iss,
+        &state,
+    );
 
     Ok(html)
 }

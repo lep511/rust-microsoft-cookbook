@@ -2,7 +2,8 @@ use serde_json::Value;
 
 pub fn get_main_page(
     json_data: &Value,
-    url: &str,
+    iss: &str,
+    state: &str,
 ) -> String {
     let response = r#"
     <!DOCTYPE html>
@@ -225,7 +226,7 @@ pub fn get_main_page(
             // Function to handle patient selection
             function selectPatient(patientId, familyName, givenNames) {
                 console.log(`Selected patient: ${familyName}, ${givenNames} (ID: ${patientId})`);
-                window.location.href = `<url_to_redirect>?patient_id=${patientId}`;
+                window.location.href = `/tasks?patient_id=${patientId}&iss=<iss_value>&state=<state_value>`;
             }
 
             // Function to populate dropdown with patient names
@@ -425,7 +426,8 @@ pub fn get_main_page(
         Err(_) => String::from("{}"),
     };
     let response_fmt = response.replace("<json_data_placeholder>", &json_data_str);
-    let response_fmt = response_fmt.replace("<url_to_redirect>", &url);
+    let response_fmt = response_fmt.replace("<iss_value>", iss);
+    let response_fmt = response_fmt.replace("<state_value>", state);
     response_fmt
 }
 
@@ -890,7 +892,7 @@ pub fn get_server_error(error_code: &str) -> String {
         <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Error 404 - Page Not Found</title>
+        <title>Error 500 - Internal Server Error</title>
         <style>
             body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif;

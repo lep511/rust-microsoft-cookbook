@@ -1,13 +1,14 @@
 use lambda_http::{Body, Error, Request, RequestExt, Response};
 use lambda_http::request::RequestContext;
-use crate::http_page::{get_http_page, get_connect_page, get_error_page};
+use crate::http_page::{get_connect_page, get_error_page, redirect_url};
 use crate::oidc_request::{
-    TokenResponse, get_token_accesss, discover_endpoints, 
+    TokenResponse, get_token_accesss, discover_endpoints,
 };
 use crate::oidc_database::{
     SessionData, get_session_data, save_to_dynamo, get_client_data,
     remove_session_data,
 };
+use crate::intro_console::main_console_page;
 use lambda_http::tracing::{error, info};
 use rand::Rng;
 use sha2::{Sha256, Digest};
@@ -16,7 +17,7 @@ use url::Url;
 use std::env;
 
 // Constant for the session length
-const SESSION_LENGTH: i64 = 6 * 60 * 60 * 1000; // 6 hours
+const SESSION_LENGTH: i64 = 1 * 60 * 60 * 1000; // 1 hour
 
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     info!("Event: {:?}", event);
@@ -84,17 +85,30 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 Err(e) => error!("Error retrieving client data: {:?}[E301]", e),
             }
 
-            info!("Auth: {}", authorized);
-
             if session_timeout != 0 && authorized {
                 if actual_time_epoch < session_timeout {
                     info!("Session is still valid");
-                    let message = get_http_page();
-                    return Ok(Response::builder()
-                        .status(200)
-                        .header("content-type", "text/html")
-                        .body(message.into())
-                        .map_err(Box::new)?);
+                    match main_console_page(
+                        &state,
+                        &table_name,
+                    ).await {
+                        Ok(page) => {
+                            return Ok(Response::builder()
+                                .status(200)
+                                .header("content-type", "text/html")
+                                .body(page.into())
+                                .map_err(Box::new)?);
+                        },
+                        Err(e) => {
+                            let message = get_error_page("E109");
+                            error!("Error getting main page: {} [E109]", e);
+                            return Ok(Response::builder()
+                                .status(500)
+                                .header("content-type", "text/html")
+                                .body(message.into())
+                                .map_err(Box::new)?);
+                        }
+                    }
                 } else {
                     // Remove actual session data
                     info!("State: {}", state);
@@ -275,8 +289,17 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     Err(e) => error!("Error saving session data to Dynamo: {:?} [E332]", e),
                 }
             }
-    
-            let message = get_http_page();
+
+            let launch_uri = format!("https://{}/launch", domain_name);
+            let launch_redirect_uri = format!(
+                "{}?iss={}&launch={}&client={}",
+                launch_uri,
+                issuer,
+                state,
+                client_id
+            );
+            let message = redirect_url(&launch_redirect_uri);
+            
             return Ok(Response::builder()
                 .status(200)
                 .header("content-type", "text/html")

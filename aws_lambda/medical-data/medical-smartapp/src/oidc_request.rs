@@ -25,6 +25,9 @@ pub enum AuthEndpointError {
     #[error("Invalid authorization endpoint URL: {0}")]
     InvalidAuthEndpoint(String),
 
+    #[error("Request error: {0}")]
+    RequestError(String),
+
     #[error("{0}")]
     GenericError(String),
 }
@@ -118,4 +121,43 @@ pub async fn get_token_accesss(
     };
 
     Ok(token_response)
+}
+
+pub async fn get_mdata(
+    iss: &str,
+    param: &str,
+    access_token: &str,
+) -> Result<String, AuthEndpointError> {
+    // Creates an HTTPS-capable client using rustls TLS implementation.
+    let client = reqwest::Client::builder()
+        .use_rustls_tls()
+        .build()?;
+
+    let url = format!(
+        "{}/{}", 
+        iss.trim_end_matches('/'),
+        param,
+    );
+    let mut headers = HeaderMap::new();
+    let auth_str = format!("Bearer {}", access_token);
+
+    headers.insert("accept", HeaderValue::from_static("application/json"));
+    headers.insert("authorization", HeaderValue::from_str(&auth_str).unwrap());
+
+    let request = client.request(Method::GET, url)
+        .headers(headers);
+
+    let response = request.send().await?;
+
+    // Check if status code is in the 200-299 range
+    let status = response.status();
+    if !status.is_success() {
+        return Err(AuthEndpointError::RequestError(format!(
+            "Request failed with status: {}", status
+        )));
+    }
+    
+    // Parse the response body as a string
+    let body = response.text().await?;
+    Ok(body)
 }

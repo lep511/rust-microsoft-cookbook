@@ -6,6 +6,7 @@ use crate::oidc_request::{
 };
 use crate::oidc_database::{
     SessionData, get_session_data, save_to_dynamo, get_client_data,
+    remove_session_data,
 };
 use lambda_http::tracing::{error, info};
 use rand::Rng;
@@ -64,24 +65,28 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             let launch = params.first("launch").unwrap_or_default();
             let client_id = params.first("client").unwrap_or_default();
 
-            // Checking if client_id exists in the database
+            let mut state: String = generate_random_state(16);
             let mut session_timeout: i64 = 0;
-            let mut state: String = String::new();
+            let mut authorized: bool = false;
 
+            // Checking if client_id exists in the database
             match get_client_data(
                 &client_id, 
                 &table_name,
                 &index_name
             ).await {
                 Ok(Some(sd)) => {
-                    state = sd.pk.clone();
+                    state = sd.state.clone();
                     session_timeout = sd.session_timeout.clone();
+                    authorized = sd.authorized;
                 },
                 Ok(None) => info!("No client data found."),
                 Err(e) => error!("Error retrieving client data: {:?}[E301]", e),
             }
 
-            if session_timeout != 0 {
+            info!("Auth: {}", authorized);
+
+            if session_timeout != 0 && authorized {
                 if actual_time_epoch < session_timeout {
                     info!("Session is still valid");
                     let message = get_http_page();
@@ -91,7 +96,16 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                         .body(message.into())
                         .map_err(Box::new)?);
                 } else {
-                    info!("Session has expired");
+                    // Remove actual session data
+                    info!("State: {}", state);
+                    match remove_session_data(
+                        &table_name,
+                        "pk",
+                        &state,
+                    ).await {
+                        Ok(_) => info!("Session has expired. Session data removed successfully"),
+                        Err(e) => error!("Session has expired. Error removing session data: {:?} [E302]", e),
+                    }
                 }
             }
 
@@ -119,12 +133,10 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             // Create a mutable URL for building the query
             let mut url = base_url.clone();
 
-            // Generate a random alphanumeric string
-            state = generate_random_state(16);
-
             // Save state to DynamoDB
             let state_data = SessionData {
                 pk: state.clone(),
+                authorized: false,
                 client_id: client_id.to_string().into(),
                 code_verifier: code_verifier.into(),
                 code_challenge: code_challenge.clone().into(),
@@ -238,6 +250,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
 
                 let session_data = SessionData {
                     pk: state.to_string(),
+                    authorized: true,
                     access_token: Some(token.clone()),
                     expires_in: token_resp.expires_in,
                     scope: Some(scope.to_string()),

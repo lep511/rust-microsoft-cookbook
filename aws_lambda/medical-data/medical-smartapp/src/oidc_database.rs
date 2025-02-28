@@ -7,6 +7,7 @@ use std::collections::HashMap;
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct SessionData {
     pub pk: String,
+    pub authorized: bool,
     pub access_token: Option<String>,
     pub expires_in: Option<i32>,
     pub scope: Option<String>,
@@ -30,6 +31,7 @@ impl SessionData {
         
         // Always include primary key
         item.insert("pk".to_string(), AttributeValue::S(self.pk.clone()));
+        item.insert("authorized".to_string(), AttributeValue::Bool(self.authorized));
         
         // Add optional fields only if they exist
         if let Some(token) = &self.access_token {
@@ -82,7 +84,8 @@ impl SessionData {
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ClientData {
     pub client_id: String,
-    pub pk: String,
+    pub state: String,
+    pub authorized: bool,
     pub session_timeout: i64,
 }
 
@@ -103,6 +106,7 @@ pub async fn get_session_data(
     if let Some(item) = result.item() {
         let session_data = SessionData {
             pk: pk.to_string(),
+            authorized: item.get("authorized").and_then(|av| av.as_bool().ok()).copied().unwrap_or(false),
             access_token: item.get("access_token").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
             expires_in: item.get("expires_in").and_then(|av| av.as_n().ok().and_then(|n| n.parse::<i32>().ok())),
             scope: item.get("scope").and_then(|av| av.as_s().ok().map(|s| s.to_string())),
@@ -153,7 +157,8 @@ pub async fn get_client_data(
         if let Some(item) = items.first() {
             let client_data = ClientData {
                 client_id: item.get("client_id").and_then(|av| av.as_s().ok().map(|s| s.to_string())).unwrap_or_default(),
-                pk: pk_value.to_string(),
+                state: item.get("pk").and_then(|av| av.as_s().ok().map(|s| s.to_string())).unwrap_or_default(),
+                authorized: item.get("authorized").and_then(|av| av.as_bool().ok()).copied().unwrap_or(false),
                 session_timeout: item.get("session_timeout").and_then(|av| av.as_n().ok().and_then(|n| n.parse::<i64>().ok())).unwrap_or_default(),
             };
             return Ok(Some(client_data));
@@ -161,6 +166,25 @@ pub async fn get_client_data(
     }
     
     Ok(None)
+}
+
+pub async fn remove_session_data(
+    table_name: &str,
+    key: &str,
+    key_value: &str,
+) -> Result<(), dynamodb::Error> {
+    let config = aws_config::load_from_env().await;
+    let client = dynamodb::Client::new(&config);
+    let key_av = dynamodb::types::AttributeValue::S(key_value.to_string());
+
+    client
+        .delete_item()
+        .table_name(table_name)
+        .key(key, key_av)
+        .send()
+        .await?;
+
+    Ok(())
 }
 
 pub async fn save_to_dynamo(

@@ -85,10 +85,12 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 Err(e) => error!("Error retrieving client data: {:?}[E301]", e),
             }
 
+            // ~~~~~~~~~~~~~~~~~~~~ MAIN PAGE ~~~~~~~~~~~~~~~~~~~~~~~~~~
             if session_timeout != 0 && authorized {
                 if actual_time_epoch < session_timeout {
                     info!("Session is still valid");
                     match main_console_page(
+                        &domain_name,
                         &state,
                         &table_name,
                     ).await {
@@ -307,7 +309,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                 .map_err(Box::new)?);
         }
         // ~~~~~~~~~~~~~~~~~~~~ TASKS ~~~~~~~~~~~~~~~~~~~~~~~~~~
-        "GET /tasks" => {
+        "ANY /tasks" => {
             info!("Route key: {}", route_key);
         }
         _ => {

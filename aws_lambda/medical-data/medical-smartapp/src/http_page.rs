@@ -1,6 +1,9 @@
 use serde_json::Value;
 
-pub fn get_main_page(json_data: &Value) -> String {
+pub fn get_main_page(
+    json_data: &Value,
+    url: &str,
+) -> String {
     let response = r#"
     <!DOCTYPE html>
     <html lang="en">
@@ -64,9 +67,98 @@ pub fn get_main_page(json_data: &Value) -> String {
                 text-align: center;
                 color: #666;
             }
+
+            /* Controls container */
+            .controls {
+                width: 600px;
+                margin: 0 auto 20px auto;
+                display: flex;
+                gap: 10px;
+            }
+
+            /* Search input styling */
+            #searchInput {
+                flex: 1;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+
+            /* Dropdown styling */
+            #nameSelector {
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                min-width: 200px;
+            }
+
+            /* No results message */
+            #noResults {
+                text-align: center;
+                color: #666;
+                padding: 10px;
+            }
+
+            /* Pagination container */
+            .pagination {
+                width: 600px;
+                margin: 20px auto 0 auto;
+                display: flex;
+                justify-content: center;
+                gap: 5px;
+            }
+
+            /* Pagination button styling */
+            .pagination button {
+                width: 30px;
+                height: 30px;
+                border: 1px solid #ddd;
+                background-color: #fff;
+                cursor: pointer;
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            /* Active page button */
+            .pagination button.active {
+                background-color: #4682B4;
+                color: white;
+                border-color: #4682B4;
+            }
+
+            /* Hover effect for pagination buttons */
+            .pagination button:hover:not(.active) {
+                background-color: #f5f5f5;
+            }
+
+            /* Select button styling */
+            .select-btn {
+                background-color: #4682B4;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 4px 8px;
+                cursor: pointer;
+                font-size: 0.8em;
+            }
+
+            .select-btn:hover {
+                background-color: #3b6e96;
+            }
         </style>
     </head>
     <body>
+        <!-- Search and filter controls -->
+        <div class="controls">
+            <input type="text" id="searchInput" placeholder="Search by name...">
+            <select id="nameSelector">
+                <option value="">All Patients</option>
+                <!-- Options will be populated by JavaScript -->
+            </select>
+        </div>
+
         <table>
             <caption>Patient Information</caption>
             <thead>
@@ -74,21 +166,33 @@ pub fn get_main_page(json_data: &Value) -> String {
                     <th>Family Name</th>
                     <th>Given Names</th>
                     <th>Last Modified</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody id="tableBody">
                 <tr>
-                    <td colspan="3" id="loading">Loading data...</td>
+                    <td colspan="4" id="loading">Loading data...</td>
                 </tr>
             </tbody>
         </table>
 
+        <!-- Pagination controls -->
+        <div class="pagination" id="pagination">
+            <!-- Pagination buttons will be populated by JavaScript -->
+        </div>
+
         <!-- Embedded JSON data -->
         <script type="application/json" id="patientData">
-        <json_data_placeholder>
+            <json_data_placeholder>
         </script>
 
         <script>
+            // Store all patient data for filtering
+            let allPatients = [];
+            let filteredPatients = [];
+            let currentPage = 1;
+            const patientsPerPage = 5;
+
             // Function to format date string for better readability
             function formatDate(dateString) {
                 try {
@@ -118,47 +222,191 @@ pub fn get_main_page(json_data: &Value) -> String {
                 };
             }
 
-            // Function to populate table with embedded JSON data
+            // Function to handle patient selection
+            function selectPatient(patientId, familyName, givenNames) {
+                console.log(`Selected patient: ${familyName}, ${givenNames} (ID: ${patientId})`);
+                window.location.href = `<url_to_redirect>?patient_id=${patientId}`;
+            }
+
+            // Function to populate dropdown with patient names
+            function populateDropdown(patients) {
+                const dropdown = document.getElementById('nameSelector');
+                
+                // Create a set to store unique family names
+                const uniqueFamilyNames = new Set();
+                
+                // Add family names to the set
+                patients.forEach(entry => {
+                    const patient = entry.resource;
+                    const nameInfo = getNameInfo(patient);
+                    if (nameInfo.family !== "No family name") {
+                        uniqueFamilyNames.add(nameInfo.family);
+                    }
+                });
+                
+                // Convert set to array and sort alphabetically
+                const sortedNames = Array.from(uniqueFamilyNames).sort();
+                
+                // Add options to dropdown
+                sortedNames.forEach(familyName => {
+                    const option = document.createElement('option');
+                    option.value = familyName;
+                    option.textContent = familyName;
+                    dropdown.appendChild(option);
+                });
+            }
+
+            // Function to create pagination buttons
+            function createPagination() {
+                const pagination = document.getElementById('pagination');
+                pagination.innerHTML = '';
+                
+                // Calculate total number of pages
+                const totalPages = Math.ceil(filteredPatients.length / patientsPerPage);
+                
+                // Don't show pagination if there's only one page or no results
+                if (totalPages <= 1) {
+                    return;
+                }
+                
+                // Create page buttons
+                for (let i = 1; i <= totalPages; i++) {
+                    const button = document.createElement('button');
+                    button.textContent = i;
+                    button.dataset.page = i;
+                    
+                    if (i === currentPage) {
+                        button.classList.add('active');
+                    }
+                    
+                    button.addEventListener('click', () => {
+                        currentPage = parseInt(button.dataset.page);
+                        displayPatients();
+                        updatePaginationActiveState();
+                    });
+                    
+                    pagination.appendChild(button);
+                }
+            }
+
+            // Function to update which pagination button is active
+            function updatePaginationActiveState() {
+                const buttons = document.querySelectorAll('#pagination button');
+                buttons.forEach(button => {
+                    if (parseInt(button.dataset.page) === currentPage) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                });
+            }
+
+            // Function to display patients for the current page
+            function displayPatients() {
+                const tableBody = document.getElementById('tableBody');
+                tableBody.innerHTML = '';
+                
+                if (filteredPatients.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="4" id="noResults">No matching patients found</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                // Calculate start and end index for current page
+                const startIndex = (currentPage - 1) * patientsPerPage;
+                const endIndex = Math.min(startIndex + patientsPerPage, filteredPatients.length);
+                
+                // Display only patients for current page
+                for (let i = startIndex; i < endIndex; i++) {
+                    const entry = filteredPatients[i];
+                    const patient = entry.resource;
+                    const patientId = entry.fullUrl.split('/').pop();
+                    const lastModified = entry.response?.lastModified;
+                    const nameInfo = getNameInfo(patient);
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${nameInfo.family}</td>
+                        <td>${nameInfo.given}</td>
+                        <td>${lastModified ? formatDate(lastModified) : 'N/A'}</td>
+                        <td><button class="select-btn" data-id="${patientId}">Select</button></td>
+                    `;
+                    
+                    // Add event listener to the select button
+                    row.querySelector('.select-btn').addEventListener('click', function() {
+                        selectPatient(patientId, nameInfo.family, nameInfo.given);
+                    });
+                    
+                    tableBody.appendChild(row);
+                }
+            }
+
+            // Function to filter patients based on search input and dropdown
+            function filterPatients() {
+                const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+                const selectedFamily = document.getElementById('nameSelector').value;
+                
+                // Reset to first page when filter changes
+                currentPage = 1;
+                
+                // Filter patients based on criteria
+                filteredPatients = allPatients.filter(entry => {
+                    const patient = entry.resource;
+                    const nameInfo = getNameInfo(patient);
+                    
+                    const matchesSearch = searchTerm === '' || 
+                        nameInfo.family.toLowerCase().includes(searchTerm) || 
+                        nameInfo.given.toLowerCase().includes(searchTerm);
+                    
+                    const matchesDropdown = selectedFamily === '' || 
+                        nameInfo.family === selectedFamily;
+                    
+                    return matchesSearch && matchesDropdown;
+                });
+                
+                // Update the display
+                displayPatients();
+                createPagination();
+            }
+
+            // Function to load data and set up event listeners
             function loadData() {
                 try {
                     // Get the JSON data from the embedded script tag
                     const jsonElement = document.getElementById('patientData');
                     const jsonData = JSON.parse(jsonElement.textContent);
-
-                    // Get the table body element
-                    const tableBody = document.getElementById('tableBody');
                     
-                    // Clear the loading message
-                    tableBody.innerHTML = '';
-
                     // Make sure we have entries to process
                     if (!jsonData.entry || jsonData.entry.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="3">No patient data available</td></tr>';
+                        const tableBody = document.getElementById('tableBody');
+                        tableBody.innerHTML = '<tr><td colspan="4">No patient data available</td></tr>';
                         return;
                     }
-
-                    // Populate the table with patient data
-                    jsonData.entry.forEach(entry => {
-                        const patient = entry.resource;
-                        const lastModified = entry.response?.lastModified;
-                        
-                        // Get name information
-                        const nameInfo = getNameInfo(patient);
-                        
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${nameInfo.family}</td>
-                            <td>${nameInfo.given}</td>
-                            <td>${lastModified ? formatDate(lastModified) : 'N/A'}</td>
-                        `;
-                        tableBody.appendChild(row);
-                    });
+                    
+                    // Store all patients for filtering
+                    allPatients = jsonData.entry;
+                    filteredPatients = [...allPatients];
+                    
+                    // Populate dropdown with patient names
+                    populateDropdown(allPatients);
+                    
+                    // Initial display of patients
+                    displayPatients();
+                    createPagination();
+                    
+                    // Set up event listeners for search and dropdown
+                    document.getElementById('searchInput').addEventListener('input', filterPatients);
+                    document.getElementById('nameSelector').addEventListener('change', filterPatients);
+                    
                 } catch (error) {
                     // Handle errors by displaying a message in the table
                     const tableBody = document.getElementById('tableBody');
                     tableBody.innerHTML = `
                         <tr>
-                            <td colspan="3">Error loading data: ${error.message}</td>
+                            <td colspan="4">Error loading data: ${error.message}</td>
                         </tr>
                     `;
                     console.error("Error loading data:", error);
@@ -177,6 +425,7 @@ pub fn get_main_page(json_data: &Value) -> String {
         Err(_) => String::from("{}"),
     };
     let response_fmt = response.replace("<json_data_placeholder>", &json_data_str);
+    let response_fmt = response_fmt.replace("<url_to_redirect>", &url);
     response_fmt
 }
 
@@ -298,7 +547,7 @@ pub fn get_connect_page(auth_link: &str) -> String {
                 </div>
             </div>
             <footer class="footer">
-                <p>&copy; 2025 MeldRx. All rights reserved.<br>
+                <p>&copy; Hackathon - Predictive AI In Healthcare with FHIR.<br>
                 Need help? <a href="/support">Contact Support</a> | <a href="/privacy">Privacy Policy</a> | <a href="/terms">Terms of Service</a></p>
             </footer>
         </body>
@@ -318,59 +567,190 @@ pub fn redirect_url(url: &str) -> String {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Redirecting...</title>
         <style>
+            :root {
+                --primary-color: #4a6cf7;
+            }
+            
             body {
-                font-family: Arial, sans-serif;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 text-align: center;
-                margin-top: 100px;
-                background-color: #f5f5f5;
+                margin: 0;
+                padding: 0;
+                height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background-color: #f8f9fa;
             }
+            
             .container {
-                max-width: 600px;
+                width: 90%;
+                max-width: 500px;
                 margin: 0 auto;
-                padding: 20px;
+                padding: 2rem;
                 background-color: white;
-                border-radius: 5px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                border-radius: 12px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.05);
             }
+            
             h1 {
-                color: #333;
+                color: #1a1a1a;
+                font-size: 1.8rem;
+                font-weight: 600;
+                margin-bottom: 0.5rem;
             }
+            
             p {
                 color: #666;
+                line-height: 1.6;
+                margin: 0.75rem 0;
             }
-            .loading {
-                margin: 20px 0;
-                font-size: 14px;
-            }
+            
             .redirect-link {
-                color: #0066cc;
+                color: var(--primary-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: all 0.2s ease;
+            }
+            
+            .redirect-link:hover {
                 text-decoration: underline;
-                cursor: pointer;
+            }
+            
+            /* Loading animation */
+            .loading-container {
+                display: flex;
+                justify-content: center;
+                margin: 1.5rem 0;
+            }
+            
+            .spinner {
+                width: 40px;
+                height: 40px;
+                position: relative;
+            }
+            
+            .spinner-circle {
+                box-sizing: border-box;
+                width: 100%;
+                height: 100%;
+                border: 4px solid #eee;
+                border-top-color: var(--primary-color);
+                border-radius: 50%;
+                animation: spinner 0.8s linear infinite;
+            }
+            
+            .progress-bar {
+                height: 4px;
+                width: 100%;
+                background-color: #eee;
+                border-radius: 4px;
+                overflow: hidden;
+                margin: 1rem 0;
+                position: relative;
+            }
+            
+            .progress-fill {
+                height: 100%;
+                width: 0%;
+                background-color: var(--primary-color);
+                border-radius: 4px;
+                transition: width 0.1s linear;
+            }
+            
+            .countdown {
+                font-size: 0.875rem;
+                color: #888;
+                margin-top: 0.5rem;
+            }
+            
+            @keyframes spinner {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            
+            @media (max-width: 480px) {
+                .container {
+                    padding: 1.5rem;
+                }
+                
+                h1 {
+                    font-size: 1.5rem;
+                }
             }
         </style>
-        <script>
-            // Redirect to the target URL after page loads
-            window.onload = function() {
-                // Change the URL below to your target destination
-                const targetUrl = "<url_to_redirect>";
-                
-                // Set a small timeout to allow users to see the redirect message
-                setTimeout(function() {
-                    window.location.href = targetUrl;
-                }, 2000);
-            };
-        </script>
     </head>
     <body>
         <div class="container">
             <h1>Redirecting...</h1>
             <p>You are being redirected to APP.</p>
-            <div class="loading">Please wait...</div>
+            
+            <div class="loading-container">
+                <div class="spinner">
+                    <div class="spinner-circle"></div>
+                </div>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            
+            <div class="countdown" id="countdown"></div>
+            
             <p>If you are not redirected automatically, 
-            <a href="<url_to_redirect>" class="redirect-link" 
-                onclick="window.location.href='<url_to_redirect>'; return false;">click here</a>.
+                <a href="<url_to_redirect>" class="redirect-link">click here</a>.
             </p>
         </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                // Target URL
+                const targetUrl = "<url_to_redirect>";
+                
+                // Redirect timeout in milliseconds
+                const redirectTime = 3000;
+                
+                // Progress animation
+                const progressFill = document.getElementById('progress-fill');
+                const countdown = document.getElementById('countdown');
+                
+                // Start time
+                const startTime = Date.now();
+                
+                // Update progress bar and countdown
+                function updateProgress() {
+                    const elapsedTime = Date.now() - startTime;
+                    const remainingTime = Math.max(0, redirectTime - elapsedTime);
+                    const progress = (elapsedTime / redirectTime) * 100;
+                    
+                    // Update progress bar
+                    progressFill.style.width = `${Math.min(progress, 100)}%`;
+                    
+                    // Update countdown text
+                    countdown.textContent = `Redirecting in ${Math.ceil(remainingTime/1000)} second${Math.ceil(remainingTime/1000) !== 1 ? 's' : ''}`;
+                    
+                    // Continue updating if there's time left
+                    if (remainingTime > 0) {
+                        requestAnimationFrame(updateProgress);
+                    }
+                }
+                
+                // Start progress animation
+                updateProgress();
+                
+                // Set redirect timeout
+                setTimeout(() => {
+                    window.location.href = targetUrl;
+                }, redirectTime);
+                
+                // Make sure the redirect link works
+                document.querySelector('.redirect-link').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    window.location.href = targetUrl;
+                });
+            });
+        </script>
     </body>
     </html>
     "#;
@@ -492,7 +872,131 @@ pub fn get_error_page(error_code: &str) -> String {
             </div>
         </div>
         <footer class="footer">
-            <p>&copy; 2025 MeldRx. All rights reserved.<br>
+            <p>&copy; Hackathon - Predictive AI In Healthcare with FHIR.<br>
+            Need help? <a href="/support">Contact Support</a> | <a href="/privacy">Privacy Policy</a> | <a href="/terms">Terms of Service</a></p>
+        </footer>
+        </body>
+        </html>
+    "#;
+    
+    let response_fmt = response.replace("<error_code>", error_code);
+    response_fmt
+}
+
+pub fn get_server_error(error_code: &str) -> String {
+    let response = r#"
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Error 404 - Page Not Found</title>
+        <style>
+            body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #1e293b;
+            }
+            .container {
+            max-width: 600px;
+            width: 90%;
+            padding: 48px;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            text-align: center;
+            margin: 20px;
+            }
+            h1 {
+            font-size: 28px;
+            margin-bottom: 16px;
+            color: #0f172a;
+            font-weight: 600;
+            }
+            p {
+            font-size: 16px;
+            margin-bottom: 24px;
+            color: #475569;
+            line-height: 1.6;
+            }
+            .button {
+            display: inline-block;
+            padding: 14px 32px;
+            background-color: #3b82f6;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            }
+            .button:hover {
+            background-color: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+            }
+            .footer {
+            margin-top: 24px;
+            padding: 16px;
+            text-align: center;
+            font-size: 14px;
+            color: #64748b;
+            }
+            .footer a {
+            color: #3b82f6;
+            text-decoration: none;
+            }
+            .footer a:hover {
+            text-decoration: underline;
+            }
+            .security-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 24px;
+            color: #64748b;
+            font-size: 12px;
+            }
+            .security-badge svg {
+            margin-right: 8px;
+            }
+            @media (max-width: 600px) {
+            .container {
+                padding: 32px 24px;
+                width: 85%;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            p {
+                font-size: 15px;
+            }
+            .button {
+                font-size: 15px;
+                padding: 12px 24px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            }
+        </style>
+        </head>
+        <body>
+        <div class="container">
+            <h1>Error 500: Internal Server Error</h1>
+            <p>We apologize, but something went wrong on our server while processing your request. Please try again later or contact support if the problem persists.</p>
+            <div class="security-badge">
+            Error code: <error_code>
+            </div>
+        </div>
+        <footer class="footer">
+            <p>&copy; Hackathon - Predictive AI In Healthcare with FHIR.<br>
             Need help? <a href="/support">Contact Support</a> | <a href="/privacy">Privacy Policy</a> | <a href="/terms">Terms of Service</a></p>
         </footer>
         </body>

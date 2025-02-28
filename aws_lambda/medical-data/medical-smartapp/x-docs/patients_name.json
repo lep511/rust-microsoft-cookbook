@@ -1,0 +1,254 @@
+{
+    "resourceType": "Bundle",
+    "type": "searchset",
+    "total": 9,
+    "link": [
+      {
+        "relation": "self",
+        "url": "https://app.meldrx.com/api/fhir/396412f4-286b-4e44-8bae-28c1357e5695/bundle/page/1?token=114b50fe-47f4-4447-9272-8a8f7e0aa2c3"
+      },
+      {
+        "relation": "first",
+        "url": "https://app.meldrx.com/api/fhir/396412f4-286b-4e44-8bae-28c1357e5695/bundle/page/1?token=114b50fe-47f4-4447-9272-8a8f7e0aa2c3"
+      },
+      {
+        "relation": "last",
+        "url": "https://app.meldrx.com/api/fhir/396412f4-286b-4e44-8bae-28c1357e5695/bundle/page/1?token=114b50fe-47f4-4447-9272-8a8f7e0aa2c3"
+      }
+    ],
+    "entry": [
+      {
+        "fullUrl": "https://app.meldrx.com/api/fhir/396412f4-286b-4e44-8bae-28c1357e5695/Patient/1eb5d2ee-3b3b-4d26-a7ea-516ade870266",
+        "resource": {
+          "resourceType": "Patient",
+          "name": [
+            {
+              "use": "usual"
+            }
+          ]
+        },
+        "response": {
+          "status": "200",
+          "lastModified": "2025-02-20T16:04:23.629995\u002B00:00"
+        }
+      },
+      {
+        "fullUrl": "https://app.meldrx.com/api/fhir/396412f4-286b-4e44-8bae-28c1357e5695/Patient/2694ec73-6151-4197-aabc-62ae04ed8962",
+        "resource": {
+          "resourceType": "Patient",
+          "name": [
+            {
+              "use": "official",
+              "family": "Villase\u00F1or332",
+              "given": [
+                "Daniel959",
+                "Hern\u00E1n834"
+              ],
+              "prefix": [
+                "Mr."
+              ]
+            }
+          ]
+        },
+        "response": {
+          "status": "200",
+          "lastModified": "2025-02-19T18:54:59.626262\u002B00:00"
+        }
+      },
+      {
+        "fullUrl": "https://app.meldrx.com/api/fhir/396412f4-286b-4e44-8bae-28c1357e5695/Patient/fb38f6f6-4b30-40d0-ae21-ab6fd8a59bf7",
+        "resource": {
+          "resourceType": "Patient",
+          "name": [
+            {
+              "use": "official",
+              "family": "Kihn564",
+              "given": [
+                "Ellsworth48",
+                "Major265"
+              ],
+              "prefix": [
+                "Mr."
+              ]
+            }
+          ]
+        },
+        "response": {
+          "status": "200",
+          "lastModified": "2025-02-19T18:54:40.344509\u002B00:00"
+        }
+      },
+      {
+        "fullUrl": "https://app.meldrx.com/api/fhir/396412f4-286b-4e44-8bae-28c1357e5695/Patient/85096209-bc28-4820-b8dd-888497b1cde0",
+        "resource": {
+          "resourceType": "Patient",
+          "name": [
+            {
+              "use": "official",
+              "family": "Gutmann970",
+              "given": [
+                "Rosie394",
+                "Tiny880"
+              ],
+              "prefix": [
+                "Mrs."
+              ]
+            },
+            {
+              "use": "maiden",
+              "family": "Thiel172",
+              "given": [
+                "Rosie394",
+                "Tiny880"
+              ],
+              "prefix": [
+                "Mrs."
+              ]
+            }
+          ]
+        },
+        "response": {
+          "status": "200",
+          "lastModified": "2025-02-19T18:54:27.797324\u002B00:00"
+        }
+      },
+      {
+        "fullUrl": "https://app.meldrx.com/api/fhir/396412f4-286b-4e44-8bae-28c1357e5695/Patient/4e73698f-29f4-4217-afc2-1e548f4567f7",
+        "resource": {
+          "resourceType": "Patient",
+          "name": [
+            {
+              "use": "official",
+              "family": "Vandervort697",
+              "given": [
+                "Tiffaney302",
+                "Shavonne800"
+              ],
+              "prefix": [
+                "Mrs."
+              ]
+            },
+            {
+              "use": "maiden",
+              "family": "Legros616",
+              "given": [
+                "Tiffaney302",
+                "Shavonne800"
+              ],
+              "prefix": [
+                "Mrs."
+              ]
+            }
+          ]
+        },
+        "response": {
+          "status": "200",
+          "lastModified": "2025-02-19T18:54:16.218458\u002B00:00"
+        }
+      },
+      {
+        "fullUrl": "https://app.meldrx.com/api/fhir/396412f4-286b-4e44-8bae-28c1357e5695/Patient/14fd8862-ce5c-4500-9fd8-6a422d3bc6dd",
+        "resource": {
+          "resourceType": "Patient",
+          "name": [
+            {
+              "use": "official",
+              "family": "Pagan507",
+              "given": [
+                "Juana825",
+                "Emilia403"
+              ],
+              "prefix": [
+                "Ms."
+              ]
+            }
+          ]
+        },
+        "response": {
+          "status": "200",
+          "lastModified": "2025-02-19T18:54:03.793647\u002B00:00"
+        }
+      },
+      {
+        "fullUrl": "https://app.meldrx.com/api/fhir/396412f4-286b-4e44-8bae-28c1357e5695/Patient/f2fe3c31-4789-4598-975b-074f2a98bc7d",
+        "resource": {
+          "resourceType": "Patient",
+          "name": [
+            {
+              "use": "official",
+              "family": "Jerde200",
+              "given": [
+                "Alvin56"
+              ],
+              "prefix": [
+                "Mr."
+              ]
+            }
+          ]
+        },
+        "response": {
+          "status": "200",
+          "lastModified": "2025-02-19T18:53:50.996783\u002B00:00"
+        }
+      },
+      {
+        "fullUrl": "https://app.meldrx.com/api/fhir/396412f4-286b-4e44-8bae-28c1357e5695/Patient/c395defb-8bf2-4b0b-a43a-04dd6dd02a73",
+        "resource": {
+          "resourceType": "Patient",
+          "name": [
+            {
+              "use": "official",
+              "family": "Feeney44",
+              "given": [
+                "Ardath226",
+                "Maude482"
+              ],
+              "prefix": [
+                "Mrs."
+              ]
+            },
+            {
+              "use": "maiden",
+              "family": "Murray856",
+              "given": [
+                "Ardath226",
+                "Maude482"
+              ],
+              "prefix": [
+                "Mrs."
+              ]
+            }
+          ]
+        },
+        "response": {
+          "status": "200",
+          "lastModified": "2025-02-19T18:53:15.60869\u002B00:00"
+        }
+      },
+      {
+        "fullUrl": "https://app.meldrx.com/api/fhir/396412f4-286b-4e44-8bae-28c1357e5695/Patient/8a6ee6c1-a763-4580-adfb-a584a4e0d25f",
+        "resource": {
+          "resourceType": "Patient",
+          "name": [
+            {
+              "family": "Newman",
+              "given": [
+                "Alice",
+                "Jones"
+              ]
+            },
+            {
+              "family": "Newman",
+              "given": [
+                "Alicia"
+              ]
+            }
+          ]
+        },
+        "response": {
+          "status": "200",
+          "lastModified": "2025-02-19T18:06:36.517725\u002B00:00"
+        }
+      }
+    ]
+  }

@@ -51,9 +51,9 @@ pub(crate) async fn function_handler(
     headers.insert("X-Custom-Header", HeaderValue::from_static("custom-value"));
 
     // Create cookies
-    let cookies = vec![
+    let mut cookies = vec![
         "session=abc123; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600".to_string(),
-        "user=johndoe; Path=/; Max-Age=86400".to_string(),
+        "lang=en; Path=/; Max-Age=604800".to_string(),
     ];
 
     // Get Smart App callback
@@ -101,6 +101,7 @@ pub(crate) async fn function_handler(
                 Ok(None) => info!("No client data found."),
                 Err(e) => error!("Error retrieving client data: {:?}[E301]", e),
             }
+            cookies.push(format!("session={state}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600"));
 
             // ~~~~~~~~~~~~~~~~~~~~ MAIN PAGE ~~~~~~~~~~~~~~~~~~~~~~~~~~
             if session_timeout != 0 && authorized {
@@ -146,6 +147,7 @@ pub(crate) async fn function_handler(
                         Ok(_) => {
                             info!("Session has expired. Session data removed successfully");
                             state = generate_random_state(16);
+                            cookies.push(format!("session={state}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600"));
                         },
                         Err(e) => error!("Session has expired. Error removing session data: {:?} [E302]", e),
                     }
@@ -237,7 +239,7 @@ pub(crate) async fn function_handler(
                 Some(state) if !state.is_empty() => state,
                 _ => {
                     error!("State not found in parameters [E468]");
-                    let message = get_error_page("E468");
+                    let message = get_server_error("E468");
                     let body = Body::Text(message);
                     return Ok(ApiGatewayV2httpResponse {
                         status_code: 468,
@@ -250,6 +252,7 @@ pub(crate) async fn function_handler(
                 }
             };           
 
+            cookies.push(format!("session={state}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600"));
             let mut issuer = String::new();
             let mut token = String::new();
             let mut client_id = String::new();
@@ -290,7 +293,7 @@ pub(crate) async fn function_handler(
                     Ok(token) => token,
                     Err(e) => {
                         error!("Error getting token: {} [E471]", e);
-                        let message = get_error_page("E471");
+                        let message = get_server_error("E471");
                         let body = Body::Text(message);
                         return Ok(ApiGatewayV2httpResponse {
                             status_code: 471,

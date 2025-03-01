@@ -1,8 +1,11 @@
-use lambda_http::{Body, Error, Request, RequestExt};
-use aws_lambda_events::event::apigw::ApiGatewayV2httpResponse as Response;
+use lambda_runtime::{Error, LambdaEvent};
+use aws_lambda_events::event::apigw::{
+    ApiGatewayV2httpRequest, ApiGatewayV2httpResponse,
+};
 use http::header::{HeaderMap, HeaderValue};
-use askama::Template;
+use aws_lambda_events::encodings::Body;
 use serde::{Deserialize, Serialize};
+use askama::Template;
 
 // Define a struct with the template embedded directly in code
 #[derive(Template)]
@@ -26,28 +29,28 @@ use serde::{Deserialize, Serialize};
 </body>
 </html>
 "#, ext = "html")]
-struct HelloTemplate<'a> {
+pub(crate) struct HelloTemplate<'a> {
     title: &'a str,
     name: &'a str,
     items: Vec<&'a str>,
 }
 
-#[derive(Deserialize)]
-struct QueryParams {
-    name: Option<String>,
-}
+pub(crate) async fn function_handler(
+    event: LambdaEvent<ApiGatewayV2httpRequest>,
+) -> Result<ApiGatewayV2httpResponse, Error> {
+    // Extract the request from the event
+    let request = event.payload;
 
-pub(crate) async fn function_handler(event: Request) -> Result<Response, Error> {
-
-    // Render template
     let template = HelloTemplate {
         title: "Askama Demo",
         name: "World",
         items: vec!["Item 1", "Item 2", "Item 3"],
     };
-    
-    let html = template.render()?;
-    let body = Some(Body::Text(html));
+
+    let html = template.render().unwrap_or_else(|e| {
+        format!("Error rendering template: {}", e)
+    });
+    let body = Body::Text(html);
 
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", HeaderValue::from_static("text/html"));
@@ -57,16 +60,16 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response, Error> 
         "session=abc123; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600".to_string(),
         "user=johndoe; Path=/; Max-Age=86400".to_string(),
     ];
-    
-    // Return response
-    let resp = Response {
+
+    // Create a response
+    let resp = ApiGatewayV2httpResponse {
         status_code: 200,
         headers: headers,
         multi_value_headers: HeaderMap::new(),
-        body: body,
-        is_base64_encoded: false,
+        body: Some(body),
         cookies: cookies,
+        is_base64_encoded: false,
     };
-    
+
     Ok(resp)
 }

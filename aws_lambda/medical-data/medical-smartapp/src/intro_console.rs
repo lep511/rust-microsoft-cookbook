@@ -13,7 +13,7 @@ pub async fn main_console_page(
         .ok_or("Session data not found")?;
 
     let iss = session_data.iss.clone().unwrap_or_default();
-    let param = "Patient?_elements=name";
+    let param = "Patient?_elements=name&_count=35";
     let access_token = match session_data.access_token {
         Some(token) => token.clone(),
         None => return Err("Access token not found".into()),

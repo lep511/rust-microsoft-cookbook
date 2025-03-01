@@ -1,4 +1,4 @@
-use lambda_http::{run, service_fn, tracing, Error};
+use lambda_runtime::{run, service_fn, tracing, Error};
 mod generic_handler;
 use generic_handler::function_handler;
 

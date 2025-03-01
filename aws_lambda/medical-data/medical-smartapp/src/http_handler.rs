@@ -1,5 +1,6 @@
-use lambda_http::{Body, Error, Request, RequestExt, Response};
+use lambda_http::{Body, Error, Request, RequestExt};
 use lambda_http::request::RequestContext;
+use aws_lambda_events::event::apigw::ApiGatewayV2httpResponse as Response;
 use crate::http_page::{get_connect_page, get_error_page, redirect_url};
 use crate::oidc_request::{
     TokenResponse, get_token_accesss, discover_endpoints,
@@ -19,7 +20,7 @@ use std::env;
 // Constant for the session length
 const SESSION_LENGTH: i64 = 1 * 60 * 60 * 1000; // 1 hour
 
-pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
+pub(crate) async fn function_handler(event: Request) -> Result<Response, Error> {
     info!("Event: {:?}", event);
     let request_cont = event.request_context();
     let params = event.query_string_parameters();
@@ -119,9 +120,9 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                         &state,
                     ).await {
                         Ok(_) => {
-                            info!("Session has expired. Session data removed successfully";
+                            info!("Session has expired. Session data removed successfully");
                             state = generate_random_state(16);
-                        ),
+                        },
                         Err(e) => error!("Session has expired. Error removing session data: {:?} [E302]", e),
                     }
                 }

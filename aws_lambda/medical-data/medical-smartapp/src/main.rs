@@ -1,4 +1,4 @@
-use lambda_http::{run, service_fn, tracing, Error};
+use lambda_runtime::{run, service_fn, tracing, Error};
 mod http_handler;
 mod libs;
 mod intro_console;

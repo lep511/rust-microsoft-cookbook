@@ -3,7 +3,7 @@ use reqwest::{self, header::{HeaderMap, HeaderValue}};
 use reqwest::Method;
 use serde_json::Value;
 use thiserror::Error;
-use lambda_http::tracing::{info, error};
+use lambda_runtime::tracing::{info, error};
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 

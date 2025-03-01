@@ -1,8 +1,9 @@
 use lambda_runtime::{Error, LambdaEvent};
 use aws_lambda_events::event::apigw::{
-    ApiGatewayV2httpRequest, ApiGatewayV2httpResponse,
+    ApiGatewayV2httpRequest, ApiGatewayV2httpResponse
 };
 use http::header::{HeaderMap, HeaderValue};
+use lambda_runtime::tracing::{error, info};
 use aws_lambda_events::encodings::Body;
 use serde::{Deserialize, Serialize};
 use askama::Template;
@@ -38,8 +39,31 @@ pub(crate) struct HelloTemplate<'a> {
 pub(crate) async fn function_handler(
     event: LambdaEvent<ApiGatewayV2httpRequest>,
 ) -> Result<ApiGatewayV2httpResponse, Error> {
-    // Extract the request from the event
+    // info!("Event: {:?}", event);
     let request = event.payload;
+    // Access request_context
+    let request_context = &request.request_context;
+
+    // Access query_string_parameters - this is a QueryMap which is a wrapper around a HashMap
+    let params = &request.query_string_parameters;
+    info!("Query string parameters: {:?}", params);
+
+    // Extract domain name
+    let domain_name = request_context.domain_name
+        .as_deref()
+        .unwrap_or("No domain name");
+    
+    let redirect_uri = format!("https://{}/callback", domain_name);
+
+    // Extract the time epoch (timestamp)
+    let actual_time_epoch = request_context.time_epoch;
+
+    // Extract route_key from the request context    
+    let route_key = request_context.route_key
+        .as_deref()
+        .unwrap_or("No route key");
+
+    info!("Route key: {}", route_key);
 
     let template = HelloTemplate {
         title: "Askama Demo",

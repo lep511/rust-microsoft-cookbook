@@ -1,7 +1,13 @@
-use lambda_http::{Body, Error, Request, RequestExt};
-use lambda_http::request::RequestContext;
-use aws_lambda_events::event::apigw::ApiGatewayV2httpResponse as Response;
-use crate::http_page::{get_connect_page, get_error_page, redirect_url};
+use lambda_runtime::{Error, LambdaEvent};
+use aws_lambda_events::event::apigw::{
+    ApiGatewayV2httpRequest, ApiGatewayV2httpResponse
+};
+use http::header::{HeaderMap, HeaderValue};
+use aws_lambda_events::encodings::Body;
+use crate::http_page::{
+    get_connect_page, get_error_page, redirect_url,
+    get_server_error,
+};
 use crate::oidc_request::{
     TokenResponse, get_token_accesss, discover_endpoints,
 };
@@ -10,7 +16,7 @@ use crate::oidc_database::{
     remove_session_data,
 };
 use crate::intro_console::main_console_page;
-use lambda_http::tracing::{error, info};
+use lambda_runtime::tracing::{error, info};
 use rand::Rng;
 use sha2::{Sha256, Digest};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -20,11 +26,18 @@ use std::env;
 // Constant for the session length
 const SESSION_LENGTH: i64 = 1 * 60 * 60 * 1000; // 1 hour
 
-pub(crate) async fn function_handler(event: Request) -> Result<Response, Error> {
+pub(crate) async fn function_handler(
+    event: LambdaEvent<ApiGatewayV2httpRequest>,
+) -> Result<ApiGatewayV2httpResponse, Error> {
     info!("Event: {:?}", event);
-    let request_cont = event.request_context();
-    let params = event.query_string_parameters();
-    info!("Query string parameters: {:?}", params);
+    let request = event.payload;
+    
+    // Access request_context
+    let request_context = &request.request_context;
+
+    // Access query_string_parameters - this is a QueryMap which is a wrapper around a HashMap
+    let query_params = &request.query_string_parameters;
+    info!("Query string parameters: {:?}", query_params);
     
     // Get table name
     let table_name = env::var("TABLE_NAME").expect("TABLE_NAME must be set");
@@ -32,40 +45,43 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response, Error> 
     // Get index name
     let index_name = env::var("INDEX_NAME").expect("INDEX_NAME must be set");
 
+    // Create headers to response
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Type", HeaderValue::from_static("text/html"));
+    headers.insert("X-Custom-Header", HeaderValue::from_static("custom-value"));
+
+    // Create cookies
+    let cookies = vec![
+        "session=abc123; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600".to_string(),
+        "user=johndoe; Path=/; Max-Age=86400".to_string(),
+    ];
+
     // Get Smart App callback
     let scope = "meldrx-api cds profile openid launch patient/*.*";
     
     // Extract domain name
-    let domain_name = match &request_cont {
-        RequestContext::ApiGatewayV2(ctx) => {
-            ctx.domain_name.clone().unwrap_or_else(|| "unknown".to_string())
-        },
-        _ => "unknown".to_string(),
-    };
+    let domain_name = request_context.domain_name
+        .as_deref()
+        .unwrap_or("No domain name");
+    
     let redirect_uri = format!("https://{}/callback", domain_name);
 
-    // Extract actual time epoch
-    let actual_time_epoch = match &request_cont {
-        RequestContext::ApiGatewayV2(ctx) => { ctx.time_epoch },
-        _ => 0,
-    };
+    // Extract the time epoch (timestamp)
+    let actual_time_epoch = request_context.time_epoch;
 
     // Extract route_key from the request context    
-    let route_key = match &request_cont {
-        RequestContext::ApiGatewayV2(ctx) => {
-            ctx.route_key.clone().unwrap_or_else(|| "unknown".to_string())
-        },
-        _ => "unknown".to_string(),
-    };
+    let route_key = request_context.route_key
+        .as_deref()
+        .unwrap_or("No route key");
 
-    match route_key.as_str() {
+    match route_key {
         // ~~~~~~~~~~~~~~~~~~~~ LAUNCH ~~~~~~~~~~~~~~~~~~~~~~~~~~
         "GET /launch" => {
             info!("Route key: {}", route_key);
             // Get the IssuerUrl and Launch
-            let issuer = params.first("iss").unwrap_or_default();
-            let launch = params.first("launch").unwrap_or_default();
-            let client_id = params.first("client").unwrap_or_default();
+            let issuer = query_params.first("iss").unwrap_or_default();
+            let launch = query_params.first("launch").unwrap_or_default();
+            let client_id = query_params.first("client").unwrap_or_default();
 
             let mut state: String = generate_random_state(16);
             let mut session_timeout: i64 = 0;
@@ -95,20 +111,28 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response, Error> 
                         &table_name,
                     ).await {
                         Ok(page) => {
-                            return Ok(Response::builder()
-                                .status(200)
-                                .header("content-type", "text/html")
-                                .body(page.into())
-                                .map_err(Box::new)?);
+                            let body = Body::Text(page);
+                            return Ok(ApiGatewayV2httpResponse {
+                                status_code: 200,
+                                headers: headers,
+                                multi_value_headers: HeaderMap::new(),
+                                body: Some(body),
+                                cookies: cookies,
+                                is_base64_encoded: false}
+                            );
                         },
                         Err(e) => {
-                            let message = get_error_page("E109");
-                            error!("Error getting main page: {} [E109]", e);
-                            return Ok(Response::builder()
-                                .status(500)
-                                .header("content-type", "text/html")
-                                .body(message.into())
-                                .map_err(Box::new)?);
+                            error!("Error getting main page: {} [E459]", e);
+                            let message = get_error_page("E459");
+                            let body = Body::Text(message);
+                            return Ok(ApiGatewayV2httpResponse {
+                                status_code: 459,
+                                headers: headers,
+                                multi_value_headers: HeaderMap::new(),
+                                body: Some(body),
+                                cookies: cookies,
+                                is_base64_encoded: false}
+                            );
                         }
                     }
                 } else {
@@ -132,13 +156,17 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response, Error> 
             let (auth_endpoint, token_endpoint) = match discover_endpoints(issuer).await {
                 Ok(endpoints) => endpoints,
                 Err(e) => {
-                    let message = get_error_page("E103");
-                    error!("Error getting auth endpoints: {} [E103]", e);
-                    return Ok(Response::builder()
-                        .status(404)
-                        .header("content-type", "text/html")
-                        .body(message.into())
-                        .map_err(Box::new)?);
+                    error!("Error getting auth endpoints: {} [E463]", e);
+                    let message = get_error_page("E463");
+                    let body = Body::Text(message);
+                    return Ok(ApiGatewayV2httpResponse {
+                        status_code: 463,
+                        headers: headers,
+                        multi_value_headers: HeaderMap::new(),
+                        body: Some(body),
+                        cookies: cookies,
+                        is_base64_encoded: false}
+                    );
                 }
             };
 
@@ -189,29 +217,36 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response, Error> 
             // Convert Url to string
             let link = url.to_string();
             let message = get_connect_page(&link);
-
-            return Ok(Response::builder()
-                .status(200)
-                .header("content-type", "text/html")
-                .body(message.into())
-                .map_err(Box::new)?);
+            let body = Body::Text(message);
+            return Ok(ApiGatewayV2httpResponse {
+                status_code: 200,
+                headers: headers,
+                multi_value_headers: HeaderMap::new(),
+                body: Some(body),
+                cookies: cookies,
+                is_base64_encoded: false}
+            );
         }
         // ~~~~~~~~~~~~~~~~~~~~ CALLBACK ~~~~~~~~~~~~~~~~~~~~~~~~~~
         "ANY /callback" => {
             info!("Route key: {}", route_key);
             // Extract parameters
-            let code = params.first("code").unwrap_or_default();
-            let session_state = params.first("session_state").unwrap_or_default();
-            let state = match params.first("state") {
+            let code = query_params.first("code").unwrap_or_default();
+            let session_state = query_params.first("session_state").unwrap_or_default();
+            let state = match query_params.first("state") {
                 Some(state) if !state.is_empty() => state,
                 _ => {
-                    error!("State not found in parameters [E102]");
-                    let message = get_error_page("E102");
-                    return Ok(Response::builder()
-                        .status(404)
-                        .header("content-type", "text/html")
-                        .body(message.into())
-                        .map_err(Box::new)?);
+                    error!("State not found in parameters [E468]");
+                    let message = get_error_page("E468");
+                    let body = Body::Text(message);
+                    return Ok(ApiGatewayV2httpResponse {
+                        status_code: 468,
+                        headers: headers,
+                        multi_value_headers: HeaderMap::new(),
+                        body: Some(body),
+                        cookies: cookies,
+                        is_base64_encoded: false}
+                    );
                 }
             };           
 
@@ -254,13 +289,17 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response, Error> 
                 ).await {
                     Ok(token) => token,
                     Err(e) => {
-                        error!("Error getting token: {} [E331]", e);
-                        let message = get_error_page("E105");
-                        return Ok(Response::builder()
-                            .status(404)
-                            .header("content-type", "text/html")
-                            .body(message.into())
-                            .map_err(Box::new)?);
+                        error!("Error getting token: {} [E471]", e);
+                        let message = get_error_page("E471");
+                        let body = Body::Text(message);
+                        return Ok(ApiGatewayV2httpResponse {
+                            status_code: 471,
+                            headers: headers,
+                            multi_value_headers: HeaderMap::new(),
+                            body: Some(body),
+                            cookies: cookies,
+                            is_base64_encoded: false}
+                        );
                     }
                 };
 
@@ -304,12 +343,15 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response, Error> 
                 client_id
             );
             let message = redirect_url(&launch_redirect_uri);
-            
-            return Ok(Response::builder()
-                .status(200)
-                .header("content-type", "text/html")
-                .body(message.into())
-                .map_err(Box::new)?);
+            let body = Body::Text(message);
+            return Ok(ApiGatewayV2httpResponse {
+                status_code: 200,
+                headers: headers,
+                multi_value_headers: HeaderMap::new(),
+                body: Some(body),
+                cookies: cookies,
+                is_base64_encoded: false}
+            );
         }
         // ~~~~~~~~~~~~~~~~~~~~ TASKS ~~~~~~~~~~~~~~~~~~~~~~~~~~
         "ANY /tasks" => {
@@ -320,12 +362,16 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response, Error> 
         }
     }
 
-    let message = get_error_page("E909");
-    let resp = Response::builder()
-        .status(404)
-        .header("content-type", "text/html")
-        .body(message.into())
-        .map_err(Box::new)?;
+    let message = get_server_error("E495");
+    let body = Body::Text(message);
+    let resp = ApiGatewayV2httpResponse {
+        status_code: 495,
+        headers: headers,
+        multi_value_headers: HeaderMap::new(),
+        body: Some(body),
+        cookies: cookies,
+        is_base64_encoded: false,
+    };
     Ok(resp)
 }
 

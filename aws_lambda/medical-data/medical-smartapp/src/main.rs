@@ -1,7 +1,7 @@
 use lambda_runtime::{run, service_fn, tracing, Error};
 mod http_handler;
 mod libs;
-mod intro_console;
+// mod intro_console;
 mod http_page;
 mod oidc_request;
 mod oidc_database;

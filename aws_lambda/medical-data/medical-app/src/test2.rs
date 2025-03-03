@@ -2,16 +2,14 @@ use lambda_http::{Body, Error, Request, Response};
 use lambda_http::tracing::{error, info};
 use crate::libs::CDSHooksResponse;
 use serde_json::json;
-use std::env;
 
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     // Extract some useful information from the request
     // info!("Event: {:?}", event);
     info!("Body: {:?}", event.body());
     let path_fm = event.uri().path();
-    // Smart App URL launch
-    let smart_app_uri = env::var("SMART_APP_URI").expect("SMART_APP_URI must be set");
-    
+    // let method = event.method();
+
     let path: String = path_fm.rsplitn(3, '/')
         .take(2)
         .collect::<Vec<&str>>()
@@ -20,25 +18,19 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         .collect::<Vec<&str>>()
         .join("/");
 
-    let body: Body = match path.as_str() {
+    match path.as_str() {
         "cds-services/0001" => {
             info!("Services path cds-services-0001");
-            handle_patient_view(event.body(), &smart_app_uri)?
+            handle_patient_view(event.body())
         }
         _ => {
-            handle_discovery()?
+            handle_discovery()
         }
-    };
-
-    Ok(Response::builder()
-        .status(200)
-        .header("content-type", "application/json")
-        .body(body)
-        .map_err(Box::new)?)
+    }
 }
 
-fn handle_discovery() -> Result<Body, Error> {
-    let body = json!({ 
+fn handle_discovery() -> Result<Response<Body>, Error> {
+    let discovery_response = json!({ 
         "services": [
             {
                 "hook": "patient-view",
@@ -52,14 +44,11 @@ fn handle_discovery() -> Result<Body, Error> {
             }
         ]
     });
-    
-    Ok(Body::Text(body.to_string()))
+
+    create_response(discovery_response)
 }
 
-fn handle_patient_view(
-    hook_data: &Body, 
-    smart_app_uri: &str,
-) -> Result<Body, Error> {
+fn handle_patient_view(hook_data: &Body) -> Result<Response<Body>, Error> {
     
     let body_str = match hook_data {
         Body::Text(body) => body,
@@ -91,7 +80,7 @@ fn handle_patient_view(
         names.1
     );
 
-    let body = json!({ 
+    let patient_view = json!({ 
         "cards": [
             {
                 "summary": greeting,
@@ -102,28 +91,15 @@ fn handle_patient_view(
                 "links": [
                     {
                         "label": "My App",
-                        "url": smart_app_uri,
+                        "url": "https://7tyg9r9mt8.execute-api.us-east-1.amazonaws.com/Dev/launch",
                         "type": "smart"
-                    }
-                ]
-            },
-            {
-                "summary": "Some Warning",
-                "indicator": "warning",
-                "source": {
-                    "label": "test service"
-                },
-                "suggestions": [
-                    {
-                        "uuid": "XXX",
-                        "label": "Some suggestion"
                     }
                 ]
             }
         ]
     });
 
-    Ok(Body::Text(body.to_string()))
+    create_response(patient_view)
 }
 
 fn extract_patient_name(response: &CDSHooksResponse) -> Option<(String, String)> {
@@ -143,9 +119,9 @@ fn extract_patient_name(response: &CDSHooksResponse) -> Option<(String, String)>
     None
 }
 
-fn handle_error() -> Result<Body, Error> {
+fn handle_error() -> Result<Response<Body>, Error> {
        
-    let body = json!({ 
+    let patient_view = json!({ 
         "cards": [
             {
                 "summary": "patient-view",
@@ -157,5 +133,13 @@ fn handle_error() -> Result<Body, Error> {
         ]
     });
 
-    Ok(Body::Text(body.to_string()))
+    create_response(patient_view)
+}
+
+fn create_response(body: serde_json::Value) -> Result<Response<Body>, Error> {
+    Ok(Response::builder()
+        .status(200)
+        .header("content-type", "application/json")
+        .body(Body::Text(body.to_string()))
+        .map_err(Box::new)?)
 }

@@ -12,7 +12,8 @@ use crate::oidc_request::{
     TokenResponse, get_token_accesss, discover_endpoints,
 };
 use crate::oidc_database::{
-    SessionData, get_session_data, save_to_dynamo,
+    SessionData, get_session_data, save_to_dynamo, get_client_data,
+    remove_session_data,
 };
 use lambda_runtime::tracing::{error, info};
 use rand::Rng;
@@ -78,7 +79,76 @@ pub(crate) async fn function_handler(
             let launch = query_params.first("launch").unwrap_or_default();
             let client_id = query_params.first("client").unwrap_or_default();
 
-            let state: String = generate_random_state(16);
+            let mut state: String = generate_random_state(16);
+            let mut session_timeout: i64 = 0;
+            let mut authorized: bool = false;
+
+            // Checking if client_id exists in the database
+            match get_client_data(
+                &client_id, 
+                &table_name,
+                &index_name
+            ).await {
+                Ok(Some(sd)) => {
+                    state = sd.state.clone();
+                    session_timeout = sd.session_timeout.clone();
+                    authorized = sd.authorized;
+                },
+                Ok(None) => info!("No client data found."),
+                Err(e) => error!("Error retrieving client data: {:?}[E301]", e),
+            }
+            cookies.push(format!("session={state}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600"));
+
+            // ~~~~~~~~~~~~~~~~~~~~ MAIN PAGE ~~~~~~~~~~~~~~~~~~~~~~~~~~
+            if session_timeout != 0 && authorized {
+                if actual_time_epoch < session_timeout {
+                    info!("Session is still valid");
+                    match main_console_page(
+                        &state,
+                        &table_name,
+                    ).await {
+                        Ok(page) => {
+                            let body = Body::Text(page);
+                            return Ok(ApiGatewayV2httpResponse {
+                                status_code: 200,
+                                headers: headers,
+                                multi_value_headers: HeaderMap::new(),
+                                body: Some(body),
+                                cookies: cookies,
+                                is_base64_encoded: false}
+                            );
+                        },
+                        Err(e) => {
+                            error!("Error getting main page: {} [E459]", e);
+                            let message = get_error_page("E459");
+                            let body = Body::Text(message);
+                            return Ok(ApiGatewayV2httpResponse {
+                                status_code: 459,
+                                headers: headers,
+                                multi_value_headers: HeaderMap::new(),
+                                body: Some(body),
+                                cookies: cookies,
+                                is_base64_encoded: false}
+                            );
+                        }
+                    }
+                } else {
+                    // Remove actual session data
+                    info!("State: {}", state);
+                    match remove_session_data(
+                        &table_name,
+                        "pk",
+                        &state,
+                    ).await {
+                        Ok(_) => {
+                            info!("Session has expired. Session data removed successfully");
+                            state = generate_random_state(16);
+                            cookies.push(format!("session={state}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600"));
+                        },
+                        Err(e) => error!("Session has expired. Error removing session data: {:?} [E302]", e),
+                    }
+                }
+            }
 
             // Discover auth endpoints
             let (auth_endpoint, token_endpoint) = match discover_endpoints(issuer).await {
@@ -111,6 +181,7 @@ pub(crate) async fn function_handler(
             // Save state to DynamoDB
             let state_data = SessionData {
                 pk: state.clone(),
+                authorized: false,
                 client_id: client_id.to_string().into(),
                 code_verifier: code_verifier.into(),
                 code_challenge: code_challenge.clone().into(),
@@ -236,6 +307,7 @@ pub(crate) async fn function_handler(
 
                 let session_data = SessionData {
                     pk: state.to_string(),
+                    authorized: true,
                     access_token: Some(token.clone()),
                     expires_in: token_resp.expires_in,
                     scope: Some(scope.to_string()),

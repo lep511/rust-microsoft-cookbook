@@ -4,9 +4,9 @@ use langchain::compatible::libs::ChatResponse;
 use env_logger::Env;
 
 async fn generate_ranom_cities() -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let base_url = "https://api.x.ai";
+    let endpoint_url = "https://api.x.ai/v1";
     let model = "grok-2-latest";
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatCompatible::new(endpoint_url, model);
 
     let prompt = "Generate 5 random cities from america, europe and asia \
                   Provide the cities in the format: CITY, separated by commas. \
@@ -41,9 +41,9 @@ async fn airport_code_extractor(
     city_five: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
 
-    let base_url = "https://api.x.ai";
+    let endpoint_url = "https://api.x.ai/v1";
     let model = "grok-2-latest";
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatCompatible::new(endpoint_url, model);
 
     let system_prompt = "You are an advanced AI assistant specialized in travel information. \
                     Your task is to analyze a given travel itinerary and identify the airport \

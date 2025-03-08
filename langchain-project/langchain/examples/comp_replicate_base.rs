@@ -5,11 +5,11 @@ use serde_json::{json, Value};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let base_url = "https://api.replicate.com/v1";
+    let endpoint_url = "https://api.replicate.com/v1";
     let model = "models/meta/meta-llama-3-70b-instruct/predictions";
     let prefer = "wait";
 
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatCompatible::new(endpoint_url, model);
 
     let input_data = json!({
         "top_k":0,

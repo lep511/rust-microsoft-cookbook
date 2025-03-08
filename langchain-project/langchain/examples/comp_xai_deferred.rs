@@ -8,9 +8,9 @@ use env_logger::Env;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    let base_url = "https://api.x.ai/v1";
+    let endpoint_url = "https://api.x.ai/v1";
     let model = "grok-2-1212";
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatCompatible::new(endpoint_url, model);
 
     let system_prompt = "You are a helpful assistant explaining terms to user";
     let prompt = "Explain deferred chat completions to me.";
@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     sleep(Duration::from_secs(10)).await;
     
     // Get the deferred from the server
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatCompatible::new(endpoint_url, model);
     let response = llm.get_deferred(&response_id).await?;
 
     match response.choices {

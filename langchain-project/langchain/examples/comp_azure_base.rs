@@ -9,9 +9,10 @@ use env_logger::Env;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("error")).init();
 
-    let base_url = "https://DeepSeek-R1-mfvjj.northcentralus.models.ai.azure.com/v1/chat/completions";
-    let model = "R1";
-    let llm = ChatCompatible::new(base_url, model);
+    let endpoint_url = "https://ai-estebanperezai169715847264.openai.azure.com/openai/deployments/o3-mini";
+    // api-version=2024-12-01-preview
+    let model = "o3-mini";
+    let llm = ChatCompatible::new(endpoint_url, model);
 
     let prompt = "What is the answer to life and universe?".to_string();
 

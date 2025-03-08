@@ -5,13 +5,13 @@ use langchain::compatible::libs::ChatResponse;
 use serde_json::{json, Value, Map};
 use env_logger::Env;
 
-const BASE_URL: &str = "https://api.open-meteo.com/v1";
+const endpoint_url: &str = "https://api.open-meteo.com/v1";
 
 async fn get_weather(latitude: f64, longitude: f64) -> Result<Value, Box<dyn std::error::Error>> {
     // Build the URL with formatted parameters
     let url = format!(
         "{}/forecast?latitude={}&longitude={}&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m",
-        BASE_URL,
+        endpoint_url,
         latitude, 
         longitude,
     );
@@ -29,9 +29,9 @@ async fn get_weather(latitude: f64, longitude: f64) -> Result<Value, Box<dyn std
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     
-    let base_url = "https://api.x.ai";
+    let endpoint_url = "https://api.x.ai/v1";
     let model = "grok-2-latest";
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatCompatible::new(endpoint_url, model);
 
     let system_prompt = "Don't make assumptions about what values to plug into functions. \
                         Ask for clarification if a user request is ambiguous.";

@@ -7,10 +7,10 @@ use serde_json::{json, Value};
 use env_logger::Env;
 
 async fn flux_api() -> Result<(), Box<dyn std::error::Error>> {
-    let base_url = "https://api.replicate.com/v1";
+    let endpoint_url = "https://api.replicate.com/v1";
     let model = "models/black-forest-labs/flux-1.1-pro-ultra/predictions";
 
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatCompatible::new(endpoint_url, model);
 
     let prompt = "A close-up shot captures a winter wonderland scene - soft snowflakes \
             fall on a snow-covered forest floor. Behind a frosted pine branch, a red \
@@ -57,10 +57,10 @@ async fn flux_api() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn image3_api() -> Result<(), Box<dyn std::error::Error>> {
-    let base_url = "https://api.replicate.com/v1";
+    let endpoint_url = "https://api.replicate.com/v1";
     let model = "models/google/imagen-3/predictions";
 
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatCompatible::new(endpoint_url, model);
 
     let prompt = "the serene interior of a cave, where a pool of water is nestled \
         amidst an abundance of greenery. Sunlight filters through the cave opening, \

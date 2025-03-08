@@ -68,9 +68,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ";   
     
     for i in 1..=5 {
-        let base_url = "https://api.groq.com/openai/v1/chat/completions";
+        let endpoint_url = "https://api.groq.com/openai/v1/chat/completions";
         let model = "llama-3.3-70b-specdec";
-        let llm = ChatCompatible::new(base_url, model);
+        let llm = ChatCompatible::new(endpoint_url, model);
         let file_txt = format!("tests/files/note_medical{}.txt", i);
         let file_json = format!("tests/files/note_medical{}.json", i);
         let contents = fs::read_to_string(file_txt)?;

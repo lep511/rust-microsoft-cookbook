@@ -7,7 +7,7 @@ use std::io::Write;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let base_url = "https://api.x.ai";
+    let endpoint_url = "https://api.x.ai/v1";
     let model = "grok-2-latest";
     
     let system_prompt = "You are a highly experienced medical professional with a specialty in translating \
@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let base_prompt = fs::read_to_string(base_prompt_file)?;
 
     for i in 1..=5 {
-        let llm = ChatCompatible::new(base_url, model);
+        let llm = ChatCompatible::new(endpoint_url, model);
 
         let file_txt = format!("tests/files/patient_record{}.txt", i);
         let file_json = format!("tests/files/patient_record_result{}.json", i);

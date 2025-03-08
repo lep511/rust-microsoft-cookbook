@@ -3,9 +3,9 @@ use langchain::compatible::libs::ChatResponse;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let base_url = "https://api.x.ai";
+    let endpoint_url = "https://api.x.ai/v1";
     let model = "grok-2-latest";
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatCompatible::new(endpoint_url, model);
 
     let system_prompt = "You are a customer service assistant for Acme Corp. \
                         1. You are not authorized to provide any discounts or refunds; these must be approved by a person in-store. \

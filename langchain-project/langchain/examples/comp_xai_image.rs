@@ -6,9 +6,9 @@ pub async fn image_base64() -> Result<(), Box<dyn std::error::Error>> {
     let file_path = "tests/files/oldphoto.jpg";
     let mime_type = "image/jpeg";
 
-    let base_url = "https://api.x.ai";
+    let endpoint_url = "https://api.x.ai/v1";
     let model = "grok-2-vision-latest";
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatCompatible::new(endpoint_url, model);
 
     let prompt = "What is the approximate year that this photo was taken?";
 
@@ -38,9 +38,9 @@ pub async fn image_url() -> Result<(), Box<dyn std::error::Error>> {
     let image_url = "https://science.nasa.gov/wp-content/uploads/2023/09/web-first-images-release.png";
     let prompt = "What's in this image?";
 
-    let base_url = "https://api.x.ai";
+    let endpoint_url = "https://api.x.ai/v1";
     let model = "grok-2-vision-latest";
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatCompatible::new(endpoint_url, model);
 
     let response = llm
         .with_image_url(image_url)

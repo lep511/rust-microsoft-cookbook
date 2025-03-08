@@ -8,10 +8,9 @@ use env_logger::Env;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     
-    let base_url = "https://api.deepinfra.com/v1/openai/chat/completions";
-    // let model = "Qwen/QwQ-32B-Preview";
-    let model = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B";
-    let llm = ChatCompatible::new(base_url, model);
+    let endpoint_url = "https://api.deepinfra.com/v1/openai";
+    let model = "deepseek-ai/DeepSeek-R1-Turbo";
+    let llm = ChatCompatible::new(endpoint_url, model);
     
     let prompt = "Explain the Pythagorean theorem to a 10-year-old.";
 

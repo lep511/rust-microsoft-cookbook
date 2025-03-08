@@ -7,20 +7,19 @@ use env_logger::Env;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    
+    let endpoint_url = "https://api.deepinfra.com/v1/openai";
+    let model = "meta-llama/Llama-3.3-70B-Instruct-Turbo";
+    let llm = ChatCompatible::new(endpoint_url, model);
 
-    let base_url = "https://api.deepinfra.com/v1/openai/chat/completions";
-    let system_prompt = "Respond like a Michelin-starred chef.";
-    let model = "deepseek-ai/DeepSeek-R1";
-    let llm = ChatCompatible::new(base_url, model);
-
-    let prompt = String::from("Can you name at least two different techniques to cook lamb?");
+    let prompt = "Create a story about a young woman who discovers she has the power to control the weather.".to_string();
 
     let stream = llm
-        .with_system_prompt(system_prompt)
-        .with_max_tokens(4096)
         .stream_response(prompt);
 
     pin_mut!(stream);
+
+    println!("\n");
 
     while let Some(stream_response) = stream.next().await { 
         if let Some(choices) = stream_response.choices {
@@ -36,6 +35,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
     }
+
+    println!("\n\n");
     
     Ok(())
 }

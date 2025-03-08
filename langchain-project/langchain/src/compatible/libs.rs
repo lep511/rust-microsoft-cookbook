@@ -21,7 +21,7 @@ use serde_json::Value;
 /// * `response_format` - Optional. The format of the response.
 /// * `stream` - Optional. Whether to stream responses or return complete response
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Default, Serialize, Clone)]
 pub struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
@@ -56,6 +56,9 @@ pub struct ChatRequest {
     pub response_format: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    // Grok: https://docs.x.ai/docs/guides/deferred-chat-completions
+    pub deferred: Option<bool>,
 }
 
 /// Represents a message in a conversation
@@ -65,7 +68,7 @@ pub struct ChatRequest {
 /// * `content` - Optional. The actual text content of the message
 /// * `tool_calls` - Optional. Array of tool calls made within this message
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Message {
     pub role: Option<String>,
     pub content: Vec<Content>,
@@ -74,7 +77,7 @@ pub struct Message {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Content {
     #[serde(rename = "type")]
     pub content_type: String,
@@ -99,14 +102,14 @@ pub struct Content {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ImageUrl {
     pub url: String,
     pub detail: String,
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Source {
     #[serde(rename = "type")]
     pub source_type: String,
@@ -127,7 +130,7 @@ pub struct Source {
 /// * `chat_history` - Optional. Array of messages showing conversation history
 /// * `error` - Optional. Details of any error that occurred during processing
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ChatResponse {
     pub choices: Option<Vec<ResponseChoice>>,
     pub id: Option<String>,
@@ -137,11 +140,12 @@ pub struct ChatResponse {
     pub system_fingerprint: Option<String>,
     pub usage: Option<Usage>,
     pub chat_history: Option<Vec<Message>>,
+    pub request_id: Option<String>,
     pub error: Option<ErrorDetails>,
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ResponseChoice {
     pub finish_reason: Option<String>,
     pub delta: Option<Message>,
@@ -151,7 +155,7 @@ pub struct ResponseChoice {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ResponseMessage {
     pub role: Option<String>,
     pub content: Option<String>,
@@ -160,7 +164,7 @@ pub struct ResponseMessage {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ChatStreamResponse {
     pub choices: Option<Vec<ResponseStreamChoice>>,
     pub id: Option<String>,
@@ -174,7 +178,7 @@ pub struct ChatStreamResponse {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ResponseStreamChoice {
     pub finish_reason: Option<String>,
     pub delta: Option<StreamMessage>,
@@ -183,7 +187,7 @@ pub struct ResponseStreamChoice {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct StreamMessage {
     pub role: Option<String>,
     pub content: Option<String>,
@@ -200,7 +204,7 @@ pub struct StreamMessage {
 /// * `logprobs` - Optional. Log probabilities for token generation
 /// * `message` - Optional. The complete response message for this choice
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Choice {
     pub finish_reason: Option<String>,
     pub delta: Option<Message>,
@@ -221,7 +225,7 @@ pub struct Choice {
 /// * `total_tokens` - Optional. Total number of tokens used (prompt + completion)
 /// * `prompt_tokens_details` - Optional. Detailed breakdown of prompt token usage
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Usage {
     pub completion_time: Option<f64>,
     pub completion_tokens: Option<u32>,
@@ -241,7 +245,7 @@ pub struct Usage {
 /// * `image_tokens` - Optional. Number of tokens used for image content
 /// * `cached_tokens` - Optional. Number of tokens retrieved from cache
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct PromptTokensDetails {
     pub text_tokens: Option<u32>,
     pub audio_tokens: Option<u32>,
@@ -257,7 +261,7 @@ pub struct PromptTokensDetails {
 /// * `param` - Optional. Parameter that caused the error, if applicable
 /// * `error_type` - The type/category of error (renamed from "type" due to Rust keyword)
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ErrorDetails {
     pub code: Option<String>,
     pub message: String,
@@ -277,7 +281,7 @@ pub struct ErrorDetails {
 /// # Fields
 /// * `detail` - Detailed error message or description of what went wrong
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ErrorResponse {
     pub detail: Option<String>,
     pub error: Option<ErrorDetails>,

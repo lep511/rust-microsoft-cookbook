@@ -1,4 +1,0 @@
-EHR → App:         launch=abc123
-App → Auth Server: launch=abc123&response_type=code&...
-Auth Server → App: {access_token with patient=123}
-App → FHIR API:    GET /Patient/123 (auto-scoped)

@@ -29,7 +29,7 @@ async fn get_weather(latitude: f64, longitude: f64) -> Result<Value, Box<dyn std
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     
-    let base_url = "https://api.x.ai/v1/chat/completions";
+    let base_url = "https://api.x.ai";
     let model = "grok-2-latest";
     let llm = ChatCompatible::new(base_url, model);
 

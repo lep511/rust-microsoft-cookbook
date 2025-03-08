@@ -7,7 +7,7 @@ use std::io::Write;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let base_url = "https://api.x.ai/v1/chat/completions";
+    let base_url = "https://api.x.ai";
     let model = "grok-2-latest";
     
     let system_prompt = "You are a highly experienced medical professional with a specialty in translating \

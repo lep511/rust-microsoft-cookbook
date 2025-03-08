@@ -4,7 +4,7 @@ use langchain::compatible::libs::ChatResponse;
 use env_logger::Env;
 
 async fn generate_ranom_cities() -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let base_url = "https://api.x.ai/v1/chat/completions";
+    let base_url = "https://api.x.ai";
     let model = "grok-2-latest";
     let llm = ChatCompatible::new(base_url, model);
 
@@ -41,7 +41,7 @@ async fn airport_code_extractor(
     city_five: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
 
-    let base_url = "https://api.x.ai/v1/chat/completions";
+    let base_url = "https://api.x.ai";
     let model = "grok-2-latest";
     let llm = ChatCompatible::new(base_url, model);
 

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Support - MeldRx</title>
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      color: #1e293b;
+    }
+    
+    header {
+      background-color: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 16px 0;
+    }
+    
+    .header-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo {
+      font-size: 24px;
+      font-weight: 700;
+      color: #0f172a;
+      text-decoration: none;
+    }
+    
+    .page-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+    }
+    
+    .container {
+      max-width: 800px;
+      width: 100%;
+      background-color: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      padding: 48px;
+      margin-bottom: 32px;
+    }
+    
+    h1 {
+      font-size: 28px;
+      margin-bottom: 24px;
+      color: #0f172a;
+      font-weight: 600;
+      text-align: center;
+    }
+    
+    p {
+      font-size: 16px;
+      margin-bottom: 24px;
+      color: #475569;
+      line-height: 1.6;
+    }
+    
+    .support-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    
+    .support-option {
+      flex: 1;
+      min-width: 220px;
+      padding: 24px;
+      background-color: #f8fafc;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .support-option h3 {
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: #0f172a;
+    }
+    
+    .support-option p {
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    
+    .contact-form {
+      margin-top: 32px;
+    }
+    
+    .form-group {
+      margin-bottom: 24px;
+    }
+    
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: #0f172a;
+    }
+    
+    input, textarea, select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 16px;
+      color: #1e293b;
+      background-color: #f8fafc;
+      font-family: inherit;
+    }
+    
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 40px;
+    }
+    
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+    
+    .button {
+      display: inline-block;
+      padding: 14px 32px;
+      background-color: #3b82f6;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+    }
+    
+    .button:hover {
+      background-color: #2563eb;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+    }
+    
+    .button-secondary {
+      background-color: #f8fafc;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+    }
+    
+    .button-secondary:hover {
+      background-color: #f1f5f9;
+      border-color: #94a3b8;
+      box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.1);
+    }
+    
+    .faq {
+      margin-top: 48px;
+    }
+    
+    .faq-item {
+      margin-bottom: 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .faq-question {
+      padding: 16px;
+      background-color: #f8fafc;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .faq-answer {
+      padding: 16px;
+      border-top: 1px solid #e2e8f0;
+    }
+    
+    footer {
+      background-color: #0f172a;
+      color: #e2e8f0;
+      padding: 48px 24px;
+    }
+    
+    .footer-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 48px;
+    }
+    
+    .footer-section {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .footer-section h3 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: white;
+    }
+    
+    .footer-section ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .footer-section li {
+      margin-bottom: 8px;
+    }
+    
+    .footer-section a {
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s ease;
+    }
+    
+    .footer-section a:hover {
+      color: white;
+      text-decoration: underline;
+    }
+    
+    .copyright {
+      max-width: 1200px;
+      margin: 48px auto 0;
+      padding-top: 24px;
+      border-top: 1px solid #334155;
+      font-size: 14px;
+      color: #64748b;
+      text-align: center;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 32px 24px;
+      }
+      
+      h1 {
+        font-size: 24px;
+      }
+      
+      .support-option {
+        min-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-container">
+      <a href="/" class="logo">MeldRx</a>
+      <nav>
+        <!-- Navigation links could go here -->
+      </nav>
+    </div>
+  </header>
+  
+  <div class="page-content">
+    <div class="container">
+      <h1>Contact Support</h1>
+      <p>We're here to help you resolve any issues and answer your questions. Choose from the options below or fill out the contact form.</p>
+      
+      <div class="support-options">
+        <div class="support-option">
+          <h3>Live Chat</h3>
+          <p>Get immediate assistance from our support team during business hours.</p>
+          <a href="#" class="button button-secondary">Start Chat</a>
+        </div>
+        
+        <div class="support-option">
+          <h3>Phone Support</h3>
+          <p>Speak with our support representatives directly.</p>
+          <a href="tel:+18005551234" class="button button-secondary">Call Now</a>
+        </div>
+        
+        <div class="support-option">
+          <h3>Knowledge Base</h3>
+          <p>Find answers to common questions in our documentation.</p>
+          <a href="#" class="button button-secondary">Browse Articles</a>
+        </div>
+      </div>
+      
+      <div class="contact-form">
+        <h2>Send us a message</h2>
+        <form action="/submit-support" method="POST">
+          <div class="form-group">
+            <label for="name">Your Name</label>
+            <input type="text" id="name" name="name" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="issue-type">Issue Type</label>
+            <select id="issue-type" name="issue-type" required>
+              <option value="">Select an issue type</option>
+              <option value="account">Account Access</option>
+              <option value="billing">Billing & Subscription</option>
+              <option value="technical">Technical Problem</option>
+              <option value="feature">Feature Request</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="message">Describe your issue</label>
+            <textarea id="message" name="message" required></textarea>
+          </div>
+          
+          <button type="submit" class="button">Submit Request</button>
+        </form>
+      </div>
+      
+      <div class="faq">
+        <h2>Frequently Asked Questions</h2>
+        
+        <div class="faq-item">
+          <div class="faq-question">
+            How quickly can I expect a response?
+          </div>
+          <div class="faq-answer">
+            <p>We strive to respond to all inquiries within 24 hours. For urgent matters, please use our live chat or phone support options for the fastest response.</p>
+          </div>
+        </div>
+        
+        <div class="faq-item">
+          <div class="faq-question">
+            What information should I include in my support request?
+          </div>
+          <div class="faq-answer">
+            <p>To help us resolve your issue quickly, please include detailed information about the problem you're experiencing, any error messages you've received, and steps to reproduce the issue. Screenshots or screen recordings are also helpful when applicable.</p>
+          </div>
+        </div>
+        
+        <div class="faq-item">
+          <div class="faq-question">
+            How do I reset my password?
+          </div>
+          <div class="faq-answer">
+            <p>You can reset your password by clicking on the "Forgot Password" link on the login page. You'll receive an email with instructions to create a new password. If you don't receive the email, please check your spam folder or contact support for assistance.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <footer>
+    <div class="footer-container">
+      <div class="footer-section">
+        <h3>Company</h3>
+        <ul>
+          <li><a href="#">About Us</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Press</a></li>
+          <li><a href="#">Blog</a></li>
+        </ul>
+      </div>
+      
+      <div class="footer-section">
+        <h3>Products</h3>
+        <ul>
+          <li><a href="#">Solutions</a></li>
+          <li><a href="#">Pricing</a></li>
+          <li><a href="#">Customers</a></li>
+          <li><a href="#">Resources</a></li>
+        </ul>
+      </div>
+      
+      <div class="footer-section">
+        <h3>Support</h3>
+        <ul>
+          <li><a href="#">Help Center</a></li>
+          <li><a href="#">Contact Support</a></li>
+          <li><a href="#">System Status</a></li>
+          <li><a href="#">Community</a></li>
+        </ul>
+      </div>
+      
+      <div class="footer-section">
+        <h3>Legal</h3>
+        <ul>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Terms of Service</a></li>
+          <li><a href="#">Security</a></li>
+          <li><a href="#">Compliance</a></li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="copyright">
+      &copy; 2025 MeldRx. All rights reserved.
+    </div>
+  </footer>
+</body>
+</html>

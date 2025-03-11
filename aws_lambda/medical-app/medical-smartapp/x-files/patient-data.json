@@ -1,0 +1,183 @@
+{
+    "id":"P-12345",
+    "name":"Jane Smith",
+    "age":42,
+    "gender":"Female",
+    "ethnicity":"Non Hispanic or Latino",
+    "address":"123 Medical Way, Healthcare City",
+    "phone":"(555) 123-4567",
+    "email":"jane.smith@example.com",
+    "emergencyContact":"John Smith (Husband) - (555) 987-6543",
+    "allergies":[
+        "Penicillin",
+        "Peanuts"
+    ],
+    "chronicConditions":[
+        "Hypertension",
+        "Type 2 Diabetes"
+    ],
+    "currentMedications":[
+        {
+            "name":"Lisinopril",
+            "dosage":"10mg",
+            "frequency":"Once daily"
+        },
+        {
+            "name":"Metformin",
+            "dosage":"500mg",
+            "frequency":"Twice daily"
+        }
+    ],
+    "vitalSigns":[
+        {
+            "date":"2023-01-01",
+            "heartRate":72,
+            "bloodPressure":"120/80",
+            "temperature":98.6,
+            "respiratoryRate":16,
+            "oxygenSaturation":98
+        },
+        {
+            "date":"2023-02-01",
+            "heartRate":75,
+            "bloodPressure":"122/82",
+            "temperature":98.4,
+            "respiratoryRate":16,
+            "oxygenSaturation":97
+        },
+        {
+            "date":"2023-03-01",
+            "heartRate":70,
+            "bloodPressure":"118/78",
+            "temperature":98.7,
+            "respiratoryRate":15,
+            "oxygenSaturation":99
+        },
+        {
+            "date":"2023-04-01",
+            "heartRate":73,
+            "bloodPressure":"121/79",
+            "temperature":98.5,
+            "respiratoryRate":16,
+            "oxygenSaturation":98
+        },
+        {
+            "date":"2023-05-01",
+            "heartRate":71,
+            "bloodPressure":"119/80",
+            "temperature":98.6,
+            "respiratoryRate":15,
+            "oxygenSaturation":98
+        },
+        {
+            "date":"2023-06-01",
+            "heartRate":74,
+            "bloodPressure":"123/81",
+            "temperature":98.8,
+            "respiratoryRate":16,
+            "oxygenSaturation":97
+        }
+    ],
+    "treatments":[
+        {
+            "date":"2023-01-15",
+            "type":"Medication Adjustment",
+            "provider":"Medication Adjustment",
+            "notes":"Increased Lisinopril to 10mg"
+        },
+        {
+            "date":"2023-02-20",
+            "type":"Physical Therapy",
+            "provider":"Dr. Michael Rodriguez",
+            "notes":"Started PT for lower back pain"
+        },
+        {
+            "date":"2023-03-10",
+            "type":"Lab Work",
+            "provider":"Dr. Emily Chen",
+            "notes":"Comprehensive metabolic panel and A1C"
+        },
+        {
+            "date":"2023-04-05",
+            "type":"Specialist Consultation",
+            "provider":"Dr. Sarah Johnson",
+            "notes":"Endocrinology consult for diabetes management"
+        },
+        {
+            "date":"2023-05-18",
+            "type":"Medication Adjustment",
+            "provider":"Dr. Emily Chen",
+            "notes":"Added low-dose aspirin"
+        }
+    ],
+    "appointments":[
+        {
+            "date":"2023-07-15",
+            "time":"10:00 AM",
+            "provider":"Dr. Emily Chen",
+            "type":"Follow-up",
+            "location":"Main Hospital, Room 302"
+        },
+        {
+            "date":"2023-08-05",
+            "time":"2:30 PM",
+            "provider":"Dr. Michael Rodriguez",
+            "type":"Physical Therapy",
+            "location":"Rehabilitation Center"
+        },
+        {
+            "date":"2023-09-10",
+            "time":"9:15 AM",
+            "provider":"Dr. Sarah Johnson",
+            "type":"Endocrinology",
+            "location":"Specialty Clinic, Suite 105"
+        }
+    ],
+    "timeline":[
+        {
+            "year":"2023",
+            "title":"Cardiac Assessment",
+            "description":"Comprehensive cardiac evaluation revealed normal heart function with minor irregularities in rhythm. Prescribed beta blockers for management.",
+            "icon":"HeartPulse",
+            "highlight":true
+        },
+        {
+            "year":"2022",
+            "title":"Type 2 Diabetes Diagnosis",
+            "description":"Initial diagnosis of Type 2 Diabetes. Started on Metformin 500mg twice daily. Implemented lifestyle modifications and dietary changes.",
+            "icon":"Activity"
+        },
+        {
+            "year":"2021",
+            "title":"Annual Physical",
+            "description":"Regular check-up showed elevated blood pressure (140/90). Recommended lifestyle changes and monthly monitoring.",
+            "icon":"Stethoscope"
+        },
+        {
+            "year":"2020",
+            "title":"COVID-19 Vaccination",
+            "description":"Received complete COVID-19 vaccination series. No adverse reactions reported. Follow-up booster scheduled.",
+            "icon":"Syringe",
+            "highlight":true
+        },
+        {
+            "year":"2019",
+            "title":"Medication Review",
+            "description":"Comprehensive medication review. Adjusted dosages for better management of chronic conditions.",
+            "icon":"Pill"
+        },
+        {
+            "year":"2018",
+            "title":"Hospital Admission",
+            "description":"Brief hospital stay due to severe pneumonia. Full recovery achieved after antibiotic treatment.",
+            "icon":"Hospital"
+        },
+        {
+            "year":"2015",
+            "title":"New Hospital Admission",
+            "description":"Brief hospital stay due to severe pneumonia.",
+            "icon":"Activity"
+        }
+    ]
+}
+

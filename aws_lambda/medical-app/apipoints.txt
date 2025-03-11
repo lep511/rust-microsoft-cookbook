@@ -1,0 +1,7 @@
+Smart App: https://0xsb6lilse.execute-api.us-east-1.amazonaws.com
+Smart App Launch: https://0xsb6lilse.execute-api.us-east-1.amazonaws.com/launch
+Smart App Callback: https://0xsb6lilse.execute-api.us-east-1.amazonaws.com/callback
+Smart App api: https://0xsb6lilse.execute-api.us-east-1.amazonaws.com/scrabapp
+
+Hook App cds service:  https://i9icgagg1c.execute-api.us-east-1.amazonaws.com/v1/cds-services
+Hook App medication: https://i9icgagg1c.execute-api.us-east-1.amazonaws.com/v1/cds-services/medication

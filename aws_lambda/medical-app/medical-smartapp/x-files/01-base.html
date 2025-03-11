@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Dashboard</title>
+    <style>
+        :root {
+            --dark-bg: #121926;
+            --card-bg: #1e2a3b;
+            --text-color: #e6e9ed;
+            --highlight-color: #3e86f5;
+            --accent-color: #304259;
+            --chart-color: #46be8a;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-color);
+            padding: 0;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--accent-color);
+        }
+        
+        .avatar {
+            width: 50px;
+            height: 50px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+        }
+        
+        .avatar i {
+            font-size: 24px;
+        }
+        
+        .patient-info {
+            flex-grow: 1;
+        }
+        
+        .patient-name {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .patient-details {
+            display: flex;
+            gap: 10px;
+            color: #a0aec0;
+            font-size: 14px;
+        }
+        
+        .patient-details span::after {
+            content: "•";
+            margin-left: 10px;
+        }
+        
+        .patient-details span:last-child::after {
+            content: "";
+        }
+        
+        .contact-info {
+            margin-top: 15px;
+            display: flex;
+            gap: 20px;
+            color: #a0aec0;
+            font-size: 14px;
+        }
+        
+        .emergency-contact {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .emergency-label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+            color: #a0aec0;
+        }
+        
+        .section-title {
+            color: #a0aec0;
+            font-size: 14px;
+            margin-bottom: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .medical-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .medical-info {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .tag-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .tag {
+            background-color: #35415a;
+            color: var(--text-color);
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 13px;
+        }
+        
+        .tag.allergy-penicillin {
+            background-color: #e53e3e;
+        }
+        
+        .tag.allergy-peanuts {
+            background-color: #dd6b20;
+        }
+        
+        .medications {
+            margin-top: 20px;
+        }
+        
+        .medication-card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .medication-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .medication-details {
+            color: #a0aec0;
+            font-size: 14px;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-top: 30px;
+            border-bottom: 1px solid var(--accent-color);
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+        
+        .tab.active {
+            border-bottom: 2px solid var(--highlight-color);
+            opacity: 1;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 20px 0;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .vital-signs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .vital-card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .vital-title {
+            color: #a0aec0;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .vital-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .vital-unit {
+            font-size: 14px;
+            color: #a0aec0;
+        }
+        
+        .chart-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .chart-tab {
+            background-color: var(--card-bg);
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .chart-tab.active {
+            background-color: var(--accent-color);
+        }
+        
+        .chart-container {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            height: 300px;
+            position: relative;
+        }
+        
+        .chart {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .chart-line {
+            stroke: var(--chart-color);
+            stroke-width: 2;
+            fill: none;
+        }
+        
+        .chart-dot {
+            fill: var(--chart-color);
+        }
+        
+        .chart-grid-line {
+            stroke: #304259;
+            stroke-width: 1;
+            stroke-dasharray: 3,3;
+        }
+        
+        .chart-label {
+            fill: #a0aec0;
+            font-size: 12px;
+        }
+        
+        .treatment-card, .appointment-card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .treatment-date, .appointment-date {
+            color: #a0aec0;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .treatment-type, .appointment-type {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .treatment-provider, .appointment-provider {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .treatment-notes, .appointment-location {
+            color: #a0aec0;
+            font-size: 14px;
+        }
+        
+        .timeline {
+            margin-top: 20px;
+        }
+        
+        .timeline-item {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        .timeline-year {
+            min-width: 60px;
+            font-weight: bold;
+        }
+        
+        .timeline-content {
+            margin-left: 20px;
+            padding-left: 20px;
+            border-left: 1px solid var(--accent-color);
+            padding-bottom: 20px;
+        }
+        
+        .timeline-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .timeline-description {
+            color: #a0aec0;
+            font-size: 14px;
+        }
+        
+        .timeline-highlight .timeline-title {
+            color: var(--highlight-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="avatar">
+                <i>👤</i>
+            </div>
+            <div class="patient-info">
+                <h1 class="patient-name" id="patientName"></h1>
+                <div class="patient-details">
+                    <span id="patientId"></span>
+                    <span id="patientAge"></span>
+                    <span id="patientGender"></span>
+                    <span id="patientBloodType"></span>
+                </div>
+                <div class="contact-info">
+                    <span id="patientPhone"></span>
+                    <span id="patientEmail"></span>
+                </div>
+                <div class="emergency-contact">
+                    <span class="emergency-label">EMERGENCY CONTACT</span>
+                    <span id="emergencyContact"></span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="medical-info">
+            <div>
+                <h2 class="section-title">ALLERGIES</h2>
+                <div class="tag-container" id="allergiesContainer"></div>
+            </div>
+            <div>
+                <h2 class="section-title">CHRONIC CONDITIONS</h2>
+                <div class="tag-container" id="conditionsContainer"></div>
+            </div>
+        </div>
+        
+        <div class="medications">
+            <h2 class="section-title">CURRENT MEDICATIONS</h2>
+            <div id="medicationsContainer"></div>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="vital-signs">Vital Signs</div>
+            <div class="tab" data-tab="timeline">Timeline</div>
+            <div class="tab" data-tab="treatment-history">Treatment History</div>
+            <div class="tab" data-tab="appointments">Appointments</div>
+        </div>
+        
+        <div class="tab-content active" id="vital-signs">
+            <div class="vital-signs-grid" id="vitalSignsGrid"></div>
+            
+            <div class="chart-tabs">
+                <div class="chart-tab active" data-chart="heart-rate">Heart Rate</div>
+                <div class="chart-tab" data-chart="blood-pressure">Blood Pressure</div>
+                <div class="chart-tab" data-chart="temperature">Temperature</div>
+            </div>
+            
+            <div class="chart-container">
+                <svg class="chart" id="vitalChart" preserveAspectRatio="none"></svg>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="timeline">
+            <div class="timeline" id="timelineContainer"></div>
+        </div>
+        
+        <div class="tab-content" id="treatment-history">
+            <div id="treatmentsContainer"></div>
+        </div>
+        
+        <div class="tab-content" id="appointments">
+            <div id="appointmentsContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Patient data from JSON
+        const patientData = {
+    "id":"P-12345",
+    "name":"Jane Smith",
+    "age":42,
+    "gender":"Female",
+    "bloodType":"O+",
+    "address":"123 Medical Way, Healthcare City",
+    "phone":"(555) 123-4567",
+    "email":"jane.smith@example.com",
+    "emergencyContact":"John Smith (Husband) - (555) 987-6543",
+    "allergies":[
+        "Penicillin",
+        "Peanuts"
+    ],
+    "chronicConditions":[
+        "Hypertension",
+        "Type 2 Diabetes"
+    ],
+    "currentMedications":[
+        {
+            "name":"Lisinopril",
+            "dosage":"10mg",
+            "frequency":"Once daily"
+        },
+        {
+            "name":"Metformin",
+            "dosage":"500mg",
+            "frequency":"Twice daily"
+        }
+    ],
+    "vitalSigns":[
+        {
+            "date":"2023-01-01",
+            "heartRate":72,
+            "bloodPressure":"120/80",
+            "temperature":98.6,
+            "respiratoryRate":16,
+            "oxygenSaturation":98
+        },
+        {
+            "date":"2023-02-01",
+            "heartRate":75,
+            "bloodPressure":"122/82",
+            "temperature":98.4,
+            "respiratoryRate":16,
+            "oxygenSaturation":97
+        },
+        {
+            "date":"2023-03-01",
+            "heartRate":70,
+            "bloodPressure":"118/78",
+            "temperature":98.7,
+            "respiratoryRate":15,
+            "oxygenSaturation":99
+        },
+        {
+            "date":"2023-04-01",
+            "heartRate":73,
+            "bloodPressure":"121/79",
+            "temperature":98.5,
+            "respiratoryRate":16,
+            "oxygenSaturation":98
+        },
+        {
+            "date":"2023-05-01",
+            "heartRate":71,
+            "bloodPressure":"119/80",
+            "temperature":98.6,
+            "respiratoryRate":15,
+            "oxygenSaturation":98
+        },
+        {
+            "date":"2023-06-01",
+            "heartRate":74,
+            "bloodPressure":"123/81",
+            "temperature":98.8,
+            "respiratoryRate":16,
+            "oxygenSaturation":97
+        }
+    ],
+    "treatments":[
+        {
+            "date":"2023-01-15",
+            "type":"Medication Adjustment",
+            "provider":"Dr. Emily Chen",
+            "notes":"Increased Lisinopril to 10mg"
+        },
+        {
+            "date":"2023-02-20",
+            "type":"Physical Therapy",
+            "provider":"Dr. Michael Rodriguez",
+            "notes":"Started PT for lower back pain"
+        },
+        {
+            "date":"2023-03-10",
+            "type":"Lab Work",
+            "provider":"Dr. Emily Chen",
+            "notes":"Comprehensive metabolic panel and A1C"
+        },
+        {
+            "date":"2023-04-05",
+            "type":"Specialist Consultation",
+            "provider":"Dr. Sarah Johnson",
+            "notes":"Endocrinology consult for diabetes management"
+        },
+        {
+            "date":"2023-05-18",
+            "type":"Medication Adjustment",
+            "provider":"Dr. Emily Chen",
+            "notes":"Added low-dose aspirin"
+        }
+    ],
+    "appointments":[
+        {
+            "date":"2023-07-15",
+            "time":"10:00 AM",
+            "provider":"Dr. Emily Chen",
+            "type":"Follow-up",
+            "location":"Main Hospital, Room 302"
+        },
+        {
+            "date":"2023-08-05",
+            "time":"2:30 PM",
+            "provider":"Dr. Michael Rodriguez",
+            "type":"Physical Therapy",
+            "location":"Rehabilitation Center"
+        },
+        {
+            "date":"2023-09-10",
+            "time":"9:15 AM",
+            "provider":"Dr. Sarah Johnson",
+            "type":"Endocrinology",
+            "location":"Specialty Clinic, Suite 105"
+        }
+    ],
+    "timeline":[
+        {
+            "year":"2023",
+            "title":"Cardiac Assessment",
+            "description":"Comprehensive cardiac evaluation revealed normal heart function with minor irregularities in rhythm. Prescribed beta blockers for management.",
+            "icon":"HeartPulse",
+            "highlight":true
+        },
+        {
+            "year":"2022",
+            "title":"Type 2 Diabetes Diagnosis",
+            "description":"Initial diagnosis of Type 2 Diabetes. Started on Metformin 500mg twice daily. Implemented lifestyle modifications and dietary changes.",
+            "icon":"Activity"
+        },
+        {
+            "year":"2021",
+            "title":"Annual Physical",
+            "description":"Regular check-up showed elevated blood pressure (140/90). Recommended lifestyle changes and monthly monitoring.",
+            "icon":"Stethoscope"
+        },
+        {
+            "year":"2020",
+            "title":"COVID-19 Vaccination",
+            "description":"Received complete COVID-19 vaccination series. No adverse reactions reported. Follow-up booster scheduled.",
+            "icon":"Syringe",
+            "highlight":true
+        },
+        {
+            "year":"2019",
+            "title":"Medication Review",
+            "description":"Comprehensive medication review. Adjusted dosages for better management of chronic conditions.",
+            "icon":"Pill"
+        },
+        {
+            "year":"2018",
+            "title":"Hospital Admission",
+            "description":"Brief hospital stay due to severe pneumonia. Full recovery achieved after antibiotic treatment.",
+            "icon":"Hospital"
+        },
+        {
+            "year":"2015",
+            "title":"New Hospital Admission",
+            "description":"Brief hospital stay due to severe pneumonia.",
+            "icon":"Activity"
+        }
+    ]
+};
+
+        // Initialize patient information
+        document.addEventListener('DOMContentLoaded', function() {
+            // Basic patient info
+            document.getElementById('patientName').textContent = patientData.name;
+            document.getElementById('patientId').textContent = `ID: ${patientData.id}`;
+            document.getElementById('patientAge').textContent = `${patientData.age} years`;
+            document.getElementById('patientGender').textContent = patientData.gender;
+            document.getElementById('patientBloodType').textContent = `Blood Type: ${patientData.bloodType}`;
+            document.getElementById('patientPhone').textContent = patientData.phone;
+            document.getElementById('patientEmail').textContent = patientData.email;
+            document.getElementById('emergencyContact').textContent = patientData.emergencyContact;
+            
+            // Allergies
+            const allergiesContainer = document.getElementById('allergiesContainer');
+            patientData.allergies.forEach(allergy => {
+                const allergyCleaned = allergy.toLowerCase().replace(/\s+/g, '-');
+                const tagElement = document.createElement('div');
+                tagElement.className = `tag allergy-${allergyCleaned}`;
+                tagElement.textContent = allergy;
+                allergiesContainer.appendChild(tagElement);
+            });
+            
+            // Chronic conditions
+            const conditionsContainer = document.getElementById('conditionsContainer');
+            patientData.chronicConditions.forEach(condition => {
+                const tagElement = document.createElement('div');
+                tagElement.className = 'tag';
+                tagElement.textContent = condition;
+                conditionsContainer.appendChild(tagElement);
+            });
+            
+            // Medications
+            const medicationsContainer = document.getElementById('medicationsContainer');
+            patientData.currentMedications.forEach(med => {
+                const medCard = document.createElement('div');
+                medCard.className = 'medication-card';
+                
+                const medName = document.createElement('div');
+                medName.className = 'medication-name';
+                medName.textContent = med.name;
+                
+                const medDetails = document.createElement('div');
+                medDetails.className = 'medication-details';
+                medDetails.textContent = `${med.dosage} • ${med.frequency}`;
+                
+                medCard.appendChild(medName);
+                medCard.appendChild(medDetails);
+                medicationsContainer.appendChild(medCard);
+            });
+            
+            // Latest vital signs
+            const latestVitals = patientData.vitalSigns[patientData.vitalSigns.length - 1];
+            const vitalSignsGrid = document.getElementById('vitalSignsGrid');
+            
+            const vitalTypes = [
+                { name: 'Heart Rate', value: latestVitals.heartRate, unit: 'bpm' },
+                { name: 'Blood Pressure', value: latestVitals.bloodPressure, unit: 'mmHg' },
+                { name: 'Temperature', value: latestVitals.temperature, unit: '°F' },
+                { name: 'Respiratory Rate', value: latestVitals.respiratoryRate, unit: 'bpm' },
+                { name: 'Oxygen Saturation', value: latestVitals.oxygenSaturation, unit: '%' }
+            ];
+            
+            vitalTypes.forEach(vital => {
+                const vitalCard = document.createElement('div');
+                vitalCard.className = 'vital-card';
+                
+                const vitalTitle = document.createElement('div');
+                vitalTitle.className = 'vital-title';
+                vitalTitle.textContent = vital.name;
+                
+                const vitalValue = document.createElement('div');
+                vitalValue.className = 'vital-value';
+                vitalValue.textContent = vital.value;
+                
+                const vitalUnit = document.createElement('span');
+                vitalUnit.className = 'vital-unit';
+                vitalUnit.textContent = vital.unit;
+                vitalValue.appendChild(vitalUnit);
+                
+                vitalCard.appendChild(vitalTitle);
+                vitalCard.appendChild(vitalValue);
+                vitalSignsGrid.appendChild(vitalCard);
+            });
+            
+            // Treatments
+            const treatmentsContainer = document.getElementById('treatmentsContainer');
+            patientData.treatments.forEach(treatment => {
+                const treatmentCard = document.createElement('div');
+                treatmentCard.className = 'treatment-card';
+                
+                const treatmentDate = document.createElement('div');
+                treatmentDate.className = 'treatment-date';
+                const dateObj = new Date(treatment.date);
+                treatmentDate.textContent = dateObj.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                
+                const treatmentType = document.createElement('div');
+                treatmentType.className = 'treatment-type';
+                treatmentType.textContent = treatment.type;
+                
+                const treatmentProvider = document.createElement('div');
+                treatmentProvider.className = 'treatment-provider';
+                treatmentProvider.textContent = treatment.provider;
+                
+                const treatmentNotes = document.createElement('div');
+                treatmentNotes.className = 'treatment-notes';
+                treatmentNotes.textContent = treatment.notes;
+                
+                treatmentCard.appendChild(treatmentDate);
+                treatmentCard.appendChild(treatmentType);
+                treatmentCard.appendChild(treatmentProvider);
+                treatmentCard.appendChild(treatmentNotes);
+                treatmentsContainer.appendChild(treatmentCard);
+            });
+            
+            // Appointments
+            const appointmentsContainer = document.getElementById('appointmentsContainer');
+            patientData.appointments.forEach(appointment => {
+                const appointmentCard = document.createElement('div');
+                appointmentCard.className = 'appointment-card';
+                
+                const appointmentDate = document.createElement('div');
+                appointmentDate.className = 'appointment-date';
+                const dateObj = new Date(appointment.date);
+                appointmentDate.textContent = `${dateObj.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                })} - ${appointment.time}`;
+                
+                const appointmentType = document.createElement('div');
+                appointmentType.className = 'appointment-type';
+                appointmentType.textContent = appointment.type;
+                
+                const appointmentProvider = document.createElement('div');
+                appointmentProvider.className = 'appointment-provider';
+                appointmentProvider.textContent = appointment.provider;
+                
+                const appointmentLocation = document.createElement('div');
+                appointmentLocation.className = 'appointment-location';
+                appointmentLocation.textContent = appointment.location;
+                
+                appointmentCard.appendChild(appointmentDate);
+                appointmentCard.appendChild(appointmentType);
+                appointmentCard.appendChild(appointmentProvider);
+                appointmentCard.appendChild(appointmentLocation);
+                appointmentsContainer.appendChild(appointmentCard);
+            });
+            
+            // Timeline
+            const timelineContainer = document.getElementById('timelineContainer');
+            patientData.timeline.forEach(item => {
+                const timelineItem = document.createElement('div');
+                timelineItem.className = 'timeline-item';
+                if (item.highlight) {
+                    timelineItem.classList.add('timeline-highlight');
+                }
+                
+                const timelineYear = document.createElement('div');
+                timelineYear.className = 'timeline-year';
+                timelineYear.textContent = item.year;
+                
+                const timelineContent = document.createElement('div');
+                timelineContent.className = 'timeline-content';
+                
+                const timelineTitle = document.createElement('div');
+                timelineTitle.className = 'timeline-title';
+                timelineTitle.textContent = item.title;
+                
+                const timelineDescription = document.createElement('div');
+                timelineDescription.className = 'timeline-description';
+                timelineDescription.textContent = item.description;
+                
+                timelineContent.appendChild(timelineTitle);
+                timelineContent.appendChild(timelineDescription);
+                
+                timelineItem.appendChild(timelineYear);
+                timelineItem.appendChild(timelineContent);
+                timelineContainer.appendChild(timelineItem);
+            });
+            
+            // Draw the vital signs chart
+            drawHeartRateChart();
+            
+            // Add event listeners for tabs
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all tabs
+                    tabs.forEach(t => t.classList.remove('active'));
+                    // Add active class to clicked tab
+                    this.classList.add('active');
+                    
+                    // Hide all tab contents
+                    const tabContents = document.querySelectorAll('.tab-content');
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // Show the selected tab content
+                    const tabId = this.getAttribute('data-tab');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+            
+            // Add event listeners for chart tabs
+            const chartTabs = document.querySelectorAll('.chart-tab');
+            chartTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all chart tabs
+                    chartTabs.forEach(t => t.classList.remove('active'));
+                    // Add active class to clicked chart tab
+                    this.classList.add('active');
+                    
+                    // Draw the appropriate chart
+                    const chartType = this.getAttribute('data-chart');
+                    if (chartType === 'heart-rate') {
+                        drawHeartRateChart();
+                    } else if (chartType === 'blood-pressure') {
+                        drawBloodPressureChart();
+                    } else if (chartType === 'temperature') {
+                        drawTemperatureChart();
+                    }
+                });
+            });
+        });
+        
+        function drawHeartRateChart() {
+            const svg = document.getElementById('vitalChart');
+            svg.innerHTML = '';
+            
+            const width = svg.clientWidth;
+            const height = svg.clientHeight;
+            const padding = { top: 20, right: 30, bottom: 40, left: 40 };
+            
+            // Extract heart rate data
+            const heartRateData = patientData.vitalSigns.map(vital => ({
+                date: new Date(vital.date),
+                value: vital.heartRate
+            }));
+            
+            // Find min and max values
+            const minValue = Math.min(...heartRateData.map(d => d.value)) - 5;
+            const maxValue = Math.max(...heartRateData.map(d => d.value)) + 5;
+            
+            // Scale functions
+            const xScale = (index) => padding.left + (index / (heartRateData.length - 1)) * (width - padding.left - padding.right);
+            const yScale = (value) => height - padding.bottom - ((value - minValue) / (maxValue - minValue)) * (height - padding.top - padding.bottom);
+            
+            // Draw grid lines
+            for (let i = Math.ceil(minValue / 4) * 4; i <= maxValue; i += 4) {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', padding.left);
+                line.setAttribute('y1', yScale(i));
+                line.setAttribute('x2', width - padding.right);
+                line.setAttribute('y2', yScale(i));
+                line.setAttribute('class', 'chart-grid-line');
+                svg.appendChild(line);
+                
+                // Add y-axis labels
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', padding.left - 10);
+                text.setAttribute('y', yScale(i) + 4);
+                text.setAttribute('class', 'chart-label');
+                text.setAttribute('text-anchor', 'end');
+                text.textContent = i;
+                svg.appendChild(text);
+            }
+            
+            // Draw line chart
+            let pathData = '';
+            heartRateData.forEach((d, i) => {
+                if (i === 0) {
+                    pathData += `M ${xScale(i)} ${yScale(d.value)}`;
+                } else {
+                    pathData += ` C ${xScale(i-0.5)} ${yScale(heartRateData[i-1].value)}, ${xScale(i-0.5)} ${yScale(d.value)}, ${xScale(i)} ${yScale(d.value)}`;
+                }
+            });
+            
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', pathData);
+            path.setAttribute('class', 'chart-line');
+            svg.appendChild(path);
+            
+            // Add data points
+            heartRateData.forEach((d, i) => {
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', xScale(i));
+                circle.setAttribute('cy', yScale(d.value));
+                circle.setAttribute('r', 4);
+                circle.setAttribute('class', 'chart-dot');
+                svg.appendChild(circle);
+            });
+            
+            // Add x-axis labels
+            heartRateData.forEach((d, i) => {
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', xScale(i));
+                text.setAttribute('y', height - padding.bottom + 20);
+                text.setAttribute('class', 'chart-label');
+                text.setAttribute('text-anchor', 'middle');
+                text.textContent = `${months[d.date.getMonth()]} ${d.date.getDate()}`;
+                svg.appendChild(text);
+            });
+        }
+        
+        function drawBloodPressureChart() {
+            const svg = document.getElementById('vitalChart');
+            svg.innerHTML = '';
+            
+            const width = svg.clientWidth;
+            const height = svg.clientHeight;
+            const padding = { top: 20, right: 30, bottom: 40, left: 40 };
+            
+            // Extract blood pressure data
+            const bpData = patientData.vitalSigns.map(vital => {
+                const [systolic, diastolic] = vital.bloodPressure.split('/').map(Number);
+                return {
+                    date: new Date(vital.date),
+                    systolic,
+                    diastolic
+                };
+            });
+            
+            // Find min and max values
+            const minSystolic = Math.min(...bpData.map(d => d.systolic)) - 5;
+            const maxSystolic = Math.max(...bpData.map(d => d.systolic)) + 5;
+            const minDiastolic = Math.min(...bpData.map(d => d.diastolic)) - 5;
+            const maxDiastolic = Math.max(...bpData.map(d => d.diastolic)) + 5;
+            
+            const minValue = Math.min(minSystolic, minDiastolic);
+            const maxValue = Math.max(maxSystolic, maxDiastolic);
+            
+            // Scale functions
+            const xScale = (index) => padding.left + (index / (bpData.length - 1)) * (width - padding.left - padding.right);
+            const yScale = (value) => height - padding.bottom - ((value - minValue) / (maxValue - minValue)) * (height - padding.top - padding.bottom);
+            
+            // Draw grid lines
+            for (let i = Math.ceil(minValue / 10) * 10; i <= maxValue; i += 10) {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', padding.left);
+                line.setAttribute('y1', yScale(i));
+                line.setAttribute('x2', width - padding.right);
+                line.setAttribute('y2', yScale(i));
+                line.setAttribute('class', 'chart-grid-line');
+                svg.appendChild(line);
+                
+                // Add y-axis labels
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', padding.left - 10);
+                text.setAttribute('y', yScale(i) + 4);
+                text.setAttribute('class', 'chart-label');
+                text.setAttribute('text-anchor', 'end');
+                text.textContent = i;
+                svg.appendChild(text);
+            }
+            
+            // Draw systolic line chart
+            let pathDataSystolic = '';
+            bpData.forEach((d, i) => {
+                if (i === 0) {
+                    pathDataSystolic += `M ${xScale(i)} ${yScale(d.systolic)}`;
+                } else {
+                    pathDataSystolic += ` C ${xScale(i-0.5)} ${yScale(bpData[i-1].systolic)}, ${xScale(i-0.5)} ${yScale(d.systolic)}, ${xScale(i)} ${yScale(d.systolic)}`;
+                }
+            });
+            
+            const pathSystolic = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathSystolic.setAttribute('d', pathDataSystolic);
+            pathSystolic.setAttribute('class', 'chart-line');
+            pathSystolic.setAttribute('stroke', '#46be8a');
+            svg.appendChild(pathSystolic);
+            
+            // Draw diastolic line chart
+            let pathDataDiastolic = '';
+            bpData.forEach((d, i) => {
+                if (i === 0) {
+                    pathDataDiastolic += `M ${xScale(i)} ${yScale(d.diastolic)}`;
+                } else {
+                    pathDataDiastolic += ` C ${xScale(i-0.5)} ${yScale(bpData[i-1].diastolic)}, ${xScale(i-0.5)} ${yScale(d.diastolic)}, ${xScale(i)} ${yScale(d.diastolic)}`;
+                }
+            });
+            
+            const pathDiastolic = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathDiastolic.setAttribute('d', pathDataDiastolic);
+            pathDiastolic.setAttribute('class', 'chart-line');
+            pathDiastolic.setAttribute('stroke', '#3e86f5');
+            svg.appendChild(pathDiastolic);
+            
+            // Add data points (systolic)
+            bpData.forEach((d, i) => {
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', xScale(i));
+                circle.setAttribute('cy', yScale(d.systolic));
+                circle.setAttribute('r', 4);
+                circle.setAttribute('class', 'chart-dot');
+                circle.setAttribute('fill', '#46be8a');
+                svg.appendChild(circle);
+            });
+            
+            // Add data points (diastolic)
+            bpData.forEach((d, i) => {
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', xScale(i));
+                circle.setAttribute('cy', yScale(d.diastolic));
+                circle.setAttribute('r', 4);
+                circle.setAttribute('class', 'chart-dot');
+                circle.setAttribute('fill', '#3e86f5');
+                svg.appendChild(circle);
+            });
+            
+            // Add x-axis labels
+            bpData.forEach((d, i) => {
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', xScale(i));
+                text.setAttribute('y', height - padding.bottom + 20);
+                text.setAttribute('class', 'chart-label');
+                text.setAttribute('text-anchor', 'middle');
+                text.textContent = `${months[d.date.getMonth()]} ${d.date.getDate()}`;
+                svg.appendChild(text);
+            });
+        }
+        
+        function drawTemperatureChart() {
+            const svg = document.getElementById('vitalChart');
+            svg.innerHTML = '';
+            
+            const width = svg.clientWidth;
+            const height = svg.clientHeight;
+            const padding = { top: 20, right: 30, bottom: 40, left: 40 };
+            
+            // Extract temperature data
+            const tempData = patientData.vitalSigns.map(vital => ({
+                date: new Date(vital.date),
+                value: vital.temperature
+            }));
+            
+            // Find min and max values
+            const minValue = Math.min(...tempData.map(d => d.value)) - 0.5;
+            const maxValue = Math.max(...tempData.map(d => d.value)) + 0.5;
+            
+            // Scale functions
+            const xScale = (index) => padding.left + (index / (tempData.length - 1)) * (width - padding.left - padding.right);
+            const yScale = (value) => height - padding.bottom - ((value - minValue) / (maxValue - minValue)) * (height - padding.top - padding.bottom);
+            
+            // Draw grid lines
+            for (let i = Math.floor(minValue * 10) / 10; i <= maxValue; i += 0.2) {
+                i = Math.round(i * 10) / 10; // Fix floating point issues
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', padding.left);
+                line.setAttribute('y1', yScale(i));
+                line.setAttribute('x2', width - padding.right);
+                line.setAttribute('y2', yScale(i));
+                line.setAttribute('class', 'chart-grid-line');
+                svg.appendChild(line);
+                
+                // Add y-axis labels
+                if (i % 0.4 < 0.001) { // Only show labels every 0.4 degrees
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', padding.left - 10);
+                    text.setAttribute('y', yScale(i) + 4);
+                    text.setAttribute('class', 'chart-label');
+                    text.setAttribute('text-anchor', 'end');
+                    text.textContent = i.toFixed(1);
+                    svg.appendChild(text);
+                }
+            }
+            
+            // Draw line chart
+            let pathData = '';
+            tempData.forEach((d, i) => {
+                if (i === 0) {
+                    pathData += `M ${xScale(i)} ${yScale(d.value)}`;
+                } else {
+                    pathData += ` C ${xScale(i-0.5)} ${yScale(tempData[i-1].value)}, ${xScale(i-0.5)} ${yScale(d.value)}, ${xScale(i)} ${yScale(d.value)}`;
+                }
+            });
+            
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', pathData);
+            path.setAttribute('class', 'chart-line');
+            path.setAttribute('stroke', '#f59846');
+            svg.appendChild(path);
+            
+            // Add data points
+            tempData.forEach((d, i) => {
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', xScale(i));
+                circle.setAttribute('cy', yScale(d.value));
+                circle.setAttribute('r', 4);
+                circle.setAttribute('class', 'chart-dot');
+                circle.setAttribute('fill', '#f59846');
+                svg.appendChild(circle);
+            });
+            
+            // Add x-axis labels
+            tempData.forEach((d, i) => {
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', xScale(i));
+                text.setAttribute('y', height - padding.bottom + 20);
+                text.setAttribute('class', 'chart-label');
+                text.setAttribute('text-anchor', 'middle');
+                text.textContent = `${months[d.date.getMonth()]} ${d.date.getDate()}`;
+                svg.appendChild(text);
+            });
+        }
+    </script>
+</body>
+</html>

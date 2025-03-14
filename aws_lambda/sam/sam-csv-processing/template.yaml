@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  ProcessData
+
+  This project uses AWS Lambda to create a function which processes csv files, pefromes data transformation and simple analysis to generate new, processed csv files placed in their respective buckets in a dynamic way.
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Parameters:
+  ParamEnvironment:
+    Type: String
+    Default: "dev"
+    Description: "The environment in which the application is running."
+    AllowedValues:
+      - dev
+      - prod
+  UploadBucketName:
+    Type: String
+    Description: "The name of the S3 bucket."
+  
+Globals:
+  Function:    
+    Tracing: Active
+    # You can add LoggingConfig parameters such as the Logformat, Log Group, and SystemLogLevel or ApplicationLogLevel. Learn more here https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html#sam-function-loggingconfig.
+    LoggingConfig:
+      LogFormat: JSON # Application logs format, defaults to JSON (TEXT is optional)
+      ApplicationLogLevel: INFO # Application log level, defaults to INFO
+      SystemLogLevel: INFO # System log level, defaults to INFO
+      LogGroup: !Ref CloudWatchLogGroup # Customized log group to emit logs to
+
+Resources:
+  MainFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Metadata:
+      BuildMethod: rust-cargolambda # More info about Cargo Lambda: https://github.com/cargo-lambda/cargo-lambda
+    Properties:
+      CodeUri: ./rust_app   # Points to dir of Cargo.toml
+      Handler: bootstrap    # Do not change, as this is the default executable name produced by Cargo Lambda
+      Runtime: provided.al2023
+      Timeout: 180
+      MemorySize: 2048
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref UploadBucketName
+        - Version: 2012-10-17
+          Statement:
+            - Sid: CloudWatchLogGroup
+              Action: 
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: !GetAtt CloudWatchLogGroup.Arn
+              Effect: Allow
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref UploadBucketName
+          ENVIRONMENT: !Ref ParamEnvironment
+      Architectures:
+      - arm64
+      Events:
+        ObjectCreatedEvent:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - "aws.s3"
+              detail-type:
+                - "Object Created"
+              detail:
+                bucket:
+                  name: 
+                    - !Ref UploadBucketName
+                object:
+                  key:
+                    - wildcard: "*.csv"
+  
+  # Add S3 bucket for uploads
+  UploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref UploadBucketName
+      NotificationConfiguration:
+        EventBridgeConfiguration: 
+          EventBridgeEnabled: true
+  
+  # Configuring a custom log group to store logs from mutliple sources (optionally), with a customized retention period
+  CloudWatchLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/sam-${AWS::StackName}
+      RetentionInDays: 30
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  UploadBucket:
+    Description: Uploads S3 Bucket
+    Value: !Ref UploadBucketName
+  LogGroupArn:
+    Description: Custom aggregated log group ARN 
+    Value: !GetAtt CloudWatchLogGroup.Arn
+  MainFunction:
+    Description: Main Lambda Function ARN
+    Value: !GetAtt MainFunction.Arn
+  MainFunctionIamRole:
+    Description: Implicit IAM Role created for Main function
+    Value: !GetAtt MainFunctionRole.Arn

@@ -1,0 +1,19 @@
+[package]
+name = "sam-app"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+aws_lambda_events = { version = "0.15.1", default-features = false, features = ["eventbridge"] }
+lambda_runtime = "0.13.0"
+aws-config = { version = "1.5.18", features = ["behavior-version-latest"] }
+aws-smithy-types = "1.3.0"
+aws-sdk-s3 = "1.78.0"
+serde = { version = "1.0", features = ["derive"] }
+rayon = "1.10.0"
+tracing = { version = "0.1", features = ["log"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt"] }
+
+tokio = { version = "1", features = ["full"] }

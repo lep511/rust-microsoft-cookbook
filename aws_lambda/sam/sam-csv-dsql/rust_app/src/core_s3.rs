@@ -2,344 +2,24 @@ use lambda_runtime::Error;
 use aws_sdk_s3::Client;
 use aws_config::{load_defaults, BehaviorVersion, Region};
 use aws_sdk_dsql::auth_token::{AuthTokenGenerator, Config};
+use sqlx::PgPool;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use uuid::Uuid;
 use crate::libs::FlightData;
-use std::io::{Cursor, BufRead};
-use std::sync::{Arc, Mutex};
-use tokio::task;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use tokio::io::AsyncBufReadExt;
 use std::collections::HashMap;
-use tracing::{error, info};
-use rayon::prelude::*;
+use tracing::{error, warn, info};
 
-pub const BUFFER_CAPACITY: usize = 100_000; // Process ~100K lines at a time
+pub const BATCH_SIZE: usize = 1500;
+pub const MAX_RECORDS: usize = 20000;
 
-/// Processes smaller flight data files by downloading the entire file and analyzing it in memory.
-///
-/// This function retrieves a flight data file from S3, downloads it completely, and processes
-/// its contents in a parallel manner to count airport occurrences.
-///
-/// # Arguments
-///
-/// * `client` - The AWS S3 client used to retrieve the file
-/// * `cluster_endpoint` - The endpoint for the AWS DSQL cluster
-/// * `region` - The AWS region where the DSQL cluster is located
-/// * `bucket_name` - The name of the S3 bucket containing the file
-/// * `object_key` - The key (path) of the object in the S3 bucket
-/// * `content_length` - The expected size of the file in bytes, used for buffer pre-allocation
-///
-/// # Returns
-///
-/// A `Result` containing either:
-/// * `HashMap<String, u32>` - A mapping of airport codes to their occurrence counts
-/// * `Error` - An error that occurred during retrieval or processing
-///
-/// # Processing Details
-///
-/// The function:
-/// 1. Downloads the entire file from S3
-/// 2. Processes the file in a separate blocking thread pool to avoid blocking the async runtime
-/// 3. Parses each line into flight data records using parallel processing via Rayon
-/// 4. Counts occurrences of each airport code (found in field 17)
-/// 5. Uses thread-local maps to reduce contention during parallel processing
-/// 6. Merges results into a single HashMap that's returned to the caller
-///
-/// # Errors
-///
-/// Returns an error if:
-/// * The S3 object cannot be retrieved
-/// * The downloaded data cannot be read
-/// * The blocking task fails to complete
-///
-pub async fn process_small_files(
-    client: &Client, 
+pub async fn process_beta_files(
+    client: &Client,
     cluster_endpoint: &str,
     region: &str,
     bucket_name: &str, 
     object_key: &str,
-    content_length: usize,
-) -> Result<HashMap<String, u32>, Error> {
-    // For smaller files, download the whole file and process in memory
-
-    // Set up atomic counter for total records
-    let total_records = Arc::new(AtomicUsize::new(0));
-    
-    // Create a thread-safe HashMap to store airport counts
-    let airport_counts = Arc::new(Mutex::new(HashMap::<String, u32>::new()));
-    
-    let get_object_output = client
-        .get_object()
-        .bucket(bucket_name)
-        .key(object_key)
-        .send()
-        .await
-        .map_err(|e| {
-            error!("Error getting object: {}", e);
-            e
-        })?;
-    
-    let mut bytes = Vec::with_capacity(content_length);
-    get_object_output.body.into_async_read().read_to_end(&mut bytes).await?;
-
-    // Process file in a blocking task using rayon
-    let total_records_clone = Arc::clone(&total_records);
-    let airport_counts_clone = Arc::clone(&airport_counts);
-
-    task::spawn_blocking(move || {
-        // Split into lines and skip header
-        let cursor = Cursor::new(&bytes);
-        let mut lines: Vec<String> = BufRead::lines(cursor)
-            .filter_map(Result::ok)
-            .collect();
-            
-        if !lines.is_empty() {
-            lines.remove(0); // Remove header
-        }
-        
-        // Use a local thread-local HashMap for each thread to avoid contention
-        let thread_local_maps: Vec<HashMap<String, u32>> = lines
-            .par_iter()
-            .map(|line| {
-                let fields: Vec<&str> = line.split(',').collect();
-                let mut local_map = HashMap::new();
-                
-                // Parse record
-                let record = match FlightData::from_vec(&fields) {
-                    Ok(record) => record,
-                    Err(_) => return local_map,
-                };
-                
-                // Increment counters
-                if let Some(airport_code) = fields.get(17) {
-                    if !airport_code.is_empty() {
-                        let count = local_map.entry(airport_code.to_string()).or_insert(0);
-                        *count += 1;
-                    }
-                }
-                
-                total_records_clone.fetch_add(1, Ordering::Relaxed);
-                local_map
-            })
-            .collect();
-        
-        // Merge all thread-local maps into the shared HashMap
-        let mut final_map = airport_counts_clone.lock().unwrap();
-        for local_map in thread_local_maps {
-            for (key, value) in local_map {
-                *final_map.entry(key).or_insert(0) += value;
-            }
-        }
-    }).await?;
-
-    // Return a clone of the HashMap
-    let result = Arc::try_unwrap(airport_counts)
-        .unwrap_or_else(|arc| (*arc.lock().unwrap()).clone().into())
-        .into_inner()
-        .unwrap_or_default();
-
-    // Save results to AWS DSQL database
-    save_to_dsql(&result, cluster_endpoint, region).await?;
-    
-    Ok(result)
-}
-
-/// Processes large S3 files containing flight data, streaming and processing the content in chunks.
-/// Then saves the processed airport counts to an AWS DSQL database.
-///
-/// This function retrieves an object from an S3 bucket and processes it line by line to count
-/// airport occurrences. It implements several optimizations for handling large files:
-/// - Streams data instead of loading the entire file into memory
-/// - Processes data in configurable-sized chunks
-/// - Uses parallel processing with thread-local maps to reduce lock contention
-/// - Merges results efficiently from multiple threads
-/// - Stores the results in an AWS DSQL Postgres database
-///
-/// # Arguments
-///
-/// * `client` - An AWS S3 client used to retrieve the object
-/// * `cluster_endpoint` - The endpoint for the AWS DSQL cluster
-/// * `region` - The AWS region where the DSQL cluster is located
-/// * `bucket_name` - The name of the S3 bucket containing the target file
-/// * `object_key` - The key (path) of the object within the bucket
-///
-/// # Returns
-///
-/// * `Result<HashMap<String, u32>, Error>` - A map of airport codes to their occurrence counts,
-///   or an error if the file couldn't be processed or data couldn't be saved
-///
-/// # Errors
-///
-/// This function will return an error if:
-/// - The S3 object cannot be retrieved
-/// - There are issues reading lines from the file
-/// - Any of the spawned tasks fail
-/// - Connection to the DSQL database fails
-/// - Database operations fail
-pub async fn process_large_files(
-    client: &Client, 
-    cluster_endpoint: &str,
-    region: &str,
-    bucket_name: &str, 
-    object_key: &str,
-) -> Result<HashMap<String, u32>, Error> {
-    // For larger files, stream and process in chunks
-
-    // Set up atomic counter for total records
-    let total_records = Arc::new(AtomicUsize::new(0));
-    
-    // Create a thread-safe HashMap to store airport counts
-    let airport_counts = Arc::new(Mutex::new(HashMap::<String, u32>::new()));
-
-    let get_object_output = client
-        .get_object()
-        .bucket(bucket_name)
-        .key(object_key)
-        .send()
-        .await
-        .map_err(|e| {
-            error!("Error getting object: {}", e);
-            e
-        })?;
-
-    let reader = BufReader::new(get_object_output.body.into_async_read());
-    let mut lines = reader.lines();
-
-    // Skip header
-    let _ = lines.next_line().await?;
-
-    // Process in chunks
-    let mut buffer = Vec::with_capacity(BUFFER_CAPACITY);
-    let mut tasks = Vec::new();
-    
-    while let Some(line) = lines.next_line().await? {
-        buffer.push(line);
-        
-        if buffer.len() >= BUFFER_CAPACITY {
-            let airport_counts_clone = Arc::clone(&airport_counts);
-            let total_records_clone = Arc::clone(&total_records);
-            let chunk = std::mem::take(&mut buffer);
-            buffer = Vec::with_capacity(BUFFER_CAPACITY);
-            
-            // Process chunk in parallel
-            let handle = task::spawn_blocking(move || {
-                // Use a local thread-local HashMap for each thread to avoid contention
-                let thread_local_maps: Vec<HashMap<String, u32>> = chunk
-                    .par_iter()
-                    .map(|line| {
-                        let fields: Vec<&str> = line.split(',').collect();
-                        let mut local_map = HashMap::new();
-                        
-                        // Parse record
-                        let record = match FlightData::from_vec(&fields) {
-                            Ok(record) => record,
-                            Err(_) => return local_map,
-                        };
-                                                
-                        // Increment counters
-                        if let Some(airport_code) = fields.get(17) {
-                            if !airport_code.is_empty() {
-                                let count = local_map.entry(airport_code.to_string()).or_insert(0);
-                                *count += 1;
-                            }
-                        }
-                        
-                        total_records_clone.fetch_add(1, Ordering::Relaxed);
-                        local_map
-                    })
-                    .collect();
-                
-                // Merge all thread-local maps into the shared HashMap
-                let mut final_map = airport_counts_clone.lock().unwrap();
-                for local_map in thread_local_maps {
-                    for (key, value) in local_map {
-                        *final_map.entry(key).or_insert(0) += value;
-                    }
-                }
-            });
-            
-            tasks.push(handle);
-        }
-    }
-    
-    // Process remaining lines
-    if !buffer.is_empty() {
-        let airport_counts_clone = Arc::clone(&airport_counts);
-        let total_records_clone = Arc::clone(&total_records);
-        
-        let handle = task::spawn_blocking(move || {
-            // Use a local thread-local HashMap for each thread to avoid contention
-            let thread_local_maps: Vec<HashMap<String, u32>> = buffer
-                .par_iter()
-                .map(|line| {
-                    let fields: Vec<&str> = line.split(',').collect();
-                    let mut local_map = HashMap::new();
-                    
-                    // Parse record
-                    let record = match FlightData::from_vec(&fields) {
-                        Ok(record) => record,
-                        Err(_) => return local_map,
-                    };
-                                        
-                    // Increment counters
-                    if let Some(airport_code) = fields.get(17) {
-                        if !airport_code.is_empty() {
-                            let count = local_map.entry(airport_code.to_string()).or_insert(0);
-                            *count += 1;
-                        }
-                    }
-                    
-                    total_records_clone.fetch_add(1, Ordering::Relaxed);
-                    local_map
-                })
-                .collect();
-            
-            // Merge all thread-local maps into the shared HashMap
-            let mut final_map = airport_counts_clone.lock().unwrap();
-            for local_map in thread_local_maps {
-                for (key, value) in local_map {
-                    *final_map.entry(key).or_insert(0) += value;
-                }
-            }
-        });
-        
-        tasks.push(handle);
-    }
-    
-    // Wait for all processing tasks to complete
-    for task in tasks {
-        task.await?;
-    }
-
-    // Get the final HashMap
-    let result = Arc::try_unwrap(airport_counts)
-        .unwrap_or_else(|arc| (*arc.lock().unwrap()).clone().into())
-        .into_inner()
-        .unwrap_or_default();
-    
-    // Save results to AWS DSQL database
-    save_to_dsql(&result, cluster_endpoint, region).await?;
-    
-    Ok(result)
-}
-
-/// Saves the processed airport counts to an AWS DSQL database.
-///
-/// # Arguments
-///
-/// * `airport_counts` - A HashMap containing airport codes and their occurrence counts
-/// * `cluster_endpoint` - The endpoint for the AWS DSQL cluster
-/// * `region` - The AWS region where the DSQL cluster is located
-///
-/// # Returns
-///
-/// * `Result<(), Error>` - Ok if the data was successfully saved, or an error otherwise
-async fn save_to_dsql(
-    airport_counts: &HashMap<String, u32>,
-    cluster_endpoint: &str,
-    region: &str,
-) -> Result<(), Error> {
+) -> Result<HashMap<String, i32>, Error> {
     // Generate auth token
     let sdk_config = load_defaults(BehaviorVersion::latest()).await;
     let signer = AuthTokenGenerator::new(
@@ -372,42 +52,167 @@ async fn save_to_dsql(
             error!("Error connecting to database: {}", e);
             Error::from(e)
         })?;
+    
+    info!("Connected to database");
+    
+    // Download the object from S3
+    let get_object_output = client
+        .get_object()
+        .bucket(bucket_name)
+        .key(object_key)
+        .send()
+        .await
+        .map_err(|e| {
+            error!("Error getting object: {}", e);
+            e
+        })?;
 
+    let mut total_records = 0;
+    let mut records = Vec::new();
+
+    let stream = get_object_output.body;
+    let buf_reader = stream.into_async_read();
+    let mut lines = buf_reader.lines();
+
+    // Skip header
+    let _ = lines.next_line().await?;
+
+    while let Some(line) = lines.next_line().await? {
+        let line = line.trim();
+        let line = line.split(",").collect::<Vec<&str>>();
+        let record = match FlightData::from_vec(&line) {
+            Ok(record) => record,
+            Err(error) => {
+                warn!("Error parsing record: {}", error);
+                continue;
+            }
+        };
+
+        records.push(record);
+
+        if records.len() >= BATCH_SIZE {
+            // Save record to DSQL database
+            save_to_dsql(&records, &pool).await?;
+            records.clear();
+        }
+      
+        total_records += 1;
+        
+        if total_records >= MAX_RECORDS {
+            break;
+        }
+    }
+
+    info!("Total records process: {}", total_records);
+
+    // Close the connection pool
+    pool.close().await;
+
+    let mut airport_counts: HashMap<String, i32> = HashMap::new();
+    airport_counts.insert("PHX".to_string(), 25);
+    
+    Ok(airport_counts)
+}
+
+/// Saves the processed airport counts to an AWS DSQL database.
+///
+/// # Arguments
+///
+/// * `airport_counts` - A HashMap containing airport codes and their occurrence counts
+/// * `cluster_endpoint` - The endpoint for the AWS DSQL cluster
+/// * `region` - The AWS region where the DSQL cluster is located
+///
+/// # Returns
+///
+/// * `Result<(), Error>` - Ok if the data was successfully saved, or an error otherwise
+async fn save_to_dsql(
+    records: &Vec<FlightData>,
+    pool: &PgPool,
+) -> Result<(), Error> {
     // Create flights table if it doesn't exist
     sqlx::query(
-        "CREATE TABLE IF NOT EXISTS flights (
+        "CREATE TABLE IF NOT EXISTS flight_data (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            airport_code VARCHAR(255),
-            count INTEGER
+            year INTEGER,
+            month INTEGER,
+            day INTEGER,
+            day_of_week INTEGER,
+            scheduled_departure INTEGER,
+            actual_departure INTEGER,
+            scheduled_arrival INTEGER,
+            actual_arrival INTEGER,
+            airline_code VARCHAR(255),
+            flight_number INTEGER,
+            aircraft_registration VARCHAR(255),
+            scheduled_flight_time INTEGER,
+            actual_flight_time INTEGER,
+            air_time INTEGER,
+            departure_delay INTEGER,
+            arrival_delay INTEGER,
+            origin_airport VARCHAR(255),
+            destination_airport VARCHAR(255),
+            distance INTEGER,
+            taxi_out INTEGER,
+            taxi_in INTEGER,
+            carrier_delay INTEGER,
+            weather_delay INTEGER,
+            security_delay INTEGER,
+            nas_delay INTEGER,
+            other_delay INTEGER 
         )"
     )
-    .execute(&pool)
+    .execute(pool)
     .await
     .map_err(|e| {
         error!("Error creating table: {}", e);
         Error::from(e)
     })?;
 
+    let mut record_count = 0;
+
     // Insert data for each airport code
-    for (airport_code, count) in airport_counts {
+    for record in records {
         let id = Uuid::new_v4();
-        
-        sqlx::query("INSERT INTO flights (id, airport_code, count) VALUES ($1, $2, $3)")
+                     
+        sqlx::query("INSERT INTO flight_data (id, year, month, day, day_of_week, scheduled_departure, actual_departure, scheduled_arrival, actual_arrival, airline_code, flight_number, aircraft_registration, scheduled_flight_time, actual_flight_time, air_time, departure_delay, arrival_delay, origin_airport, destination_airport, distance, taxi_out, taxi_in, carrier_delay, weather_delay, security_delay, nas_delay, other_delay) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)")
             .bind(id)
-            .bind(airport_code)
-            .bind(*count as i32)  // Convert u32 to i32 for PostgreSQL
-            .execute(&pool)
+            .bind(record.year)
+            .bind(record.month)
+            .bind(record.day)
+            .bind(record.day_of_week)
+            .bind(record.scheduled_departure)
+            .bind(record.actual_departure)
+            .bind(record.scheduled_arrival)
+            .bind(record.actual_arrival)
+            .bind(record.airline_code.clone())
+            .bind(record.flight_number)
+            .bind(record.aircraft_registration.clone())
+            .bind(record.scheduled_flight_time)
+            .bind(record.actual_flight_time)
+            .bind(record.air_time)
+            .bind(record.departure_delay)
+            .bind(record.arrival_delay)
+            .bind(record.origin_airport.clone())
+            .bind(record.destination_airport.clone())
+            .bind(record.distance)
+            .bind(record.taxi_out)
+            .bind(record.taxi_in)
+            .bind(record.carrier_delay)
+            .bind(record.weather_delay)
+            .bind(record.security_delay)
+            .bind(record.nas_delay)
+            .bind(record.other_delay)
+            .execute(pool)
             .await
             .map_err(|e| {
                 error!("Error inserting data: {}", e);
                 Error::from(e)
             })?;
+
+        record_count += 1;
     }
 
-    info!("Successfully saved {} airport records to DSQL", airport_counts.len());
-    
-    // Close the connection pool
-    pool.close().await;
-    
+    info!("Successfully saved {} records to DSQL", record_count);
+        
     Ok(())
 }

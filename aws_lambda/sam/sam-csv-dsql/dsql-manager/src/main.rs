@@ -40,7 +40,7 @@ async fn example(cluster_endpoint: String, region: String) -> anyhow::Result<()>
 		)").execute(&pool).await?;    
     
     // Read data back
-    let rows = sqlx::query("SELECT airport_code, count FROM flights WHERE airport_code=$1").bind("PHX").fetch_all(&pool).await?;
+    let rows = sqlx::query("SELECT * FROM flight_data LIMIT 10").fetch_all(&pool).await?;
     println!("{:?}", rows);
 
     pool.close().await;

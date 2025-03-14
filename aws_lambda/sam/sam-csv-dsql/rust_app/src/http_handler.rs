@@ -3,7 +3,8 @@ use aws_lambda_events::event::eventbridge::EventBridgeEvent;
 use aws_config::{load_defaults, BehaviorVersion};
 use tokio::time::Instant;
 use serde::{Serialize, Deserialize};
-use crate::core_s3::{process_small_files, process_large_files};
+// use crate::core_s3::{process_small_files, process_large_files};
+use crate::core_s3::process_beta_files;
 use tracing::{info, error};
 use std::env;
 
@@ -80,13 +81,12 @@ pub(crate)async fn function_handler(
 
     // Choose processing strategy based on file size
     if content_length < 100_000_000 { // Less than 100MB
-        let response = match process_small_files(
+        let response = match process_beta_files(
             &client,
             &cluster_endpoint,
             &region,
             bucket_name, 
             object_key,
-            content_length,
         ).await {
             Ok(response) => response,
             Err(e) => {
@@ -103,7 +103,7 @@ pub(crate)async fn function_handler(
         info!("Departure counts: {}", response_string);
     
     } else {
-        let response = match process_large_files(
+        let response = match process_beta_files(
             &client,
             &cluster_endpoint,
             &region,

@@ -1,0 +1,21 @@
+[package]
+name = "aurora-manager"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.28", features = ["full"] }
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls" , "postgres", "uuid"] }
+anyhow = { version = "1", features = ["backtrace"] }
+aws-config = "1"
+aws-sdk-dsql = "1"
+aws-credential-types = "1"
+aws-sigv4 = "1"
+url = "2.5"
+rsa = "0.9.7"
+rustls = "0.23.19"
+
+
+[[bin]]
+name = "sqlx"
+path = "src/main.rs"

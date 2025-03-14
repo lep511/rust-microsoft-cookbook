@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'ProcessData
+
+  This project uses AWS Lambda to create a function which processes csv files, pefromes
+  data transformation and simple analysis to generate new, processed csv files placed
+  in their respective buckets in a dynamic way.
+
+  '
+Parameters:
+  ParamEnvironment:
+    Type: String
+    Default: dev
+    Description: The environment in which the application is running.
+    AllowedValues:
+    - dev
+    - prod
+  UploadBucketName:
+    Type: String
+    Description: The name of the S3 bucket.
+  ClusterEndpoint:
+    Type: String
+    Description: The endpoint of the DSQL cluster.
+Globals:
+  Function:
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+      ApplicationLogLevel: INFO
+      SystemLogLevel: INFO
+      LogGroup:
+        Ref: CloudWatchLogGroup
+Resources:
+  MainFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+      SamResourceId: MainFunction
+    Properties:
+      CodeUri: MainFunction
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Timeout: 180
+      MemorySize: 2048
+      Policies:
+      - S3ReadPolicy:
+          BucketName:
+            Ref: UploadBucketName
+      - Version: '2012-10-17'
+        Statement:
+        - Sid: CloudWatchLogGroup
+          Action:
+          - logs:CreateLogStream
+          - logs:PutLogEvents
+          Resource:
+            Fn::GetAtt:
+            - CloudWatchLogGroup
+            - Arn
+          Effect: Allow
+      Environment:
+        Variables:
+          BUCKET_NAME:
+            Ref: UploadBucketName
+          ENVIRONMENT:
+            Ref: ParamEnvironment
+          CLUSTER_ENDPOINT:
+            Ref: ClusterEndpoint
+          REGION:
+            Ref: AWS::Region
+      Architectures:
+      - arm64
+      Events:
+        ObjectCreatedEvent:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+              - aws.s3
+              detail-type:
+              - Object Created
+              detail:
+                bucket:
+                  name:
+                  - Ref: UploadBucketName
+                object:
+                  key:
+                  - wildcard: '*.csv'
+  UploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Ref: UploadBucketName
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+  CloudWatchLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/lambda/sam-${AWS::StackName}
+      RetentionInDays: 30
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+Outputs:
+  UploadBucket:
+    Description: Uploads S3 Bucket
+    Value:
+      Ref: UploadBucketName
+  LogGroupArn:
+    Description: Custom aggregated log group ARN
+    Value:
+      Fn::GetAtt:
+      - CloudWatchLogGroup
+      - Arn
+  MainFunction:
+    Description: Main Lambda Function ARN
+    Value:
+      Fn::GetAtt:
+      - MainFunction
+      - Arn
+  MainFunctionIamRole:
+    Description: Implicit IAM Role created for Main function
+    Value:
+      Fn::GetAtt:
+      - MainFunctionRole
+      - Arn

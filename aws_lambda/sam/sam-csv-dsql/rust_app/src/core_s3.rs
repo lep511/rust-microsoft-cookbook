@@ -6,20 +6,27 @@ use sqlx::PgPool;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use uuid::Uuid;
 use crate::libs::FlightData;
-use tokio::io::AsyncBufReadExt;
+use std::sync::atomic::AtomicUsize;
+use std::sync::Arc;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use std::collections::HashMap;
 use tracing::{error, warn, info};
+use tokio::task;
+use rayon::prelude::*;
 
+pub const BUFFER_CAPACITY: usize = 100_000; // Process ~100K lines at a time
 pub const BATCH_SIZE: usize = 1500;
 pub const MAX_RECORDS: usize = 20000;
 
-pub async fn process_beta_files(
+pub async fn process_large_files(
     client: &Client,
     cluster_endpoint: &str,
     region: &str,
     bucket_name: &str, 
     object_key: &str,
 ) -> Result<HashMap<String, i32>, Error> {
+    // For larger files, stream and process in chunks
+
     // Generate auth token
     let sdk_config = load_defaults(BehaviorVersion::latest()).await;
     let signer = AuthTokenGenerator::new(
@@ -54,81 +61,7 @@ pub async fn process_beta_files(
         })?;
     
     info!("Connected to database");
-    
-    // Download the object from S3
-    let get_object_output = client
-        .get_object()
-        .bucket(bucket_name)
-        .key(object_key)
-        .send()
-        .await
-        .map_err(|e| {
-            error!("Error getting object: {}", e);
-            e
-        })?;
 
-    let mut total_records = 0;
-    let mut records = Vec::new();
-
-    let stream = get_object_output.body;
-    let buf_reader = stream.into_async_read();
-    let mut lines = buf_reader.lines();
-
-    // Skip header
-    let _ = lines.next_line().await?;
-
-    while let Some(line) = lines.next_line().await? {
-        let line = line.trim();
-        let line = line.split(",").collect::<Vec<&str>>();
-        let record = match FlightData::from_vec(&line) {
-            Ok(record) => record,
-            Err(error) => {
-                warn!("Error parsing record: {}", error);
-                continue;
-            }
-        };
-
-        records.push(record);
-
-        if records.len() >= BATCH_SIZE {
-            // Save record to DSQL database
-            save_to_dsql(&records, &pool).await?;
-            records.clear();
-        }
-      
-        total_records += 1;
-        
-        if total_records >= MAX_RECORDS {
-            break;
-        }
-    }
-
-    info!("Total records process: {}", total_records);
-
-    // Close the connection pool
-    pool.close().await;
-
-    let mut airport_counts: HashMap<String, i32> = HashMap::new();
-    airport_counts.insert("PHX".to_string(), 25);
-    
-    Ok(airport_counts)
-}
-
-/// Saves the processed airport counts to an AWS DSQL database.
-///
-/// # Arguments
-///
-/// * `airport_counts` - A HashMap containing airport codes and their occurrence counts
-/// * `cluster_endpoint` - The endpoint for the AWS DSQL cluster
-/// * `region` - The AWS region where the DSQL cluster is located
-///
-/// # Returns
-///
-/// * `Result<(), Error>` - Ok if the data was successfully saved, or an error otherwise
-async fn save_to_dsql(
-    records: &Vec<FlightData>,
-    pool: &PgPool,
-) -> Result<(), Error> {
     // Create flights table if it doesn't exist
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS flight_data (
@@ -161,13 +94,149 @@ async fn save_to_dsql(
             other_delay INTEGER 
         )"
     )
-    .execute(pool)
+    .execute(&pool)
     .await
     .map_err(|e| {
         error!("Error creating table: {}", e);
         Error::from(e)
     })?;
 
+    // Set up atomic counter for total records
+    let total_records = Arc::new(AtomicUsize::new(0));
+    
+    let get_object_output = client
+        .get_object()
+        .bucket(bucket_name)
+        .key(object_key)
+        .send()
+        .await
+        .map_err(|e| {
+            error!("Error getting object: {}", e);
+            e
+        })?;
+
+    let reader = BufReader::new(get_object_output.body.into_async_read());
+    let mut lines = reader.lines();
+
+    // Skip header
+    let _ = lines.next_line().await?;
+
+    // Process in chunks
+    let mut buffer = Vec::with_capacity(BUFFER_CAPACITY);
+    let mut combined_tasks = Vec::new();
+    
+    while let Some(line) = lines.next_line().await? {
+        buffer.push(line);
+        
+        if buffer.len() >= BUFFER_CAPACITY {
+            let total_records_clone = Arc::clone(&total_records);
+            let chunk = std::mem::take(&mut buffer);
+            buffer = Vec::with_capacity(BUFFER_CAPACITY);
+            let pool_clone = pool.clone();
+            
+            // Process chunk and save to database in a single task
+            let combined_handle = tokio::spawn(async move {
+                // Process the chunk for stats in a blocking task
+                let processed_chunk = task::spawn_blocking(move || {          
+                    
+                    // Return the chunk for database processing
+                    chunk
+                }).await.unwrap_or_else(|e| {
+                    error!("Error processing chunk for stats: {}", e);
+                    Vec::new()
+                });
+                
+                // Now process and save the records to the database
+                let records: Vec<FlightData> = processed_chunk
+                    .iter()
+                    .filter_map(|line| {
+                        let fields: Vec<&str> = line.split(',').collect();
+                        FlightData::from_vec(&fields).ok()
+                    })
+                    .collect();
+                
+                if !records.is_empty() {
+                    if let Err(e) = save_to_dsql(&records, &pool_clone).await {
+                        error!("Error saving to DSQL: {}", e);
+                    }
+                }
+            });
+            
+            combined_tasks.push(combined_handle);
+        }
+    }
+    
+    // Process remaining lines
+    if !buffer.is_empty() {
+        let total_records_clone = Arc::clone(&total_records);
+        let pool_clone = pool.clone();
+        let remaining_buffer = buffer;
+        
+        // Process remaining chunk and save to database
+        let combined_handle = tokio::spawn(async move {
+            // Process the chunk for stats in a blocking task
+            let processed_chunk = task::spawn_blocking(move || {
+                
+                // Process each line in parallel to collect stats
+                remaining_buffer.par_iter().for_each(|line| {
+                    let fields: Vec<&str> = line.split(',').collect();
+                    
+                });
+                                
+                // Return the chunk for database processing
+                remaining_buffer
+            }).await.unwrap_or_else(|e| {
+                error!("Error processing chunk for stats: {}", e);
+                Vec::new()
+            });
+            
+            // Now process and save the records to the database
+            let records: Vec<FlightData> = processed_chunk
+                .iter()
+                .filter_map(|line| {
+                    let fields: Vec<&str> = line.split(',').collect();
+                    FlightData::from_vec(&fields).ok()
+                })
+                .collect();
+            
+            if !records.is_empty() {
+                if let Err(e) = save_to_dsql(&records, &pool_clone).await {
+                    error!("Error saving to DSQL: {}", e);
+                }
+            }
+        });
+        
+        combined_tasks.push(combined_handle);
+    }
+    
+    // Wait for all combined tasks to complete
+    for task in combined_tasks {
+        if let Err(e) = task.await {
+            error!("Error in combined task: {}", e);
+        }
+    }
+
+    let mut airport_counts: HashMap<String, i32> = HashMap::new();
+    airport_counts.insert("PHX".to_string(), 25);
+    
+    Ok(airport_counts)
+}
+
+/// Saves the processed airport counts to an AWS DSQL database.
+///
+/// # Arguments
+///
+/// * `airport_counts` - A HashMap containing airport codes and their occurrence counts
+/// * `cluster_endpoint` - The endpoint for the AWS DSQL cluster
+/// * `region` - The AWS region where the DSQL cluster is located
+///
+/// # Returns
+///
+/// * `Result<(), Error>` - Ok if the data was successfully saved, or an error otherwise
+async fn save_to_dsql(
+    records: &Vec<FlightData>,
+    pool: &PgPool,
+) -> Result<(), Error> {
     let mut record_count = 0;
 
     // Insert data for each airport code

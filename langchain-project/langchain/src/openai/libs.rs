@@ -49,7 +49,7 @@ pub struct EmbedRequest {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EmbedResponse {
     pub data: Vec<EmbeddingData>,
     pub model: String,
@@ -59,7 +59,7 @@ pub struct EmbedResponse {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EmbeddingData {
     pub embedding: Vec<f32>,
     pub index: i32,
@@ -117,7 +117,7 @@ pub struct Source {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ChatResponse {
     pub choices: Option<Vec<Choice>>,
     pub created: Option<u64>,
@@ -132,7 +132,7 @@ pub struct ChatResponse {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Choice {
     pub finish_reason: Option<String>,
     pub index: Option<u32>,
@@ -142,7 +142,7 @@ pub struct Choice {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Delta {
     pub content: Option<String>,
     pub role: Option<String>,
@@ -150,7 +150,7 @@ pub struct Delta {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatMessage {
     pub content: Option<String>,
     pub refusal: Option<String>,
@@ -159,7 +159,7 @@ pub struct ChatMessage {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Usage {
     pub completion_tokens: Option<u32>,
     pub completion_tokens_details: Option<CompletionTokensDetails>,
@@ -169,7 +169,7 @@ pub struct Usage {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CompletionTokensDetails {
     pub accepted_prediction_tokens: u32,
     pub audio_tokens: u32,
@@ -178,7 +178,7 @@ pub struct CompletionTokensDetails {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PromptTokensDetails {
     pub audio_tokens: u32,
     pub cached_tokens: u32,

@@ -1,4 +1,42 @@
+use mongodb::{
+    bson::doc,
+    options::ClientOptions,
+    Collection, Client as MongoClient,
+};
 use serde::{Serialize, Deserialize};
+use crate::error::AppError;
+use std::env;
+
+// MongoDB connection pool
+pub struct MongoPool {
+    pub client: MongoClient,
+}
+
+impl MongoPool {
+    pub async fn new() -> Result<Self, AppError> {
+        let uri = env::var("MONGODB_SRV")
+            .map_err(|_| AppError::generic("MONGODB_SRV environment variable not set"))?;
+        
+        let mut client_options = ClientOptions::parse(uri).await?;
+        
+        // Set connection pool options
+        client_options.max_pool_size = Some(10);
+        client_options.min_pool_size = Some(5);
+        
+        let client = MongoClient::with_options(client_options)?;
+        
+        // Test the connection
+        client.database("admin").run_command(doc! {"ping": 1}).await?;
+        
+        Ok(Self { client })
+    }
+    
+    pub fn get_collection(&self) -> Collection<FlightData> {
+        self.client
+            .database("flights_data")
+            .collection("flights")
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FlightData {

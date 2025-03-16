@@ -1,12 +1,17 @@
 use aws_config::{load_defaults, BehaviorVersion};
+use std::sync::Arc;
 use tracing::{info, error};
 
 mod libs;
+use libs::{FlightData, MongoPool};
 mod core;
-use core::process_file;
+use core::process_s3_csv_file;
+mod error;
+use error::AppError;
+
 
 #[tokio::main]
-async fn main() -> mongodb::error::Result<()> {
+async fn main() -> Result<(), AppError> {
     
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
@@ -27,11 +32,16 @@ async fn main() -> mongodb::error::Result<()> {
 
     let config = load_defaults(BehaviorVersion::latest()).await;
     let s3_client = aws_sdk_s3::Client::new(&config);
+    let mongo_pool = MongoPool::new().await?;
+    let arc_mongo_pool = Arc::new(mongo_pool);
+    let error_file_path = Some("/xerror-csv");
     
-    match process_file(
+    match process_s3_csv_file(
         &s3_client,
+        arc_mongo_pool,
         bucket_name,
         object_key,
+        error_file_path,
     ).await {
         Ok(_) => info!("File processed successfully"),
         Err(e) => error!("Error processing file: {}", e),

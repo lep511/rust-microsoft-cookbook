@@ -1,0 +1,13 @@
+[package]
+name = "dynamodb-mt"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+thiserror = "2.0.12"
+aws-sdk-dynamodb = "1.69.0"
+aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
+chrono = "0.4.40"
+
+tokio = { version = "1.44.1", features = ["full"] }
+

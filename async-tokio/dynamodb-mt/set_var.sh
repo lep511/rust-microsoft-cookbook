@@ -1,0 +1,1 @@
+export DYNAMODB_TABLE_NAME="AsyncTable"

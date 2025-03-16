@@ -1,9 +1,9 @@
 [package]
-name = "async-stream"
+name = "stream"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1.42.0", features = ["full"] }
+tokio = { version = "1.44.1", features = ["full"] }
 async-stream = "0.3.6"
 futures = "0.3"

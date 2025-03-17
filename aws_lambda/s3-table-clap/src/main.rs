@@ -1,21 +1,127 @@
+use log::{info, error};
 use aws_sdk_s3tables::Client;
-mod build;
-use build::create_table_from_yaml;
+use aws_sdk_athena::Client as AthenaClient;
+use env_logger::Env;
+use clap::{Parser, Subcommand};
+use std::env;
 
-#[tokio::main]
+pub mod generate_data;
+pub mod compatible;
+pub mod utils;
+pub mod table_manager;
+use table_manager::create_table_from_yaml;
+pub mod athena;
+use athena::{
+    insert_with_athena_handler, query_with_athena, 
+    query_with_llm, 
+};
+// Define CLI arguments using clap
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {   
+    /// Path to the YAML template file that defines the table structure
+    #[arg(short, long)]
+    template_path: Option<String>,
+
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Create namespace and table
+    Create,
+    
+    /// Insert data into the table
+    Insert,
+    
+    /// Query data from the table
+    Query,
+
+    /// Delete simple table
+    DeleteTable,
+    
+    /// Delete namespace
+    DeleteNamespace,
+    
+    /// Delete table bucket S3
+    DeleteTableBucket,
+    
+    /// Query with LLM
+    Llm {
+        /// Query text to pass to LLM
+        query_text: String,
+    },
+}
+
+#[::tokio::main]
 async fn main() {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    
+    // Parse command line arguments using clap
+    let cli = Cli::parse();
+    
     let config = aws_config::load_from_env().await;
     let client = Client::new(&config);
-    let table_bucket_arn = "arn:aws:s3tables:us-east-1:491085411627:bucket/my-s3table-49585733";
+    let athena_client = AthenaClient::new(&config);
+    let table_bucket_arn = match env::var("TABLE_BUCKET_ARN") {
+        Ok(val) => val,
+        Err(e) => {
+            error!("Error reading environment variable TABLE_BUCKET_ARN: {}", e);
+            return;
+        }
+    };
+
+    let template_path = match &cli.template_path {
+        Some(path) => path,
+        None => "templates/table_template.yaml",
+    };
     
-    // Use the new function with a path to the YAML template
-    match create_table_from_yaml(
-        &client, 
-        table_bucket_arn, 
-        "templates/flight_data.yaml"
-    ).await {
-        Ok(_) => println!("Table created successfully"),
-        Err(e) => println!("Error creating table: {}", e),
+    // Handle commands using match
+    match &cli.command {
+        Commands::Create => {
+            match create_table_from_yaml(
+                &client, 
+                &table_bucket_arn, 
+                template_path,
+            ).await {
+                Ok(_) => info!("Table created successfully"),
+                Err(e) => error!("Error creating table: {}", e),
+            }
+            // create_namespace(&client, table_bucket_arn, namespace).await?;
+            // list_namespaces(&client, table_bucket_arn).await?;
+        },
+        Commands::Insert => {
+            match insert_with_athena_handler(&athena_client, &table_bucket_arn).await {
+                Ok(_) => info!("Data inserted successfully"),
+                Err(e) => error!("Error inserting data: {}", e),
+            }
+        },
+        Commands::Query => {
+            match query_with_athena(&athena_client, &table_bucket_arn).await {
+                Ok(_) => info!("Query executed successfully"),
+                Err(e) => error!("Error executing query: {}", e),
+            }
+        },
+        Commands::DeleteNamespace => {
+            // delete_table(&client, table_bucket_arn).await?;
+            // delete_namespace(&client, table_bucket_arn).await?;
+            println!("Namespace not deleted");
+        },
+        Commands::DeleteTable => {
+            // delete_table_bucket(&client, table_bucket_arn).await?;
+            println!("Table bucket not deleted");
+        },
+        Commands::DeleteTableBucket => {
+            // delete_table_bucket(&client, table_bucket_arn).await?;
+            println!("Table bucket not deleted");
+        },
+        Commands::Llm { query_text } => {
+            match query_with_llm(&athena_client, &table_bucket_arn, query_text).await {
+                Ok(_) => info!("Query executed successfully"),
+                Err(e) => error!("Error executing query: {}", e),
+            }
+        },
     }
-    
+
 }

@@ -1,271 +1,23 @@
-#[allow(dead_code)]
-pub mod generate_data;
-pub mod compatible;
-use log::{info, warn, error};
-use generate_data::generate_random_data;
-use tokio::time::{sleep, Duration};
-use aws_sdk_s3tables as s3tables;
-use aws_sdk_s3tables::Client;
-use aws_sdk_athena as athena;
-use aws_sdk_athena::Client as AthenaClient;
-use aws_sdk_athena::types::QueryExecutionState;
-use aws_sdk_s3tables::types::{
-    OpenTableFormat, TableMetadata, IcebergMetadata, 
-    SchemaField, IcebergSchema,
+use aws_sdk_s3tables::Error;
+use aws_sdk_athena::{
+    Client as AthenaClient, Error as AthenaError,
 };
-use compatible::chat::ChatCompatible;
-use env_logger::Env;
-use clap::{Parser, Subcommand};
+use aws_sdk_athena::types::{
+    QueryExecutionState, ResultConfiguration,
+};
+use crate::compatible::chat::ChatCompatible;
+use tokio::time::{sleep, Duration};
+use log::{error, warn, info};
+use crate::generate_data::generate_random_data;
 
 const MAX_BYTES: usize = 262144; // 256KB
-
-// Define CLI arguments using clap
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-struct Cli {
-    /// The ARN of the S3 table bucket
-    #[arg(short = 'a', long)]
-    table_bucket_arn: String,
-
-    /// The name of table bucket
-    #[arg(short, long)]
-    table_name: String,
-
-    /// The name of namespace
-    #[arg(short, long)]
-    namespace: String,
-
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Create namespace and table
-    Create,
-    
-    /// Insert data into the table
-    Insert,
-    
-    /// Query data from the table
-    Query,
-    
-    /// Delete table and namespace
-    Delete,
-    
-    /// Delete table bucket
-    DeleteTable,
-    
-    /// Query with LLM
-    Llm {
-        /// Query text to pass to LLM
-        query_text: String,
-    },
-}
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CREATE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-pub async fn create_namespace(
-    client: &Client, 
-    table_bucket_arn: &str,
-    name_space: &str,
-) -> Result<(), s3tables::Error> {
-    let _response = client.create_namespace()
-                .table_bucket_arn(table_bucket_arn)
-                .namespace(name_space)
-                .send().await?;
-
-    info!("Namespace created: {}", name_space);
-    
-    Ok(())
-}
-
-pub async fn list_namespaces(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
-
-    let namespaces = client.list_namespaces()
-                .table_bucket_arn(table_bucket_arn)
-                .send().await?;
-
-    for namespace in namespaces.namespaces() {
-        println!("Namespace: {:?}", namespace.namespace);
-        println!("Created at: {:?}", namespace.created_at);
-        println!("--------------------------");
-    }
-
-    Ok(())
-}
-
-pub async fn create_table(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
-
-    let table_name = "flight_data";
-    let name_space = "flight";
-
-    let fields = Some(vec![
-        SchemaField::builder()
-            .name("year")
-            .r#type("int")
-            .required(true)
-            .build()?,
-        SchemaField::builder()
-            .name("month")
-            .r#type("int")
-            .required(true)
-            .build()?,
-        SchemaField::builder()
-            .name("day_of_month")
-            .r#type("int")
-            .required(true)
-            .build()?,
-        SchemaField::builder()
-            .name("day_of_week")
-            .r#type("int")
-            .build()?,
-        SchemaField::builder()
-            .name("deptime")
-            .r#type("float")
-            .build()?,
-        SchemaField::builder()
-            .name("crs_deptime")
-            .r#type("int")
-            .build()?,
-        SchemaField::builder()
-            .name("arr_time")
-            .r#type("float")
-            .build()?,
-        SchemaField::builder()
-            .name("crs_arr_time")
-            .r#type("int")
-            .build()?,
-        SchemaField::builder()
-            .name("unique_carrier")
-            .r#type("string")
-            .build()?,
-        SchemaField::builder()
-            .name("flight_num")
-            .r#type("int")
-            .build()?,
-        SchemaField::builder()
-            .name("taxi_in")
-            .r#type("float")
-            .build()?,
-        SchemaField::builder()
-            .name("taxi_out")
-            .r#type("float")
-            .build()?,
-        SchemaField::builder()
-            .name("cancelled")
-            .r#type("boolean")
-            .build()?,
-        SchemaField::builder()
-            .name("cancellation_code")
-            .r#type("string")
-            .build()?,
-        SchemaField::builder()
-            .name("diverted")
-            .r#type("boolean")
-            .build()?,
-        SchemaField::builder()
-            .name("carrier_delay")
-            .r#type("float")
-            .build()?,
-        SchemaField::builder()
-            .name("weather_delay")
-            .r#type("float")
-            .build()?,
-        SchemaField::builder()
-            .name("nas_delay")
-            .r#type("float")
-            .build()?,
-        SchemaField::builder()
-            .name("security_delay")
-            .r#type("float")
-            .build()?,
-        SchemaField::builder()
-            .name("flight_date")
-            .r#type("timestamp")
-            .build()?,
-    ]);
-
-    let iceberg_schema = IcebergSchema::builder()
-        .set_fields(fields)
-        .build()?;
-
-    let iceberg_metadata = IcebergMetadata::builder()
-        .schema(iceberg_schema)
-        .build();
-
-    let table_metadata = TableMetadata::Iceberg(iceberg_metadata);
-    
-    let table = client.create_table()
-                .table_bucket_arn(table_bucket_arn)
-                .namespace(name_space)
-                .name(table_name)
-                .format(OpenTableFormat::Iceberg)
-                .metadata(table_metadata)
-                .send().await?;
-
-    let get_table = client.get_table()
-        .table_bucket_arn(table_bucket_arn)
-        .namespace(name_space)
-        .name(table_name)
-        .send().await?;
-
-    println!("Table created at: {}", get_table.created_at());
-    println!("Table created by: {}", get_table.created_by());
-    println!("Table format: {}", get_table.format());
-
-    Ok(())
-}
-
-pub async fn list_tables(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
-
-    let name_space = "flight";
-
-    let tables = client.list_tables()
-                .table_bucket_arn(table_bucket_arn)
-                .namespace(name_space)
-                .send().await?;
-
-    for table in tables.tables() {
-        println!("Table: {:?}", table.name);
-        println!("Created at: {:?}", table.created_at);
-        println!("Table modified at {}", table.modified_at());
-        println!("--------------------------");
-    }
-
-    Ok(())
-}
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CHECK ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-pub async fn check_table(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
-
-    let table_name = "flight_data";
-    let name_space = "flight";
-
-    let table = client.get_table()
-                .table_bucket_arn(table_bucket_arn)
-                .namespace(name_space)
-                .name(table_name)
-                .send().await?;
-
-    println!("Table created at: {}", table.created_at());
-    println!("Table modified at {}", table.modified_at());
-    println!("Table created by: {}", table.created_by());
-    println!("Table format: {}", table.format());
-
-    Ok(())
-}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INSERT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub async fn insert_with_athena(
     client: &AthenaClient, 
     table_bucket_arn: &str
-) -> Result<(), athena::Error> {
-    let config = aws_config::load_from_env().await;
-    let client = athena::Client::new(&config);
-
+) -> Result<(), AthenaError> {
     let mut table_bucket = "no_table";
     let name_space = "flight";
     let table_name = "flight_data";
@@ -296,7 +48,7 @@ pub async fn insert_with_athena(
         .query_string(query)
         // Add output location configuration
         .result_configuration(
-            athena::types::ResultConfiguration::builder()
+            ResultConfiguration::builder()
                 .output_location("s3://data-lake-bucket-raw-49583/")
                 .build()
         )
@@ -320,7 +72,7 @@ pub async fn insert_with_athena(
                 if let Some(state) = status.state {
                     match state {
                         QueryExecutionState::Succeeded => {
-                            if let Some(query) = query_execution.query {
+                            if let Some(_query) = query_execution.query {
                                 info!("Query execution succeeded.");
                                 // println!("The SQL query is: {}", query);
                             } else {
@@ -356,7 +108,7 @@ pub async fn insert_with_athena(
 pub async fn insert_with_athena_handler(
     client: &AthenaClient, 
     table_bucket_arn: &str
-) -> Result<(), s3tables::Error> {
+) -> Result<(), Error> {
 
     match insert_with_athena(client, table_bucket_arn).await {
         Ok(_) => (),
@@ -366,17 +118,14 @@ pub async fn insert_with_athena_handler(
     Ok(())
 }
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ QUERY ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ QUERY ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub async fn query_handler(
     client: &AthenaClient,
     table_bucket_arn: &str,
     query_fparam: &str,
     query_lparam: &str,
-) -> Result<Vec<Vec<String>>, athena::Error> {
-    let config = aws_config::load_from_env().await;
-    let client = athena::Client::new(&config);
-
+) -> Result<Vec<Vec<String>>, AthenaError> {
     let name_space = "flight";
     let table_name = "flight_data";
     let mut table_bucket = "no_table";
@@ -398,7 +147,7 @@ pub async fn query_handler(
         .query_string(query)
         // Add output location configuration
         .result_configuration(
-            athena::types::ResultConfiguration::builder()
+            ResultConfiguration::builder()
                 .output_location("s3://data-lake-bucket-raw-49583/")
                 .build()
         )
@@ -422,7 +171,7 @@ pub async fn query_handler(
                 if let Some(state) = status.state {
                     match state {
                         QueryExecutionState::Succeeded => {
-                            if let Some(query) = query_execution.query {
+                            if let Some(_query) = query_execution.query {
                                 info!("Query execution succeeded.");
                                 info!("File csv: {}", query_execution.result_configuration.unwrap().output_location.unwrap());
                             } else {
@@ -482,7 +231,7 @@ pub async fn query_handler(
 pub async fn query_with_athena(
     client: &AthenaClient,
     table_bucket_arn: &str,
-) -> Result<(), s3tables::Error> {
+) -> Result<(), Error> {
 
     let query_fparam = "SELECT CASE \
             WHEN unique_carrier = 'UA' THEN 'United Airlines' \
@@ -561,7 +310,7 @@ pub async fn query_with_llm(
     client: &AthenaClient,
     table_bucket_arn: &str,
     query_text: &str,
-) -> Result<(), s3tables::Error> {
+) -> Result<(), Error> {
 
     let base_url = "https://api.x.ai/v1/chat/completions";
     let model = "grok-2-latest";
@@ -681,93 +430,6 @@ pub async fn query_with_llm(
             error!("Error: {}", e);
         }
     } 
-
-    Ok(())
-}
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-pub async fn delete_table(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
-
-    let table_name = "flight_data";
-    let name_space = "flight";
-
-    let table = client.delete_table()
-                .table_bucket_arn(table_bucket_arn)
-                .namespace(name_space)
-                .name(table_name)
-                .send().await?;
-
-    info!("Table deleted: {}", table_name);
-
-    Ok(())
-}
-
-pub async fn delete_namespace(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
-
-    let name_space = "flight";
-    let namespace = client.delete_namespace()
-                .table_bucket_arn(table_bucket_arn)
-                .namespace(name_space)
-                .send().await?;
-
-    info!("Namespace deleted: {}", name_space);
-
-    Ok(())
-}
-
-#[allow(dead_code)]
-pub async fn delete_table_bucket(client: &Client, table_bucket_arn: &str) -> Result<(), s3tables::Error> {
-
-    let table = client.delete_table_bucket()
-                .table_bucket_arn(table_bucket_arn)
-                .send().await?;
-
-    info!("Table bucket deleted: {}", table_bucket_arn);
-
-    Ok(())
-}
-
-#[::tokio::main]
-async fn main() -> Result<(), s3tables::Error> {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    
-    // Parse command line arguments using clap
-    let cli = Cli::parse();
-    
-    let config = aws_config::load_from_env().await;
-    let client = Client::new(&config);
-    let athena_client = AthenaClient::new(&config);
-    let table_bucket_arn = &cli.table_bucket_arn;
-    let table_name = &cli.table_name;
-    let namespace = &cli.namespace;
-
-    // Handle commands using match
-    match &cli.command {
-        Commands::Create => {
-            create_namespace(&client, table_bucket_arn, namespace).await?;
-            list_namespaces(&client, table_bucket_arn).await?;
-            create_table(&client, table_bucket_arn).await?;
-            list_tables(&client, table_bucket_arn).await?;
-            check_table(&client, table_bucket_arn).await?;
-        },
-        Commands::Insert => {
-            insert_with_athena_handler(&athena_client, table_bucket_arn).await?;
-        },
-        Commands::Query => {
-            query_with_athena(&athena_client, table_bucket_arn).await?;
-        },
-        Commands::Delete => {
-            delete_table(&client, table_bucket_arn).await?;
-            delete_namespace(&client, table_bucket_arn).await?;
-        },
-        Commands::DeleteTable => {
-            delete_table_bucket(&client, table_bucket_arn).await?;
-        },
-        Commands::Llm { query_text } => {
-            query_with_llm(&athena_client, table_bucket_arn, query_text).await?;
-        },
-    }
 
     Ok(())
 }

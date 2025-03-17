@@ -1,5 +1,5 @@
 table_name: flight_data
-namespace: flight
+namespace: flight_two
 fields:
   - name: year
     type: int

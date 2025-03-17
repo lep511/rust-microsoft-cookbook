@@ -150,6 +150,8 @@ pub async fn create_table(client: &Client, table_bucket_arn: &str) -> Result<(),
         .build();
 
     let table_metadata = TableMetadata::Iceberg(iceberg_metadata);
+
+    println!("metadata: {:?}", table_metadata);
     
     let table = client.create_table()
                 .table_bucket_arn(table_bucket_arn)
@@ -716,7 +718,7 @@ async fn main() -> Result<(), s3tables::Error> {
         } else if option == "help" {
             info!("Options: create, insert, query, delete, delete-table llm");
         } else {
-            info!("Option not found, options: create, insert, query, delete, delete-table");
+            info!("Option {} not found, options: create, insert, query, delete, delete-table", option);
         }
     }
     Ok(())

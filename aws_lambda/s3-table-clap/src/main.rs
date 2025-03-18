@@ -7,13 +7,12 @@ use env_logger::Env;
 use std::io::{self, Write};
 use std::env;
 
-pub mod generate_data;
 pub mod compatible;
 pub mod table_manager;
 use table_manager::create_table_from_yaml;
 pub mod athena;
 use athena::{
-    insert_with_athena_handler, query_with_athena, 
+    insert_with_athena, query_with_athena, 
     query_with_llm, 
 };
 pub mod utils;
@@ -41,7 +40,12 @@ enum Commands {
     Create,
     
     /// Insert data into the table
-    Insert,
+    Insert {
+        /// Namespace of the table
+        namespace: String,
+        /// Table simple name
+        table_name: String,
+    },
 
     /// List tables in the namespace
     ListTables {
@@ -128,8 +132,16 @@ async fn main() {
                 Err(e) => error!("Error creating table: {}\n", e),
             }
         },
-        Commands::Insert => {
-            match insert_with_athena_handler(&athena_client, &table_bucket_arn).await {
+        Commands::Insert { namespace, table_name } => {
+            match insert_with_athena(
+                &athena_client, 
+                &table_bucket_arn,
+                namespace,
+                table_name,
+                "dataset.csv",
+                b',',
+                true,
+            ).await {
                 Ok(_) => info!("Data inserted successfully\n"),
                 Err(e) => error!("Error inserting data: {}\n", e),
             }

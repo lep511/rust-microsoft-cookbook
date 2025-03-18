@@ -2,13 +2,14 @@ use aws_sdk_s3tables::Error;
 use aws_sdk_athena::{
     Client as AthenaClient, Error as AthenaError,
 };
+use aws_sdk_athena::types::error::InternalServerException;
 use aws_sdk_athena::types::{
     QueryExecutionState, ResultConfiguration,
 };
 use crate::compatible::chat::ChatCompatible;
+use crate::utils::read_csv_file;
 use tokio::time::{sleep, Duration};
 use log::{error, warn, info};
-use crate::generate_data::generate_random_data;
 
 const MAX_BYTES: usize = 262144; // 256KB
 
@@ -16,20 +17,34 @@ const MAX_BYTES: usize = 262144; // 256KB
 
 pub async fn insert_with_athena(
     client: &AthenaClient, 
-    table_bucket_arn: &str
+    table_bucket_arn: &str,
+    namespace: &str,
+    table_name: &str,
+    csv_file_path: &str,
+    delimiter: u8,
+    has_headers: bool,
 ) -> Result<(), AthenaError> {
     let mut table_bucket = "no_table";
-    let name_space = "flights";
-    let table_name = "flight_data";
     
-    // ################## Generate Data #########################
-    let values_gen = generate_random_data(500);
-    // ##########################################################
-    
-    let values = values_gen.join("\n");
-    if values.len() > MAX_BYTES {
-        panic!("Query exceeds maximum allowed size 256 kb");
-    }
+    let query_values: String = match generate_insert_query(
+        csv_file_path,
+        delimiter,
+        has_headers,
+    ) {
+        Ok(values) => values,
+        Err(err) => {
+            error!("Error generating insert query: {}", err);
+            return Err(AthenaError::InternalServerException(
+                InternalServerException::builder()
+                    .message("Error generating insert query")
+                    .build(),
+            )); 
+        }
+    };
+
+    // if values.len() > MAX_BYTES {
+    //     panic!("Query exceeds maximum allowed size 256 kb");
+    // }
 
     if let Some(table) = table_bucket_arn.split('/').last() {
         table_bucket = table;
@@ -38,9 +53,9 @@ pub async fn insert_with_athena(
     let query = format!("INSERT INTO \"s3tablescatalog/{}\".\"{}\".\"{}\" \n \
         {};",
         table_bucket,
-        name_space,
+        namespace,
         table_name,
-        values,
+        query_values,
     );
 
     let result = client.start_query_execution()
@@ -104,17 +119,86 @@ pub async fn insert_with_athena(
     Ok(())
 }
 
-pub async fn insert_with_athena_handler(
-    client: &AthenaClient, 
-    table_bucket_arn: &str
-) -> Result<(), Error> {
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GENERATE INSERT QUERY ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    match insert_with_athena(client, table_bucket_arn).await {
-        Ok(_) => (),
-        Err(e) => error!("Error: {}", e),
+pub fn generate_insert_query(
+    csv_file_path: &str,
+    delimiter: u8,
+    has_headers: bool,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let mut rdr = read_csv_file(
+        csv_file_path, 
+        delimiter, 
+        has_headers,
+    )?;
+
+    let mut query = String::new();
+
+    // Track if we've processed at least one row
+    let mut first_row = true;
+
+    let mut n = 0;
+    for result in rdr.records() {
+        let record = result?;
+
+        // If this isn't the first row, add a UNION ALL
+        if !first_row {
+            query.push_str("\nUNION ALL\n");
+        } else {
+            first_row = false;
+        }
+
+        query.push_str("SELECT ");
+
+        for (i, field) in record.iter().enumerate() {
+            // Add a comma if this isn't the first field
+            if i > 0 {
+                query.push_str(", ");
+            }
+
+            // Format the field based on its content
+            if field.is_empty() {
+                // Empty fields become NULL
+                query.push_str("NULL");
+            } else if field == "NULL" {
+                // Explicit NULL values
+                query.push_str("NULL");
+            } else if field.parse::<i64>().is_ok() {
+                // Integer values (no quotes)
+                query.push_str(field);
+            } else if field.parse::<f64>().is_ok() {
+                // Float values (no quotes)
+                query.push_str(field);
+            } else if field.to_lowercase() == "true" || field.to_lowercase() == "false" {
+                // Boolean values (no quotes, lowercase)
+                query.push_str(&field.to_lowercase());
+            } else if field.to_lowercase() == "yes" {
+                // "yes" becomes true
+                query.push_str("true");
+            } else if field.to_lowercase() == "no" {
+                // "no" becomes false
+                query.push_str("false");
+            } else if field.starts_with("TIMESTAMP ") {
+                // Already formatted timestamp values
+                query.push_str(field);
+            } else if field.contains("-") && field.contains(":") && field.len() >= 16 {
+                // Likely a timestamp that needs formatting
+                let field_fmt = format!("TIMESTAMP '{}'", field);
+                query.push_str(&field_fmt);
+            } else {
+                // String values (quoted)
+                let field_fmt = field.replace("'", "''");
+                let field_fmt = format!("'{}'", field_fmt);
+                query.push_str(&field_fmt);
+            }
+        }
+        if n == 30 {
+            break;
+        }
+        n += 1;
     }
-
-    Ok(())
+    
+    Ok(query)
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ QUERY ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -125,7 +209,7 @@ pub async fn query_handler(
     query_fparam: &str,
     query_lparam: &str,
 ) -> Result<Vec<Vec<String>>, AthenaError> {
-    let name_space = "flights";
+    let namespace = "flights";
     let table_name = "flight_data";
     let mut table_bucket = "no_table";
     let mut query_success = false;
@@ -137,7 +221,7 @@ pub async fn query_handler(
     let query = format!("{} FROM \"s3tablescatalog/{}\".\"{}\".\"{}\" {};",
         query_fparam,
         table_bucket,
-        name_space,
+        namespace,
         table_name,
         query_lparam,
     );

@@ -4,7 +4,26 @@ use aws_sdk_s3tables::operation::get_table::GetTableOutput;
 use aws_sdk_s3tables::operation::get_table_bucket::GetTableBucketOutput;
 use aws_sdk_s3tables::operation::list_namespaces::ListNamespacesOutput;
 use aws_sdk_s3tables::operation::list_tables::ListTablesOutput;
+use csv::{ReaderBuilder, Reader};
+use std::fs::File;
 use log::{error, info};
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ READ CSV FILE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub fn read_csv_file(
+    csv_file_path: &str,
+    delimiter: u8,
+    has_headers: bool,
+) -> Result<Reader<File>, Box<dyn std::error::Error>> {
+    let file = File::open(csv_file_path)?;
+
+    let mut reader = ReaderBuilder::new()
+        .delimiter(delimiter)
+        .has_headers(has_headers) 
+        .from_reader(file);
+
+    Ok(reader)
+}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CREATE NAMESPACE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

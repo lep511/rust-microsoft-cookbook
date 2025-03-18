@@ -1,0 +1,46 @@
+table_name: flight_data
+namespace: flights
+fields:
+  - name: year
+    type: int
+    required: true
+  - name: month
+    type: int
+    required: true
+  - name: day_of_month
+    type: int
+    required: true
+  - name: day_of_week
+    type: int
+  - name: deptime
+    type: float
+  - name: crs_deptime
+    type: int
+  - name: arr_time
+    type: float
+  - name: crs_arr_time
+    type: int
+  - name: unique_carrier
+    type: string
+  - name: flight_num
+    type: int
+  - name: taxi_in
+    type: float
+  - name: taxi_out
+    type: float
+  - name: cancelled
+    type: boolean
+  - name: cancellation_code
+    type: string
+  - name: diverted
+    type: boolean
+  - name: carrier_delay
+    type: float
+  - name: weather_delay
+    type: float
+  - name: nas_delay
+    type: float
+  - name: security_delay
+    type: float
+  - name: flight_date
+    type: timestamp

@@ -1,46 +1,47 @@
-table_name: flight_data
-namespace: flights
+table_name: restaurant_data
+namespace: restaurants
 fields:
-  - name: year
+  - name: restaurant_id
     type: int
     required: true
-  - name: month
-    type: int
-    required: true
-  - name: day_of_month
-    type: int
-    required: true
-  - name: day_of_week
-    type: int
-  - name: deptime
-    type: float
-  - name: crs_deptime
-    type: int
-  - name: arr_time
-    type: float
-  - name: crs_arr_time
-    type: int
-  - name: unique_carrier
+  - name: restaurant_name
     type: string
-  - name: flight_num
+    required: true
+  - name: country_code
     type: int
-  - name: taxi_in
-    type: float
-  - name: taxi_out
-    type: float
-  - name: cancelled
-    type: boolean
-  - name: cancellation_code
+  - name: city
     type: string
-  - name: diverted
+  - name: address
+    type: string
+  - name: locality
+    type: string
+  - name: locality_verbose
+    type: string
+  - name: longitude
+    type: float
+  - name: latitude
+    type: float
+  - name: cuisines
+    type: string
+  - name: average_cost_for_two
+    type: int
+  - name: currency
+    type: string
+  - name: has_table_booking
     type: boolean
-  - name: carrier_delay
+  - name: has_online_delivery
+    type: boolean
+  - name: is_delivering_now
+    type: boolean
+  - name: switch_to_order_menu
+    type: boolean
+  - name: price_range
+    type: int
+  - name: aggregate_rating
     type: float
-  - name: weather_delay
-    type: float
-  - name: nas_delay
-    type: float
-  - name: security_delay
-    type: float
-  - name: flight_date
-    type: timestamp
+  - name: rating_color
+    type: string
+  - name: rating_text
+    type: string
+  - name: votes
+    type: int

@@ -2,6 +2,22 @@ use chrono::{Utc, TimeZone};
 use rand::Rng;
 use rand::rng;
 
+pub fn process_data(csv_data: Vec<String>) -> Vec<String> {
+    let mut rng = rng();
+    let mut processed_data = Vec::new();
+
+    for line in csv_data {
+        
+
+        // Join the parts back into a CSV line
+        let processed_line = parts.join(",");
+        processed_data.push(processed_line);
+    }
+
+    processed_data
+
+}
+
 #[allow(dead_code)]
 pub fn generate_random_data(n_count: i32) -> Vec<String> {
     let mut rng = rng();

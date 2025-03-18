@@ -7,7 +7,6 @@ use std::env;
 
 pub mod generate_data;
 pub mod compatible;
-pub mod utils;
 pub mod table_manager;
 use table_manager::create_table_from_yaml;
 pub mod athena;
@@ -15,11 +14,18 @@ use athena::{
     insert_with_athena_handler, query_with_athena, 
     query_with_llm, 
 };
+pub mod utils;
+use utils::{
+    delete_table, delete_namespace, delete_table_bucket,
+    get_table, 
+};
+
 // Define CLI arguments using clap
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {   
     /// Path to the YAML template file that defines the table structure
+    /// Default path: templates/table_template.yaml
     #[arg(short, long)]
     template_path: Option<String>,
 
@@ -39,10 +45,18 @@ enum Commands {
     Query,
 
     /// Delete simple table
-    DeleteTable,
+    DeleteTable {
+        /// Namespace of the table
+        namespace: String,
+        /// Table simple name
+        table_name: String,
+    },
     
     /// Delete namespace
-    DeleteNamespace,
+    DeleteNamespace {
+        /// Namespace to delete
+        namespace: String,
+    },
     
     /// Delete table bucket S3
     DeleteTableBucket,
@@ -74,7 +88,10 @@ async fn main() {
 
     let template_path = match &cli.template_path {
         Some(path) => path,
-        None => "templates/table_template.yaml",
+        None => {
+            info!("No template path provided, using default");
+            "templates/table_template.yaml"
+        }
     };
     
     // Handle commands using match
@@ -103,18 +120,41 @@ async fn main() {
                 Err(e) => error!("Error executing query: {}", e),
             }
         },
-        Commands::DeleteNamespace => {
-            // delete_table(&client, table_bucket_arn).await?;
-            // delete_namespace(&client, table_bucket_arn).await?;
-            println!("Namespace not deleted");
+        Commands::DeleteTable { namespace, table_name } => {
+            match get_table(
+                &client,
+                &table_bucket_arn,
+                &namespace,
+                &table_name,
+            ).await {
+                Ok(_) => (),
+                Err(e) => {
+                    error!("Error getting table: {}", e);
+                    return;
+                }
+            }
+
+            match delete_table(
+                &client, 
+                &table_bucket_arn,
+                &namespace,
+                &table_name,
+            ).await {
+                Ok(_) => info!("Table deleted successfully"),
+                Err(e) => error!("Error deleting table: {}", e),
+            }
         },
-        Commands::DeleteTable => {
-            // delete_table_bucket(&client, table_bucket_arn).await?;
-            println!("Table bucket not deleted");
+        Commands::DeleteNamespace { namespace } => {
+            match delete_namespace(&client, &table_bucket_arn, &namespace).await {
+                Ok(_) => info!("Namespace deleted successfully"),
+                Err(e) => error!("Error deleting namespace: {}", e),
+            }
         },
         Commands::DeleteTableBucket => {
-            // delete_table_bucket(&client, table_bucket_arn).await?;
-            println!("Table bucket not deleted");
+            match delete_table_bucket(&client, &table_bucket_arn).await {
+                Ok(_) => info!("Table bucket deleted successfully"),
+                Err(e) => error!("Error deleting table bucket: {}", e),
+            }
         },
         Commands::Llm { query_text } => {
             match query_with_llm(&athena_client, &table_bucket_arn, query_text).await {

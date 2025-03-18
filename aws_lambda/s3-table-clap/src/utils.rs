@@ -1,5 +1,6 @@
 use aws_sdk_s3tables::{Client, Error};
 use aws_sdk_s3tables::operation::get_namespace::GetNamespaceOutput;
+use aws_sdk_s3tables::operation::get_table::GetTableOutput;
 use log::{error, info};
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CREATE NAMESPACE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -25,6 +26,23 @@ pub async fn create_namespace(
     Ok(())
 }
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GET TABLE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub async fn get_table(
+    client: &Client, 
+    table_bucket_arn: &str,
+    namespace: &str,
+    table_name: &str,
+) -> Result<GetTableOutput, Error> {
+    let table = client.get_table()
+                .table_bucket_arn(table_bucket_arn)
+                .namespace(namespace)
+                .name(table_name)
+                .send().await?;
+
+    Ok(table)
+}
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GET NAMESPACE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub async fn get_namespace(
@@ -44,27 +62,6 @@ pub async fn get_namespace(
                 };
 
     Ok(response)
-}
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CHECK TABLE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-pub async fn check_table(
-    client: &Client, 
-    table_bucket_arn: &str,
-    namespace: &str,
-    table_name: &str,
-) -> Result<(), Error> {
-    let table = client.get_table()
-                .table_bucket_arn(table_bucket_arn)
-                .namespace(namespace)
-                .name(table_name)
-                .send().await?;
-
-    println!("Table created at: {}", table.created_at());
-    println!("Table modified at {}", table.modified_at());
-    println!("Table format: {}", table.format());
-
-    Ok(())
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ LIST NAMESPACE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -108,23 +105,6 @@ pub async fn list_tables(
     Ok(())
 }
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DELETE NAMESPACE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-pub async fn delete_namespace(
-    client: &Client, 
-    table_bucket_arn: &str,
-    namespace: &str,
-) -> Result<(), Error> {
-    let _response = client.delete_namespace()
-                .table_bucket_arn(table_bucket_arn)
-                .namespace(namespace)
-                .send().await?;
-
-    info!("Namespace deleted: {}", namespace);
-
-    Ok(())
-}
-
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DELETE TABLE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub async fn delete_table(
@@ -140,6 +120,23 @@ pub async fn delete_table(
                 .send().await?;
 
     info!("Table deleted: {}", table_name);
+
+    Ok(())
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DELETE NAMESPACE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub async fn delete_namespace(
+    client: &Client, 
+    table_bucket_arn: &str,
+    namespace: &str,
+) -> Result<(), Error> {
+    let _response = client.delete_namespace()
+                .table_bucket_arn(table_bucket_arn)
+                .namespace(namespace)
+                .send().await?;
+
+    info!("Namespace deleted: {}", namespace);
 
     Ok(())
 }

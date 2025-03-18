@@ -2,6 +2,8 @@ use aws_sdk_s3tables::{Client, Error};
 use aws_sdk_s3tables::operation::get_namespace::GetNamespaceOutput;
 use aws_sdk_s3tables::operation::get_table::GetTableOutput;
 use aws_sdk_s3tables::operation::get_table_bucket::GetTableBucketOutput;
+use aws_sdk_s3tables::operation::list_namespaces::ListNamespacesOutput;
+use aws_sdk_s3tables::operation::list_tables::ListTablesOutput;
 use log::{error, info};
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CREATE NAMESPACE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -82,18 +84,12 @@ pub async fn get_table_bucket(
 pub async fn list_namespaces(
     client: &Client, 
     table_bucket_arn: &str
-) -> Result<(), Error> {
+) -> Result<ListNamespacesOutput, Error> {
     let namespaces = client.list_namespaces()
                 .table_bucket_arn(table_bucket_arn)
                 .send().await?;
 
-    for namespace in namespaces.namespaces() {
-        println!("Namespace: {:?}", namespace.namespace);
-        println!("Created at: {:?}", namespace.created_at);
-        println!("--------------------------");
-    }
-
-    Ok(())
+    Ok(namespaces)
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ LIST TABLES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -102,20 +98,13 @@ pub async fn list_tables(
     client: &Client, 
     table_bucket_arn: &str,
     namespace: &str,
-) -> Result<(), Error> {
+) -> Result<ListTablesOutput, Error> {
     let tables = client.list_tables()
                 .table_bucket_arn(table_bucket_arn)
                 .namespace(namespace)
                 .send().await?;
 
-    for table in tables.tables() {
-        println!("Table: {:?}", table.name);
-        println!("Created at: {:?}", table.created_at);
-        println!("Table modified at {}", table.modified_at());
-        println!("--------------------------");
-    }
-
-    Ok(())
+    Ok(tables)
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DELETE TABLE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

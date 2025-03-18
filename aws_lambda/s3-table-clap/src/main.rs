@@ -135,15 +135,66 @@ async fn main() {
             }
         },
         Commands::ListTables { namespace } => {
-            match list_tables(&client, &table_bucket_arn, namespace).await {
-                Ok(_) => (),
-                Err(e) => error!("Error listing tables: {}\n", e),
+            let tables = match list_tables(
+                &client, 
+                &table_bucket_arn,
+                namespace
+            ).await {
+                Ok(tables) => tables,
+                Err(e) => {
+                    error!("Error listing tables: {}\n", e);
+                    return;
+                }
+            };
+
+            for table in tables.tables() {
+                println!("Table: {:?}", table.name);
+                println!("Created at: {:?}", table.created_at);
+                println!("Table modified at {}", table.modified_at());
+                println!("--------------------------");
             }
         },
         Commands::List => {
-            match list_namespaces(&client, &table_bucket_arn).await {
-                Ok(_) => (),
-                Err(e) => error!("Error listing namespaces: {}\n", e),
+            let namespaces = match list_namespaces(
+                &client, 
+                &table_bucket_arn
+            ).await {
+                Ok(namespaces) => namespaces,
+                Err(e) => {
+                    error!("Error listing namespaces: {}\n", e);
+                    return;
+                }
+            };
+
+            // Check if there are no namespaces
+            if namespaces.namespaces().is_empty() {
+                println!("No namespaces found");
+                return;
+            }
+
+            for namespace in namespaces.namespaces() {
+                let namespace_str = &namespace.namespace()[0];
+                println!("Namespace: {:?}\n", namespace_str);
+
+                let tables = match list_tables(
+                    &client,
+                    &table_bucket_arn,
+                    namespace_str,
+                ).await {
+                    Ok(tables) => tables,
+                    Err(e) => {
+                        error!("Error listing tables: {}\n", e);
+                        continue;
+                    }
+                };
+
+                for table in tables.tables() {
+                    println!("Table: {:?}", table.name);
+                    println!("Created at: {:?}", table.created_at);
+                    println!("Table modified at {}", table.modified_at());
+                }
+
+                println!("--------------------------");
             }
         },
         Commands::Query => {

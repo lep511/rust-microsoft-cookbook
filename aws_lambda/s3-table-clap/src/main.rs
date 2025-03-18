@@ -1,8 +1,10 @@
 use log::{info, error};
 use aws_sdk_s3tables::Client;
 use aws_sdk_athena::Client as AthenaClient;
-use env_logger::Env;
 use clap::{Parser, Subcommand};
+use colored::Colorize;
+use env_logger::Env;
+use std::io::{self, Write};
 use std::env;
 
 pub mod generate_data;
@@ -25,7 +27,7 @@ use utils::{
 #[command(author, version, about, long_about = None)]
 struct Cli {   
     /// Path to the YAML template file that defines the table structure
-    /// Default path: templates/table_template.yaml
+    /// - default path: templates/table_template.yaml
     #[arg(short, long)]
     template_path: Option<String>,
 
@@ -121,6 +123,7 @@ async fn main() {
             }
         },
         Commands::DeleteTable { namespace, table_name } => {
+            // Check if table exist
             match get_table(
                 &client,
                 &table_bucket_arn,
@@ -133,16 +136,35 @@ async fn main() {
                     return;
                 }
             }
+            println!("You are about to delete table: {}", table_name.green().bold());
+            println!("{} This action cannot be undone!", "WARNING:".red().bold());
+            println!("{}", "To confirm deletion, please re-enter the table name:".bold());
 
-            match delete_table(
-                &client, 
-                &table_bucket_arn,
-                &namespace,
-                &table_name,
-            ).await {
-                Ok(_) => info!("Table deleted successfully"),
-                Err(e) => error!("Error deleting table: {}", e),
+            // Get confirmation from user
+            print!("> ");
+            io::stdout().flush().unwrap();
+
+            let mut input = String::new();
+            io::stdin().read_line(&mut input).unwrap();
+            let input = input.trim();
+            
+            if input == table_name {
+                // Delete table
+                match delete_table(
+                    &client, 
+                    &table_bucket_arn,
+                    &namespace,
+                    &table_name,
+                ).await {
+                    Ok(_) => info!("Table {} deleted successfully", table_name),
+                    Err(e) => error!("Error deleting table: {}", e),
+                }
+            } else {
+                println!("Table names don't match. {}", "Deletion canceled.".bold());
+                return;
             }
+
+
         },
         Commands::DeleteNamespace { namespace } => {
             match delete_namespace(&client, &table_bucket_arn, &namespace).await {

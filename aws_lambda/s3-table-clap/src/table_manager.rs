@@ -131,7 +131,6 @@ pub async fn create_s3_table(
         .send().await?;
 
     info!("Table created at: {}", get_table.created_at());
-    info!("Table created by: {}", get_table.created_by());
     info!("Table format: {}", get_table.format());
 
     Ok(())

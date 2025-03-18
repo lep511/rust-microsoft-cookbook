@@ -83,7 +83,6 @@ pub async fn insert_with_athena(
                         QueryExecutionState::Failed | QueryExecutionState::Cancelled => {
                             if let Some(query) = query_execution.query {
                                 error!("Query execution failed or was cancelled.");
-                                info!("The SQL query is: {}", query);
                             } else {
                                 error!("Query not found in execution details.");
                             }

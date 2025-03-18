@@ -56,7 +56,6 @@ pub async fn get_namespace(
                 .send().await {
                     Ok(namespace) => namespace,
                     Err(e) => {
-                        error!("Error getting namespace: {}", e);
                         return Err(e.into());
                     }
                 };

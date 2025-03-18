@@ -23,10 +23,10 @@ pub async fn insert_with_athena(
     let table_name = "flight_data";
     
     // ################## Generate Data #########################
-    let values_gen = generate_random_data(10);
+    let values_gen = generate_random_data(500);
     // ##########################################################
     
-    let values = values_gen.join(",");
+    let values = values_gen.join("\n");
     if values.len() > MAX_BYTES {
         panic!("Query exceeds maximum allowed size 256 kb");
     }
@@ -35,8 +35,7 @@ pub async fn insert_with_athena(
         table_bucket = table;
     }
 
-    let query = format!("INSERT INTO \"s3tablescatalog/{}\".\"{}\".\"{}\" \
-        VALUES \
+    let query = format!("INSERT INTO \"s3tablescatalog/{}\".\"{}\".\"{}\" \n \
         {};",
         table_bucket,
         name_space,
@@ -81,7 +80,8 @@ pub async fn insert_with_athena(
                             break;
                         }
                         QueryExecutionState::Failed | QueryExecutionState::Cancelled => {
-                            if let Some(_query) = query_execution.query {
+                            if let Some(query) = query_execution.query {
+                                info!("Query: {:?}", query);
                                 error!("Query execution failed or was cancelled.");
                             } else {
                                 error!("Query not found in execution details.");
@@ -90,7 +90,7 @@ pub async fn insert_with_athena(
                         }
                         _ => {
                             info!("Query is still running. Waiting...");
-                            sleep(Duration::from_secs(7)).await;
+                            sleep(Duration::from_secs(15)).await;
                         }
                     }
                 }

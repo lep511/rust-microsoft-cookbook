@@ -10,7 +10,7 @@ pub fn generate_random_data(n_count: i32) -> Vec<String> {
     
     let mut values = Vec::new();
     
-    for _ in 0..n_count {
+    for count in 0..n_count {
         // Basic flight info
         let year = rng.random_range(2000..=2023);
         let month = rng.random_range(1..=12);
@@ -61,10 +61,15 @@ pub fn generate_random_data(n_count: i32) -> Vec<String> {
             .to_string();
 
         values.push(format!(
-            "({year}, {month}, {day_of_month}, {day_of_week}, {dep_time}, {crs_dep_time}, \
+            "SELECT {year}, {month}, {day_of_month}, {day_of_week}, {dep_time}, {crs_dep_time}, \
             {arr_time}, {crs_arr_time}, '{carrier}', {flight_num}, {taxi_in}, {taxi_out}, \
             {cancelled}, '{cancel_code}', {diverted}, {carrier_delay}, {weather_delay}, \
-            {nas_delay}, {security_delay}, TIMESTAMP '{flight_date}')"));
+            {nas_delay}, {security_delay}, TIMESTAMP '{flight_date}'"));
+
+        if count != n_count - 1 {
+            values.push(String::from("UNION ALL"));
+        }
+
     }
 
     values

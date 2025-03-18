@@ -19,11 +19,11 @@ pub async fn insert_with_athena(
     table_bucket_arn: &str
 ) -> Result<(), AthenaError> {
     let mut table_bucket = "no_table";
-    let name_space = "flight";
+    let name_space = "flights";
     let table_name = "flight_data";
     
     // ################## Generate Data #########################
-    let values_gen = generate_random_data(1000);
+    let values_gen = generate_random_data(10);
     // ##########################################################
     
     let values = values_gen.join(",");
@@ -49,7 +49,7 @@ pub async fn insert_with_athena(
         // Add output location configuration
         .result_configuration(
             ResultConfiguration::builder()
-                .output_location("s3://data-lake-bucket-raw-49583/")
+                .output_location("s3://athena-result-data-5095-334/")
                 .build()
         )
         .send()
@@ -81,7 +81,7 @@ pub async fn insert_with_athena(
                             break;
                         }
                         QueryExecutionState::Failed | QueryExecutionState::Cancelled => {
-                            if let Some(query) = query_execution.query {
+                            if let Some(_query) = query_execution.query {
                                 error!("Query execution failed or was cancelled.");
                             } else {
                                 error!("Query not found in execution details.");
@@ -125,7 +125,7 @@ pub async fn query_handler(
     query_fparam: &str,
     query_lparam: &str,
 ) -> Result<Vec<Vec<String>>, AthenaError> {
-    let name_space = "flight";
+    let name_space = "flights";
     let table_name = "flight_data";
     let mut table_bucket = "no_table";
     let mut query_success = false;
@@ -147,7 +147,7 @@ pub async fn query_handler(
         // Add output location configuration
         .result_configuration(
             ResultConfiguration::builder()
-                .output_location("s3://data-lake-bucket-raw-49583/")
+                .output_location("s3://athena-result-data-5095-334/")
                 .build()
         )
         .send()

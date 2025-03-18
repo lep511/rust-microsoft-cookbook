@@ -19,7 +19,7 @@ use athena::{
 pub mod utils;
 use utils::{
     delete_table, delete_namespace, delete_table_bucket,
-    get_table, 
+    get_table, list_namespaces, list_tables, get_table_bucket,
 };
 
 // Define CLI arguments using clap
@@ -42,6 +42,15 @@ enum Commands {
     
     /// Insert data into the table
     Insert,
+
+    /// List tables in the namespace
+    ListTables {
+        /// Namespace of the table
+        namespace: String,
+    },
+
+    /// List all namespaces
+    List,
     
     /// Query data from the table
     Query,
@@ -88,6 +97,17 @@ async fn main() {
         }
     };
 
+    // Check if table bucket exists
+    match get_table_bucket(&client, &table_bucket_arn).await {
+        Ok(tableb) => {
+            info!("Table bucket name: {}", tableb.name.bold());
+        }
+        Err(e) => {
+            error!("Error getting table bucket. {}", e);
+            return;
+        }
+    }
+
     let template_path = match &cli.template_path {
         Some(path) => path,
         None => {
@@ -104,22 +124,32 @@ async fn main() {
                 &table_bucket_arn, 
                 template_path,
             ).await {
-                Ok(_) => info!("Table created successfully"),
-                Err(e) => error!("Error creating table: {}", e),
+                Ok(_) => info!("Table created successfully\n"),
+                Err(e) => error!("Error creating table: {}\n", e),
             }
-            // create_namespace(&client, table_bucket_arn, namespace).await?;
-            // list_namespaces(&client, table_bucket_arn).await?;
         },
         Commands::Insert => {
             match insert_with_athena_handler(&athena_client, &table_bucket_arn).await {
-                Ok(_) => info!("Data inserted successfully"),
-                Err(e) => error!("Error inserting data: {}", e),
+                Ok(_) => info!("Data inserted successfully\n"),
+                Err(e) => error!("Error inserting data: {}\n", e),
+            }
+        },
+        Commands::ListTables { namespace } => {
+            match list_tables(&client, &table_bucket_arn, namespace).await {
+                Ok(_) => (),
+                Err(e) => error!("Error listing tables: {}\n", e),
+            }
+        },
+        Commands::List => {
+            match list_namespaces(&client, &table_bucket_arn).await {
+                Ok(_) => (),
+                Err(e) => error!("Error listing namespaces: {}\n", e),
             }
         },
         Commands::Query => {
             match query_with_athena(&athena_client, &table_bucket_arn).await {
-                Ok(_) => info!("Query executed successfully"),
-                Err(e) => error!("Error executing query: {}", e),
+                Ok(_) => info!("Query executed successfully\n"),
+                Err(e) => error!("Error executing query: {}\n", e),
             }
         },
         Commands::DeleteTable { namespace, table_name } => {
@@ -138,7 +168,7 @@ async fn main() {
             }
             println!("You are about to delete table: {}", table_name.green().bold());
             println!("{} This action cannot be undone!", "WARNING:".red().bold());
-            println!("{}", "To confirm deletion, please re-enter the table name:".bold());
+            println!("{}", "\nTo confirm deletion, please re-enter the table name:".bold());
 
             // Get confirmation from user
             print!("> ");
@@ -156,15 +186,12 @@ async fn main() {
                     &namespace,
                     &table_name,
                 ).await {
-                    Ok(_) => info!("Table {} deleted successfully", table_name),
-                    Err(e) => error!("Error deleting table: {}", e),
+                    Ok(_) => info!("Table {} deleted successfully\n", table_name),
+                    Err(e) => error!("Error deleting table: {}\n", e),
                 }
             } else {
-                println!("Table names don't match. {}", "Deletion canceled.".bold());
-                return;
+                println!("Table names don't match. {}", "Deletion canceled.\n".bold());
             }
-
-
         },
         Commands::DeleteNamespace { namespace } => {
             match delete_namespace(&client, &table_bucket_arn, &namespace).await {

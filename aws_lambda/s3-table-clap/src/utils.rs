@@ -1,6 +1,7 @@
 use aws_sdk_s3tables::{Client, Error};
 use aws_sdk_s3tables::operation::get_namespace::GetNamespaceOutput;
 use aws_sdk_s3tables::operation::get_table::GetTableOutput;
+use aws_sdk_s3tables::operation::get_table_bucket::GetTableBucketOutput;
 use log::{error, info};
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CREATE NAMESPACE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -59,6 +60,19 @@ pub async fn get_namespace(
                         return Err(e.into());
                     }
                 };
+
+    Ok(response)
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GET TABLE BUCKET ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub async fn get_table_bucket(
+    client: &Client,
+    table_bucket_arn: &str
+) -> Result<GetTableBucketOutput, Error> {
+    let response = client.get_table_bucket()
+                .table_bucket_arn(table_bucket_arn)
+                .send().await?;
 
     Ok(response)
 }

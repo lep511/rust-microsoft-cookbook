@@ -4,6 +4,7 @@ use aws_sdk_s3tables::operation::get_table::GetTableOutput;
 use aws_sdk_s3tables::operation::get_table_bucket::GetTableBucketOutput;
 use aws_sdk_s3tables::operation::list_namespaces::ListNamespacesOutput;
 use aws_sdk_s3tables::operation::list_tables::ListTablesOutput;
+use aws_sdk_s3tables::operation::list_table_buckets::ListTableBucketsOutput;
 use serde::{Deserialize, Serialize};
 use csv::{ReaderBuilder, Reader};
 use std::fs::{self, File};
@@ -158,6 +159,15 @@ pub async fn list_tables(
                 .send().await?;
 
     Ok(tables)
+}
+
+pub async fn list_table_buckets(
+    client: &Client,
+) -> Result<ListTableBucketsOutput, Error> {
+    let table_buckets = client.list_table_buckets()
+                .send().await?;
+
+    Ok(table_buckets)
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DELETE TABLE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

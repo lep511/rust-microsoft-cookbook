@@ -20,6 +20,7 @@ pub mod utils;
 use utils::{
     delete_table, delete_namespace, delete_table_bucket,
     get_table, list_namespaces, list_tables, get_table_bucket,
+    list_table_buckets,
 };
 pub mod error;
 
@@ -161,6 +162,20 @@ async fn main() {
             return;
         }
     };
+
+    let arn_buckets = match list_table_buckets(&client).await {
+        Ok(buckets) => buckets,
+        Err(e) => {
+            error!("Error listing table buckets. {}", e);
+            return;
+        }
+    };
+
+    for tbucket in arn_buckets.table_buckets {
+        println!("Table bucket name: {:?}", tbucket.name);
+        println!("Table bucket ARN: {:?}", tbucket.arn);
+        println!("--------------------------------------");
+    }
 
     // Check if table bucket exists
     match get_table_bucket(&client, &table_bucket_arn).await {

@@ -33,7 +33,7 @@ pub fn read_csv_file(
 ) -> Result<Reader<File>, Box<dyn std::error::Error>> {
     let file = File::open(csv_file_path)?;
 
-    let mut reader = ReaderBuilder::new()
+    let reader = ReaderBuilder::new()
         .delimiter(delimiter)
         .has_headers(has_headers) 
         .from_reader(file);

@@ -13,13 +13,14 @@ use crate::utils::{
 use tokio::time::{sleep, Duration};
 use log::{error, warn, info};
 
-const MAX_BYTES: usize = 262144; // 256KB
+const _MAX_BYTES: usize = 262144; // 256KB
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INSERT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub async fn insert_with_athena(
     client: &AthenaClient, 
     table_bucket_arn: &str,
+    athena_bucket: &str,
     template_path: &str,
     csv_file_path: &str,
     delimiter: u8,
@@ -76,12 +77,13 @@ pub async fn insert_with_athena(
         query_values,
     );
 
+
     let result = client.start_query_execution()
         .query_string(query)
         // Add output location configuration
         .result_configuration(
             ResultConfiguration::builder()
-                .output_location("s3://athena-result-data-5095-334/")
+                .output_location(athena_bucket)
                 .build()
         )
         .send()
@@ -224,6 +226,7 @@ pub fn generate_insert_query(
 pub async fn query_handler(
     client: &AthenaClient,
     table_bucket_arn: &str,
+    athena_bucket: &str,
     query_fparam: &str,
     query_lparam: &str,
 ) -> Result<Vec<Vec<String>>, AthenaError> {
@@ -249,7 +252,7 @@ pub async fn query_handler(
         // Add output location configuration
         .result_configuration(
             ResultConfiguration::builder()
-                .output_location("s3://athena-result-data-5095-334/")
+                .output_location(athena_bucket)
                 .build()
         )
         .send()
@@ -332,6 +335,8 @@ pub async fn query_handler(
 pub async fn query_with_athena(
     client: &AthenaClient,
     table_bucket_arn: &str,
+    athena_bucket: &str,
+    xai_api_key: &str,
 ) -> Result<(), Error> {
 
     let query_fparam = "SELECT CASE \
@@ -356,6 +361,7 @@ pub async fn query_with_athena(
     let table_data = match query_handler(
         client, 
         table_bucket_arn, 
+        athena_bucket,
         query_fparam, 
         query_lparam
     ).await {
@@ -380,6 +386,7 @@ pub async fn query_with_athena(
    
     let response = llm
         .with_max_retries(3)
+        .with_api_key(xai_api_key)
         .invoke(&prompt)
         .await;
 
@@ -410,7 +417,9 @@ pub async fn query_with_athena(
 pub async fn query_with_llm(
     client: &AthenaClient,
     table_bucket_arn: &str,
+    athena_bucket: &str,
     query_text: &str,
+    xai_api_key: &str,
 ) -> Result<(), Error> {
 
     let base_url = "https://api.x.ai/v1/chat/completions";
@@ -432,6 +441,7 @@ pub async fn query_with_llm(
    
     let response = llm
         .with_max_retries(0)
+        .with_api_key(xai_api_key)
         .invoke(&prompt)
         .await;
 
@@ -483,7 +493,8 @@ pub async fn query_with_llm(
 
     let table_data = match query_handler(
         client, 
-        table_bucket_arn, 
+        table_bucket_arn,
+        athena_bucket,
         query_fparam, 
         query_lparam,
     ).await {

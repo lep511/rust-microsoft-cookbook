@@ -5,7 +5,8 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use env_logger::Env;
 use std::io::{self, Write};
-use std::env;
+use serde::Deserialize;
+use envy::from_env;
 
 pub mod xai;
 pub mod table_manager;
@@ -22,18 +23,27 @@ use utils::{
 };
 pub mod error;
 
+#[derive(Deserialize, Debug)]
+struct Config {
+    table_bucket_arn: Option<String>,
+    template_path: Option<String>,
+    athena_bucket: Option<String>,
+    xai_api_key: Option<String>,
+}
+
 // Define CLI arguments using clap
 #[derive(Parser)]
 #[command(
-    author = "Your Name <your.email@example.com>",
+    author = "Esteban Perez <estebanpbuday@gmail.com>",
     version,
     about = "AWS S3 Tables and Athena Management CLI",
     long_about = "A command-line tool for managing AWS S3 Tables and Athena, allowing creation of tables, data insertion, querying, and administration tasks.",
     color = clap::ColorChoice::Auto,
     after_help = "Environment variables:
-  TABLE_BUCKET_ARN - Required: S3 bucket ARN for table storage
+  TABLE_BUCKET_ARN - Required: S3 bucket ARN for Table buckets.
   TEMPLATE_PATH    - Optional: Path to table template YAML (default: templates/table_template.yaml)
-  XAI_API_KEY      - Optional: API key for XAI service"
+  ATHENA_BUCKET    - Optional: S3 bucket name for Athena query results (default: None)
+  XAI_API_KEY      - Optional: API key for XAI service (default: None)"
 )]
 
 #[command(author, version, about, long_about = None)]
@@ -136,19 +146,19 @@ async fn main() {
     let client = Client::new(&config);
     let athena_client = AthenaClient::new(&config);
     
-    let table_bucket_arn = match env::var("TABLE_BUCKET_ARN") {
-        Ok(val) => val,
-        Err(e) => {
-            error!("Error reading environment variable TABLE_BUCKET_ARN: {}", e);
+    let env_var = match from_env::<Config>() {
+        Ok(config) => config,
+        Err(error) => {
+            info!("Error loading environment variables. {}", error);
             return;
         }
     };
 
-    let template_path = match env::var("TEMPLATE_PATH") {
-        Ok(val) => val,
-        Err(_) => {
-            info!("TEMPLATE_PATH environment variable not set. Using default: templates/table_template.yaml");
-            "templates/table_template.yaml".to_string()
+    let table_bucket_arn = match env_var.table_bucket_arn {
+        Some(val) => val,
+        None => {
+            error!("TABLE_BUCKET_ARN environment variable not set");
+            return;
         }
     };
 
@@ -166,6 +176,14 @@ async fn main() {
     // Handle commands using match
     match &cli.command {
         Commands::Create => {
+            let template_path = match env_var.template_path {
+                Some(val) => val,
+                None => {
+                    info!("TEMPLATE_PATH environment variable not set. Using default: templates/table_template.yaml");
+                    "templates/table_template.yaml".to_string()
+                }
+            };
+
             match create_table_from_yaml(
                 &client, 
                 &table_bucket_arn, 
@@ -176,6 +194,23 @@ async fn main() {
             }
         },
         Commands::Insert { file, delimiter, header } => {
+            let template_path = match env_var.template_path {
+                Some(val) => val,
+                None => {
+                    info!("TEMPLATE_PATH environment variable not set. Using default: templates/table_template.yaml");
+                    "templates/table_template.yaml".to_string()
+                }
+            };
+            
+            let athena_bucket = match env_var.athena_bucket {
+                Some(val) => val,
+                None => {
+                    error!("ATHENA_BUCKET environment variable not set.");
+                    return;
+                }
+            };
+            let athena_bucket_fmt = format!("s3://{}/", athena_bucket);
+            
             let delimiter_fmt: u8 = match delimiter {
                 Some(d) => d.as_bytes()[0],
                 None => b',', // Default value
@@ -189,6 +224,7 @@ async fn main() {
             match insert_with_athena(
                 &athena_client, 
                 &table_bucket_arn,
+                &athena_bucket_fmt,
                 &template_path,
                 &file,
                 delimiter_fmt,
@@ -262,7 +298,29 @@ async fn main() {
             }
         },
         Commands::Query => {
-            match query_with_athena(&athena_client, &table_bucket_arn).await {
+            let athena_bucket = match env_var.athena_bucket {
+                Some(val) => val,
+                None => {
+                    error!("ATHENA_BUCKET environment variable not set.");
+                    return;
+                }
+            };
+            let athena_bucket_fmt = format!("s3://{}/", athena_bucket);
+
+            let xai_api_key = match env_var.xai_api_key {
+                Some(val) => val,
+                None => {
+                    error!("XAI_API_KEY environment variable not set.");
+                    return;
+                }
+            };
+
+            match query_with_athena(
+                &athena_client, 
+                &table_bucket_arn,
+                &athena_bucket_fmt,
+                &xai_api_key,
+            ).await {
                 Ok(_) => info!("Query executed successfully\n"),
                 Err(e) => error!("Error executing query: {}\n", e),
             }
@@ -321,10 +379,29 @@ async fn main() {
             }
         },
         Commands::Llm { query_text } => {
+            let athena_bucket = match env_var.athena_bucket {
+                Some(val) => val,
+                None => {
+                    error!("ATHENA_BUCKET environment variable not set.");
+                    return;
+                }
+            };
+            let athena_bucket_fmt = format!("s3://{}/", athena_bucket);
+
+            let xai_api_key = match env_var.xai_api_key {
+                Some(val) => val,
+                None => {
+                    error!("XAI_API_KEY environment variable not set.");
+                    return;
+                }
+            };
+
             match query_with_llm(
                 &athena_client, 
-                &table_bucket_arn, 
-                &query_text
+                &table_bucket_arn,
+                &athena_bucket_fmt, 
+                &query_text,
+                &xai_api_key,
             ).await {
                 Ok(_) => info!("Query executed successfully"),
                 Err(e) => error!("Error executing query: {}", e),

@@ -1,6 +1,6 @@
 use std::env;
 use log::{info, error};
-use crate::compatible::error::CompatibleChatError;
+use crate::xai::error::CompatibleChatError;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use std::fs::File;
 use std::io::Read;
@@ -11,7 +11,7 @@ use std::io::Read;
 /// * A string slice containing the API key
 ///
 /// # Panics
-/// * If the COMPATIBLE_API_KEY environment variable is not set
+/// * If the XAI_API_KEY environment variable is not set
 ///
 /// # Examples
 /// ```
@@ -20,14 +20,14 @@ use std::io::Read;
 /// ```
 pub trait GetApiKey {
     fn get_api_key() -> Result<String, CompatibleChatError> {
-        match env::var("COMPATIBLE_API_KEY") {
+        match env::var("XAI_API_KEY") {
             Ok(key) => Ok(key),
             Err(env::VarError::NotPresent) => {
-                info!("COMPATIBLE_API_KEY not found in environment variables");
+                info!("XAI_API_KEY not found in environment variables");
                 Err(CompatibleChatError::ApiKeyNotFound)
             }
             Err(e) => {
-                error!("Unable to read env COMPATIBLE_API_KEY {:?}", e);
+                error!("Unable to read env XAI_API_KEY {:?}", e);
                 Err(CompatibleChatError::EnvError(e))
             }
         }

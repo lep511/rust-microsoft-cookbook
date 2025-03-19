@@ -7,7 +7,7 @@ use env_logger::Env;
 use std::io::{self, Write};
 use std::env;
 
-pub mod compatible;
+pub mod xai;
 pub mod table_manager;
 use table_manager::create_table_from_yaml;
 pub mod athena;
@@ -20,50 +20,88 @@ use utils::{
     delete_table, delete_namespace, delete_table_bucket,
     get_table, list_namespaces, list_tables, get_table_bucket,
 };
+pub mod error;
 
 // Define CLI arguments using clap
 #[derive(Parser)]
+#[command(
+    author = "Your Name <your.email@example.com>",
+    version,
+    about = "AWS S3 Tables and Athena Management CLI",
+    long_about = "A command-line tool for managing AWS S3 Tables and Athena, allowing creation of tables, data insertion, querying, and administration tasks.",
+    color = clap::ColorChoice::Auto,
+    after_help = "Environment variables:
+  TABLE_BUCKET_ARN - Required: S3 bucket ARN for table storage
+  TEMPLATE_PATH    - Optional: Path to table template YAML (default: templates/table_template.yaml)
+  XAI_API_KEY      - Optional: API key for XAI service"
+)]
+
 #[command(author, version, about, long_about = None)]
 struct Cli {   
-    /// Path to the YAML template file that defines the table structure
-    /// - default path: templates/table_template.yaml
-    #[arg(short, long)]
-    template_path: Option<String>,
-
     #[command(subcommand)]
     command: Commands,
 }
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Create namespace and table
+    /// Create a new namespace and table from a template
+    /// 
+    /// Uses the YAML template specified in TEMPLATE_PATH to create
+    /// a new table in the configured S3 bucket.
+    /// If no template is specified, it uses the default template:
+    /// templates/table_template.yaml
     Create,
     
-    /// Insert data into the table
+    /// Insert data from a file into the table
+    /// 
+    /// Reads data from a file and inserts it into the table using Athena.
+    /// Supports CSV files with configurable delimiters and header options.
+    /// 
+    /// Examples:
+    ///   s3tool insert data.csv
+    ///   s3tool insert data.csv --delimiter="|" --header=false
+    #[command(after_help = "Examples:\n  s3tool insert data.csv\n  s3tool insert data.csv --delimiter=\"|\" --header=false")]
     Insert {
-        /// Namespace of the table
-        namespace: String,
-        /// Table simple name
-        table_name: String,
+        /// Path to the file containing data to insert
+        #[arg(required = true, value_name = "FILE_PATH")]
+        #[arg(value_hint = clap::ValueHint::FilePath)]
+        file: String,
+
+        /// Character used to separate values in the CSV file
+        #[arg(short, long, value_name = "CHAR", default_value = ",")]
+        delimiter: Option<String>,
+
+        /// Whether the CSV file contains a header row
+        #[arg(short = 'x', long, default_value = "true")]
+        header: Option<bool>,
     },
 
-    /// List tables in the namespace
+    /// List tables in a specific namespace
     ListTables {
         /// Namespace of the table
         namespace: String,
     },
 
-    /// List all namespaces
+    /// List all namespaces and their tables
+    /// 
+    /// Displays all namespaces in the table bucket and lists
+    /// all tables within each namespace.
+    #[command(visible_alias = "ls")]
     List,
     
-    /// Query data from the table
+    /// Run a query against table data
+    /// 
+    /// Executes an Athena query against the table data.
     Query,
 
-    /// Delete simple table
+    /// Delete a table from a namespace
     DeleteTable {
-        /// Namespace of the table
+        /// The namespace containing the table
+        #[arg(long, short, value_name = "NAMESPACE")]
         namespace: String,
-        /// Table simple name
+        
+        /// Name of the table to delete
+        #[arg(long, short = 't', value_name = "TABLE_NAME")]
         table_name: String,
     },
     
@@ -76,9 +114,13 @@ enum Commands {
     /// Delete table bucket S3
     DeleteTableBucket,
     
-    /// Query with LLM
+    /// Query with XAI LLM
+    /// 
+    /// Execute a natural language query using a Large Language Model.
+    /// The query is translated into SQL and executed against the table.
     Llm {
-        /// Query text to pass to LLM
+        /// Natural language query to execute
+        #[arg(required = true, value_name = "QUERY")]
         query_text: String,
     },
 }
@@ -93,11 +135,20 @@ async fn main() {
     let config = aws_config::load_from_env().await;
     let client = Client::new(&config);
     let athena_client = AthenaClient::new(&config);
+    
     let table_bucket_arn = match env::var("TABLE_BUCKET_ARN") {
         Ok(val) => val,
         Err(e) => {
             error!("Error reading environment variable TABLE_BUCKET_ARN: {}", e);
             return;
+        }
+    };
+
+    let template_path = match env::var("TEMPLATE_PATH") {
+        Ok(val) => val,
+        Err(_) => {
+            info!("TEMPLATE_PATH environment variable not set. Using default: templates/table_template.yaml");
+            "templates/table_template.yaml".to_string()
         }
     };
 
@@ -111,14 +162,6 @@ async fn main() {
             return;
         }
     }
-
-    let template_path = match &cli.template_path {
-        Some(path) => path,
-        None => {
-            info!("No template path provided, using default");
-            "templates/table_template.yaml"
-        }
-    };
     
     // Handle commands using match
     match &cli.command {
@@ -126,21 +169,30 @@ async fn main() {
             match create_table_from_yaml(
                 &client, 
                 &table_bucket_arn, 
-                template_path,
+                &template_path,
             ).await {
                 Ok(_) => info!("Table created successfully\n"),
                 Err(e) => error!("Error creating table: {}\n", e),
             }
         },
-        Commands::Insert { namespace, table_name } => {
+        Commands::Insert { file, delimiter, header } => {
+            let delimiter_fmt: u8 = match delimiter {
+                Some(d) => d.as_bytes()[0],
+                None => b',', // Default value
+            };
+
+            let header_fmt: bool = match header {
+                Some(h) => *h,
+                None => true, // Default value
+            };
+
             match insert_with_athena(
                 &athena_client, 
                 &table_bucket_arn,
-                namespace,
-                table_name,
-                "dataset.csv",
-                b',',
-                true,
+                &template_path,
+                &file,
+                delimiter_fmt,
+                header_fmt,
             ).await {
                 Ok(_) => info!("Data inserted successfully\n"),
                 Err(e) => error!("Error inserting data: {}\n", e),
@@ -150,7 +202,7 @@ async fn main() {
             let tables = match list_tables(
                 &client, 
                 &table_bucket_arn,
-                namespace
+                &namespace
             ).await {
                 Ok(tables) => tables,
                 Err(e) => {
@@ -206,7 +258,7 @@ async fn main() {
                     println!("Table modified at {}", table.modified_at());
                 }
 
-                println!("--------------------------");
+                println!("--------------------------\n");
             }
         },
         Commands::Query => {
@@ -269,11 +321,14 @@ async fn main() {
             }
         },
         Commands::Llm { query_text } => {
-            match query_with_llm(&athena_client, &table_bucket_arn, query_text).await {
+            match query_with_llm(
+                &athena_client, 
+                &table_bucket_arn, 
+                &query_text
+            ).await {
                 Ok(_) => info!("Query executed successfully"),
                 Err(e) => error!("Error executing query: {}", e),
             }
-        },
+        }
     }
-
 }

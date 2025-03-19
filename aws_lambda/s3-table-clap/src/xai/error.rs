@@ -3,7 +3,7 @@ use std::env;
 #[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
 pub enum CompatibleChatError {
-    #[error("COMPATIBLE_API_KEY not found in environment variables")]
+    #[error("XAI_API_KEY not found in environment variables")]
     ApiKeyNotFound,
     
     #[error("Request error: {0}")]

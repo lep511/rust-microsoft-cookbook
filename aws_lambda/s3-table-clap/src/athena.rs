@@ -6,8 +6,10 @@ use aws_sdk_athena::types::error::InternalServerException;
 use aws_sdk_athena::types::{
     QueryExecutionState, ResultConfiguration,
 };
-use crate::compatible::chat::ChatCompatible;
-use crate::utils::read_csv_file;
+use crate::xai::chat::ChatCompatible;
+use crate::utils::{
+    TableTemplate, read_csv_file, read_yaml_file,
+};
 use tokio::time::{sleep, Duration};
 use log::{error, warn, info};
 
@@ -18,8 +20,7 @@ const MAX_BYTES: usize = 262144; // 256KB
 pub async fn insert_with_athena(
     client: &AthenaClient, 
     table_bucket_arn: &str,
-    namespace: &str,
-    table_name: &str,
+    template_path: &str,
     csv_file_path: &str,
     delimiter: u8,
     has_headers: bool,
@@ -33,10 +34,10 @@ pub async fn insert_with_athena(
     ) {
         Ok(values) => values,
         Err(err) => {
-            error!("Error generating insert query: {}", err);
+            let message = format!("Error generating insert query. {}", err);
             return Err(AthenaError::InternalServerException(
                 InternalServerException::builder()
-                    .message("Error generating insert query")
+                    .message(&message)
                     .build(),
             )); 
         }
@@ -46,9 +47,26 @@ pub async fn insert_with_athena(
     //     panic!("Query exceeds maximum allowed size 256 kb");
     // }
 
+    // Get the table-bucket name
     if let Some(table) = table_bucket_arn.split('/').last() {
         table_bucket = table;
     }
+
+    // Load the YAML template           
+    let table_template: TableTemplate = match read_yaml_file(template_path) {
+        Ok(template) => template,
+        Err(err) => {
+            let message = format!("Error reading template file. {}", err);
+            return Err(AthenaError::InternalServerException(
+                InternalServerException::builder()
+                    .message(&message)
+                    .build(),
+            )); 
+        }
+    };
+
+    let namespace = &table_template.namespace;
+    let table_name = &table_template.table_name;
 
     let query = format!("INSERT INTO \"s3tablescatalog/{}\".\"{}\".\"{}\" \n \
         {};",

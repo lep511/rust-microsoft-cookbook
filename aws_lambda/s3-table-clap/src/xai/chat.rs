@@ -2,15 +2,15 @@ use futures::pin_mut;
 use futures::StreamExt;
 use async_stream::stream;
 use log::{info, error};
-use crate::compatible::requests::{
+use crate::xai::requests::{
     request_chat, get_request, strem_chat,
 };
-use crate::compatible::utils::{GetApiKey, read_file_data};
-use crate::compatible::libs::{
+use crate::xai::utils::{GetApiKey, read_file_data};
+use crate::xai::libs::{
     ChatRequest, Message, ChatResponse, ChatStreamResponse, 
     Content, ImageUrl,
 };
-use crate::compatible::error::CompatibleChatError;
+use crate::xai::error::CompatibleChatError;
 use tokio::time::sleep;
 use std::time::Duration;
 use serde_json::json;

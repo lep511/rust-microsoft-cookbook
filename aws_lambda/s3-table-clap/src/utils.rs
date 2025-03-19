@@ -4,9 +4,25 @@ use aws_sdk_s3tables::operation::get_table::GetTableOutput;
 use aws_sdk_s3tables::operation::get_table_bucket::GetTableBucketOutput;
 use aws_sdk_s3tables::operation::list_namespaces::ListNamespacesOutput;
 use aws_sdk_s3tables::operation::list_tables::ListTablesOutput;
+use serde::{Deserialize, Serialize};
 use csv::{ReaderBuilder, Reader};
-use std::fs::File;
+use std::fs::{self, File};
 use log::{error, info};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TableTemplate {
+    pub table_name: String,
+    pub namespace: String,
+    pub fields: Vec<FieldTemplate>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FieldTemplate {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub field_type: String,
+    pub required: Option<bool>,
+}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ READ CSV FILE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -23,6 +39,24 @@ pub fn read_csv_file(
         .from_reader(file);
 
     Ok(reader)
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ READ YAML FILE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub fn read_yaml_file(
+    yaml_file_path: &str,
+) -> Result<TableTemplate, Box<dyn std::error::Error>> {
+    let template_content = match fs::read_to_string(yaml_file_path) {
+        Ok(content) => content,
+        Err(e) => return Err(Box::new(e)),
+    };
+            
+    let table_template: TableTemplate = match serde_yaml::from_str(&template_content) {
+        Ok(template) => template,
+        Err(e) => return Err(Box::new(e)),
+    };
+
+    Ok(table_template)
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CREATE NAMESPACE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

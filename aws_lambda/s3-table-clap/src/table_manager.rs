@@ -1,47 +1,28 @@
-use serde::{Deserialize, Serialize};
-use std::fs;
 use aws_sdk_s3tables::{Client, Error};
 use aws_sdk_s3tables::types::{
     OpenTableFormat, TableMetadata, IcebergMetadata, 
     SchemaField, IcebergSchema,
 };
-use crate::utils::{create_namespace, get_namespace};
-use log::{error, info};
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TableTemplate {
-    pub table_name: String,
-    pub namespace: String,
-    pub fields: Vec<FieldTemplate>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct FieldTemplate {
-    pub name: String,
-    #[serde(rename = "type")]
-    pub field_type: String,
-    pub required: Option<bool>,
-}
+use crate::utils::{
+    TableTemplate, create_namespace,
+    read_yaml_file, get_namespace,
+};
+use crate::error::MainError;
+use log::info;
 
 pub async fn create_table_from_yaml(
     client: &Client, 
     table_bucket_arn: &str,
     template_path: &str
-) -> Result<(), Box<dyn std::error::Error>> {
-    // Load the YAML template
-    let template_content = match fs::read_to_string(template_path) {
-        Ok(content) => content,
-        Err(e) => {
-            error!("Error reading template file");
-            return Err(Box::new(e));
-        }
-    };
-            
-    let table_template: TableTemplate = match serde_yaml::from_str(&template_content) {
+) -> Result<(), MainError> {
+    // Load the YAML template           
+    let table_template: TableTemplate = match read_yaml_file(template_path) {
         Ok(template) => template,
         Err(e) => {
-            error!("Error parsing YAML template");
-            return Err(Box::new(e));
+            let message = format!("Error reading template file: {}", e);
+            return Err(MainError::GenericError { 
+                message,
+            });
         }
     };
 
@@ -55,8 +36,10 @@ pub async fn create_table_from_yaml(
             match create_namespace(&client, table_bucket_arn, namespace).await {
                 Ok(_) => info!("Namespace created successfully"),
                 Err(e) => {
-                    error!("Error creating namespace: {}", e);
-                    return Err(Box::new(e));
+                    let message = format!("Error creating namespace: {}", e);
+                    return Err(MainError::GenericError { 
+                        message,
+                    });
                 }
             }
         }
@@ -66,16 +49,11 @@ pub async fn create_table_from_yaml(
     let mut schema_fields = Vec::new();
 
     for field in table_template.fields {
-        let schema_field = match SchemaField::builder()
+        let schema_field = SchemaField::builder()
             .name(&field.name)
             .r#type(&field.field_type)
             .required(field.required.unwrap_or(false))
-            .build() {
-                Ok(field) => field,
-                Err(e) => {
-                    return Err(Box::new(e));
-                }
-            };
+            .build()?;
 
         schema_fields.push(schema_field);
     }
@@ -91,18 +69,13 @@ pub async fn create_table_from_yaml(
 
     let table_metadata = TableMetadata::Iceberg(iceberg_metadata);
 
-    let _response = match create_s3_table(
+    let _response = create_s3_table(
         client,
         table_bucket_arn,
         table_name,
         namespace,
         table_metadata,
-    ).await {
-        Ok(response) => response,
-        Err(e) => {
-            return Err(Box::new(e));
-        }
-    };
+    ).await?;
   
     Ok(())
 }

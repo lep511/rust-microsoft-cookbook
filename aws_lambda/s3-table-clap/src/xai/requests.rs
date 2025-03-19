@@ -2,12 +2,12 @@ use reqwest::{Client, Response};
 use log::{warn, error};
 use async_stream::stream;
 use futures::StreamExt;
-use crate::compatible::{DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY};
-use crate::compatible::error::CompatibleChatError;
-use crate::compatible::libs::{
+use crate::xai::{DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY};
+use crate::xai::error::CompatibleChatError;
+use crate::xai::libs::{
     ChatRequest, ErrorResponse, ChatStreamResponse
 };
-use crate::compatible::utils::print_pre;
+use crate::xai::utils::print_pre;
 use std::time::Duration;
 use serde_json::Value;
 use tokio::time::sleep;

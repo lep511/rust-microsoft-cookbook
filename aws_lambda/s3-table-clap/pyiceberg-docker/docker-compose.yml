@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  pyiceberg:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_REGION:-us-east-2}
+    volumes:
+      # Mount local AWS credentials if you prefer not to use environment variables
+      - ${HOME}/.aws:/root/.aws:ro
+    command: python main.py --table ${TABLE_NAME:-customer} --catalog ${CATALOG_NAME:-S3TablesCatalog} --s3tablebucket ${S3_BUCKET:-pyiceberg-blog-bucket} --database ${DATABASE_NAME:-myblognamespace}

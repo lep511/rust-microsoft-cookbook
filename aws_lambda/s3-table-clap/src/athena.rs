@@ -13,7 +13,7 @@ use crate::utils::{
 use tokio::time::{sleep, Duration};
 use log::{error, warn, info};
 
-const _MAX_BYTES: usize = 262144; // 256KB
+const MAX_BYTES: usize = 250_000; // ~256KB
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INSERT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -43,10 +43,6 @@ pub async fn insert_with_athena(
             )); 
         }
     };
-
-    // if values.len() > MAX_BYTES {
-    //     panic!("Query exceeds maximum allowed size 256 kb");
-    // }
 
     // Get the table-bucket name
     if let Some(table) = table_bucket_arn.split('/').last() {
@@ -212,8 +208,9 @@ pub fn generate_insert_query(
                 query.push_str(&field_fmt);
             }
         }
-        if n == 30 {
-            break;
+        if query.len() > MAX_BYTES {
+            info!("Query is too long. Truncating...");
+            return Ok(query);
         }
         n += 1;
     }
@@ -287,7 +284,6 @@ pub async fn query_handler(
                         QueryExecutionState::Failed | QueryExecutionState::Cancelled => {
                             if let Some(query) = query_execution.query {
                                 error!("Query execution failed or was cancelled.");
-                                info!("The SQL query is: {}", query);
                             } else {
                                 error!("Query not found in execution details.");
                             }

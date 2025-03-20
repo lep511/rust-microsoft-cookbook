@@ -85,6 +85,10 @@ enum Commands {
         /// Whether the CSV file contains a header row
         #[arg(short = 'x', long, default_value = "true")]
         header: Option<bool>,
+
+        /// Maximum number of rows to process from the input file
+        #[arg(short, long)] 
+        limit: Option<u32>,
     },
 
     /// List tables in a specific namespace
@@ -113,12 +117,13 @@ enum Commands {
         
         /// Name of the table to delete
         #[arg(long, short = 't', value_name = "TABLE_NAME")]
-        table_name: String,
+        table: String,
     },
     
     /// Delete namespace
     DeleteNamespace {
         /// Namespace to delete
+        #[arg(long, short, value_name = "NAMESPACE")]
         namespace: String,
     },
     
@@ -208,7 +213,12 @@ async fn main() {
                 Err(e) => error!("Error creating table: {}\n", e),
             }
         },
-        Commands::Insert { file, delimiter, header } => {
+        Commands::Insert { file, delimiter, header, limit } => {
+            let limit_row: u32 = match limit {
+                Some(val) => *val,
+                None => 0, // Default value
+            };
+
             let template_path = match env_var.template_path {
                 Some(val) => val,
                 None => {
@@ -244,6 +254,7 @@ async fn main() {
                 &file,
                 delimiter_fmt,
                 header_fmt,
+                limit_row,
             ).await {
                 Ok(_) => info!("Data inserted successfully\n"),
                 Err(e) => error!("Error inserting data: {}\n", e),
@@ -340,13 +351,13 @@ async fn main() {
                 Err(e) => error!("Error executing query: {}\n", e),
             }
         },
-        Commands::DeleteTable { namespace, table_name } => {
+        Commands::DeleteTable { namespace, table } => {
             // Check if table exist
             match get_table(
                 &client,
                 &table_bucket_arn,
                 &namespace,
-                &table_name,
+                &table,
             ).await {
                 Ok(_) => (),
                 Err(e) => {
@@ -354,7 +365,7 @@ async fn main() {
                     return;
                 }
             }
-            println!("You are about to delete table: {}", table_name.green().bold());
+            println!("You are about to delete table: {}", table.green().bold());
             println!("{} This action cannot be undone!", "WARNING:".red().bold());
             println!("{}", "\nTo confirm deletion, please re-enter the table name:".bold());
 
@@ -366,15 +377,15 @@ async fn main() {
             io::stdin().read_line(&mut input).unwrap();
             let input = input.trim();
             
-            if input == table_name {
+            if input == table {
                 // Delete table
                 match delete_table(
                     &client, 
                     &table_bucket_arn,
                     &namespace,
-                    &table_name,
+                    &table,
                 ).await {
-                    Ok(_) => info!("Table {} deleted successfully\n", table_name),
+                    Ok(_) => info!("Table {} deleted successfully\n", table),
                     Err(e) => error!("Error deleting table: {}\n", e),
                 }
             } else {

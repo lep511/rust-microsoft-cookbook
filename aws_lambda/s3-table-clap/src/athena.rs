@@ -25,13 +25,15 @@ pub async fn insert_with_athena(
     csv_file_path: &str,
     delimiter: u8,
     has_headers: bool,
+    limit: u32,
 ) -> Result<(), AthenaError> {
     let mut table_bucket = "no_table";
     
-    let query_values: String = match generate_insert_query(
+    let query_values: Vec<String> = match generate_insert_query(
         csv_file_path,
         delimiter,
         has_headers,
+        limit,
     ) {
         Ok(values) => values,
         Err(err) => {
@@ -64,72 +66,34 @@ pub async fn insert_with_athena(
 
     let namespace = &table_template.namespace;
     let table_name = &table_template.table_name;
+    let mut query_num = 1;
 
-    let query = format!("INSERT INTO \"s3tablescatalog/{}\".\"{}\".\"{}\" \n \
-        {};",
-        table_bucket,
-        namespace,
-        table_name,
-        query_values,
-    );
+    info!("{} requests for processing in Athena.", query_values.len());
 
+    for query_value in query_values.into_iter() {
+        let query = format!("INSERT INTO \"s3tablescatalog/{}\".\"{}\".\"{}\" \n \
+            {};",
+            table_bucket,
+            namespace,
+            table_name,
+            query_value,
+        );
 
-    let result = client.start_query_execution()
-        .query_string(query)
-        // Add output location configuration
-        .result_configuration(
-            ResultConfiguration::builder()
-                .output_location(athena_bucket)
-                .build()
-        )
-        .send()
-        .await?;
-
-    // Set query execution ID
-    let query_execution_id = result.query_execution_id().unwrap();
-    info!("Query execution ID: {}", query_execution_id);
-
-    // Polling for query execution completion
-    loop {
-        let response = client
-            .get_query_execution()
-            .query_execution_id(query_execution_id)
+        let result = client.start_query_execution()
+            .query_string(query)
+            // Add output location configuration
+            .result_configuration(
+                ResultConfiguration::builder()
+                    .output_location(athena_bucket)
+                    .build()
+            )
             .send()
             .await?;
-        
-        if let Some(query_execution) = response.query_execution {
-            if let Some(status) = query_execution.status {
-                if let Some(state) = status.state {
-                    match state {
-                        QueryExecutionState::Succeeded => {
-                            if let Some(_query) = query_execution.query {
-                                info!("Query execution succeeded.");
-                                // println!("The SQL query is: {}", query);
-                            } else {
-                                error!("Query not found in execution details.");
-                            }
-                            break;
-                        }
-                        QueryExecutionState::Failed | QueryExecutionState::Cancelled => {
-                            if let Some(query) = query_execution.query {
-                                info!("Query: {:?}", query);
-                                error!("Query execution failed or was cancelled.");
-                            } else {
-                                error!("Query not found in execution details.");
-                            }
-                            break;
-                        }
-                        _ => {
-                            info!("Query is still running. Waiting...");
-                            sleep(Duration::from_secs(15)).await;
-                        }
-                    }
-                }
-            }
-        } else {
-            error!("Query execution not found.");
-            break;
-        }
+
+        // Set query execution ID
+        let query_id = result.query_execution_id().unwrap();
+        info!("Query number {} - execution ID: {}", query_num, query_id);
+        query_num += 1;
     }
 
     Ok(())
@@ -141,13 +105,15 @@ pub fn generate_insert_query(
     csv_file_path: &str,
     delimiter: u8,
     has_headers: bool,
-) -> Result<String, Box<dyn std::error::Error>> {
+    limit: u32,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut rdr = read_csv_file(
         csv_file_path, 
         delimiter, 
         has_headers,
     )?;
 
+    let mut vec_query: Vec<String> = Vec::new();
     let mut query = String::new();
 
     // Track if we've processed at least one row
@@ -166,9 +132,9 @@ pub fn generate_insert_query(
 
         query.push_str("SELECT ");
 
-        for (i, field) in record.iter().enumerate() {
+        for field in record.iter() {
             // Add a comma if this isn't the first field
-            if i > 0 {
+            if n > 0 {
                 query.push_str(", ");
             }
 
@@ -208,14 +174,23 @@ pub fn generate_insert_query(
                 query.push_str(&field_fmt);
             }
         }
+
         if query.len() > MAX_BYTES {
-            info!("Query is too long. Truncating...");
-            return Ok(query);
+            vec_query.push(query.clone());
+            query.clear();
         }
+
         n += 1;
+        
+        if n == limit {
+            break;
+        }
     }
+
+    vec_query.push(query.clone());
+    info!("Processed {} rows.", n);
     
-    Ok(query)
+    Ok(vec_query)
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ QUERY ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

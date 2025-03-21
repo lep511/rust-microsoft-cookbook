@@ -26,7 +26,6 @@ pub mod error;
 #[derive(Deserialize, Debug)]
 struct Config {
     table_bucket_arn: Option<String>,
-    template_path: Option<String>,
     athena_bucket: Option<String>,
     xai_api_key: Option<String>,
 }
@@ -41,7 +40,6 @@ struct Config {
     color = clap::ColorChoice::Auto,
     after_help = "Environment variables:
   TABLE_BUCKET_ARN - Required: S3 bucket ARN for Table buckets.
-  TEMPLATE_PATH    - Optional: Path to table template YAML (default: templates/table_template.yaml)
   ATHENA_BUCKET    - Optional: S3 bucket name for Athena query results (default: None)
   XAI_API_KEY      - Optional: API key for XAI service (default: None)"
 )]
@@ -56,22 +54,29 @@ struct Cli {
 enum Commands {
     /// Create a new namespace and table from a template
     /// 
-    /// Uses the YAML template specified in TEMPLATE_PATH to create
+    /// Uses the YAML template file to create
     /// a new table in the configured S3 bucket.
-    /// If no template is specified, it uses the default template:
-    /// templates/table_template.yaml
-    Create,
+    /// 
+    #[command(after_help = "Examples:\n  s3tool create templates/my-template.yaml")]
+    Create {
+        /// Location of the yaml template file
+        #[arg(required = true, value_name = "TEMPLATE_PATH")]
+        #[arg(value_hint = clap::ValueHint::FilePath)]
+        template: String,
+    },
     
     /// Insert data from a file into the table
     /// 
     /// Reads data from a file and inserts it into the table using Athena.
     /// Supports CSV files with configurable delimiters and header options.
     /// 
-    /// Examples:
-    ///   s3tool insert data.csv
-    ///   s3tool insert data.csv --delimiter="|" --header=false
-    #[command(after_help = "Examples:\n  s3tool insert data.csv\n  s3tool insert data.csv --delimiter=\"|\" --header=false")]
+    #[command(after_help = "Examples:\n  s3tool insert my-template.yaml data.csv\n  s3tool insert my-template.yaml data.csv --delimiter=\"|\" --header=false")]
     Insert {
+        /// Location of the yaml template file
+        #[arg(required = true, value_name = "TEMPLATE_PATH")]
+        #[arg(value_hint = clap::ValueHint::FilePath)]
+        template: String,
+
         /// Path to the file containing data to insert
         #[arg(required = true, value_name = "FILE_PATH")]
         #[arg(value_hint = clap::ValueHint::FilePath)]
@@ -180,12 +185,6 @@ async fn main() {
         }
     };
 
-    for tbucket in arn_buckets.table_buckets {
-        println!("Table bucket name: {:?}", tbucket.name);
-        println!("Table bucket ARN: {:?}", tbucket.arn);
-        println!("--------------------------------------");
-    }
-
     // Check if table bucket exists
     match get_table_bucket(&client, &table_bucket_arn).await {
         Ok(tableb) => {
@@ -199,36 +198,31 @@ async fn main() {
     
     // Handle commands using match
     match &cli.command {
-        Commands::Create => {
-            let template_path = match env_var.template_path {
-                Some(val) => val,
-                None => {
-                    info!("TEMPLATE_PATH environment variable not set. Using default: templates/table_template.yaml");
-                    "templates/table_template.yaml".to_string()
-                }
-            };
+        Commands::Create { template } => {
+            if !template.ends_with(".yaml") || !template.ends_with(".yml") {
+                error!("Template file must be a yaml file");
+                return;
+            }
 
             match create_table_from_yaml(
                 &client, 
                 &table_bucket_arn, 
-                &template_path,
+                template,
             ).await {
                 Ok(_) => info!("Table created successfully\n"),
                 Err(e) => error!("Error creating table: {}\n", e),
             }
         },
-        Commands::Insert { file, delimiter, header, limit } => {
+        Commands::Insert { template, file, delimiter, header, limit } => {
+            // Check if template finish with yaml
+            if !template.ends_with(".yaml") || !template.ends_with(".yml") {
+                error!("Template file must be a yaml file");
+                return;
+            }
+
             let limit_row: u32 = match limit {
                 Some(val) => *val,
                 None => 0, // Default value
-            };
-
-            let template_path = match env_var.template_path {
-                Some(val) => val,
-                None => {
-                    info!("TEMPLATE_PATH environment variable not set. Using default: templates/table_template.yaml");
-                    "templates/table_template.yaml".to_string()
-                }
             };
             
             let athena_bucket = match env_var.athena_bucket {
@@ -254,7 +248,7 @@ async fn main() {
                 &athena_client, 
                 &table_bucket_arn,
                 &athena_bucket_fmt,
-                &template_path,
+                template,
                 &file,
                 delimiter_fmt,
                 header_fmt,

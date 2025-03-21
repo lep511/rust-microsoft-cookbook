@@ -1,51 +1,81 @@
+# When creating tables, make sure that you use all lowercase letters in your table names and table definitions. 
+# For example, make sure that your column names are all lowercase. If your table name or table definition 
+# contains capital letters, the table isn't supported by AWS Lake Formation or the AWS Glue Data Catalog. 
+# In this case, your table won't be visible to AWS analytics services such as Amazon Athena, even if your 
+# table buckets are integrated with AWS analytics services.
+# https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-getting-started.html#s2-tables-tutorial-EMR-cluster
+
 table_name: restaurant_data
 namespace: restaurants
+
 fields:
   - name: restaurant_id
     type: int
     required: true
+
   - name: restaurant_name
     type: string
     required: true
+
   - name: country_code
     type: int
+
   - name: city
     type: string
+
   - name: address
     type: string
+
   - name: locality
     type: string
+
   - name: locality_verbose
     type: string
+
   - name: longitude
     type: float
+
   - name: latitude
     type: float
+
   - name: cuisines
     type: string
+
   - name: average_cost_for_two
     type: int
+
   - name: currency
     type: string
+
   - name: has_table_booking
     type: boolean
+
   - name: has_online_delivery
     type: boolean
+
   - name: is_delivering_now
     type: boolean
+
   - name: switch_to_order_menu
     type: boolean
+
   - name: price_range
     type: int
+
   - name: aggregate_rating
     type: float
+
   - name: rating_color
     type: string
+
   - name: rating_text
     type: string
+
   - name: votes
     type: int
+
   - name: date_review
     type: timestamp
+    
   - name: date_posted
     type: timestamp

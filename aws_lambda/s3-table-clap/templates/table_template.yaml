@@ -45,3 +45,7 @@ fields:
     type: string
   - name: votes
     type: int
+  - name: date_review
+    type: timestamp
+  - name: date_posted
+    type: timestamp

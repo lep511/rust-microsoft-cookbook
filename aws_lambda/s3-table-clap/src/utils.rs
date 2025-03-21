@@ -6,6 +6,7 @@ use aws_sdk_s3tables::operation::list_namespaces::ListNamespacesOutput;
 use aws_sdk_s3tables::operation::list_tables::ListTablesOutput;
 use aws_sdk_s3tables::operation::list_table_buckets::ListTableBucketsOutput;
 use serde::{Deserialize, Serialize};
+use chrono::{DateTime, TimeZone, Utc};
 use csv::{ReaderBuilder, Reader};
 use std::fs::{self, File};
 use log::{error, info};
@@ -244,9 +245,9 @@ pub fn format_field(field: &str, field_type: &str) -> Result<String, Box<dyn std
 
     match field_type {
         "string" => {
-            let field_fmt = field.replace("'", "''");
-            let field_fmt = format!("'{}'", field_fmt);
-            Ok(field_fmt)
+            let field_fmt = field.replace("'", "''"); // Escape single quotes for SQL
+            let quoted_field = format!("'{}'", field_fmt); // Wrap in quotes for SQL
+            Ok(quoted_field)
         },
         "int" => {
             if field.parse::<i32>().is_ok() {
@@ -277,12 +278,54 @@ pub fn format_field(field: &str, field_type: &str) -> Result<String, Box<dyn std
                 return Err("Invalid boolean value".into());
             }
         },
+        // Although Iceberg supports microsecond precision for the timestamp data type
+        // Athena supports only millisecond precision for timestamps
+        // https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg.html
         "timestamp" => {
+            // ISO 8601 - 2025-03-21T13:23:16+00:00	
             if field.contains("-") && field.contains(":") && field.len() >= 16 {
-                let field_fmt = format!("TIMESTAMP '{}'", field);
+                let dt_utc = match DateTime::parse_from_rfc3339(field) {
+                    Ok(dt) => dt,
+                    Err(e) => return Err(e.into()),
+                };
+
+                let field_fmt = format!(
+                    "TIMESTAMP '{}'", 
+                    dt_utc.format("%Y-%m-%d %H:%M:%S%.3f")
+                );
+                Ok(field_fmt)
+            // UTC - 03/21/2025 @ 1:23pm
+            } else if field.contains("/") && field.contains(":") && field.len() >= 16 {
+                let dt_utc = match DateTime::parse_from_str(field, "%m/%d/%Y %l:%M%p") {
+                    Ok(dt) => dt,
+                    Err(e) => return Err(e.into()),
+                };
+
+                let field_fmt = format!(
+                    "TIMESTAMP '{}'", 
+                    dt_utc.format("%Y-%m-%d %H:%M:%S%.3f")
+                );
+                Ok(field_fmt)
+            // epoch time 1742563396
+            } else if field.parse::<i64>().is_ok() {
+                let field_num = match field.parse::<i64>() {
+                    Ok(num) => num,
+                    Err(e) => return Err(e.into()),
+                };
+                
+                // The issue is here - timestamp_opt() doesn't return Result but SingleResult
+                let dt_utc = match Utc.timestamp_opt(field_num, 0) {
+                    chrono::offset::LocalResult::Single(dt) => dt,
+                    _ => return Err("Invalid timestamp value".into()), //Err(anyhow::anyhow!("Invalid timestamp")),
+                };
+                
+                let field_fmt = format!(
+                    "TIMESTAMP '{}'", 
+                    dt_utc.format("%Y-%m-%d %H:%M:%S%.3f")
+                );
                 Ok(field_fmt)
             } else {
-                Ok(field.to_string())
+                return Err("Invalid timestamp value".into());
             }
         },
         _ => {

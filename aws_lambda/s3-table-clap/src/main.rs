@@ -143,7 +143,12 @@ enum Commands {
 
 #[::tokio::main]
 async fn main() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    // env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Info)
+        .filter_module("s3table-clap", log::LevelFilter::Info)
+        .init();
     
     // Parse command line arguments using clap
     let cli = Cli::parse();
@@ -300,7 +305,7 @@ async fn main() {
 
             for namespace in namespaces.namespaces() {
                 let namespace_str = &namespace.namespace()[0];
-                println!("Namespace: {:?}\n", namespace_str);
+                println!("--| Namespace: {:?} |--\n", namespace_str);
 
                 let tables = match list_tables(
                     &client,
@@ -317,10 +322,10 @@ async fn main() {
                 for table in tables.tables() {
                     println!("Table: {:?}", table.name);
                     println!("Created at: {:?}", table.created_at);
-                    println!("Table modified at {}", table.modified_at());
+                    println!("Table modified at {}\n", table.modified_at());
                 }
 
-                println!("--------------------------\n");
+                println!("----------------------------------------------\n");
             }
         },
         Commands::Query => {

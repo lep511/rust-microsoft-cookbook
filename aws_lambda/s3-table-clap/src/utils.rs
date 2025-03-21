@@ -6,7 +6,7 @@ use aws_sdk_s3tables::operation::list_namespaces::ListNamespacesOutput;
 use aws_sdk_s3tables::operation::list_tables::ListTablesOutput;
 use aws_sdk_s3tables::operation::list_table_buckets::ListTableBucketsOutput;
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc, TimeZone};
 use csv::{ReaderBuilder, Reader};
 use std::fs::{self, File};
 use log::{error, info};
@@ -222,6 +222,79 @@ pub async fn delete_table_bucket(
     Ok(())
 }
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ PARSE DATE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fn parse_date(
+    date_string: &str
+) -> Result<String, Box<dyn std::error::Error>> {
+    // List of common datetime formats with time zones
+    let formats = [
+        "%Y-%m-%d %H:%M:%S",           // 2023-01-15 14:30:15
+        "%Y-%m-%d %H:%M:%S.%f",        // 2023-01-15 14:30:15.123
+        "%Y/%m/%d %H:%M:%S",           // 2023/01/15 14:30:15
+        "%Y-%m-%dT%H:%M:%S",           // 2023-01-15T14:30:15
+        "%Y-%m-%dT%H:%M:%S%z",         // 2023-01-15T14:30:15+00:00
+        "%Y-%m-%dT%H:%M:%S.%f%z",      // 2023-01-15T14:30:15.123+00:00
+        "%a, %d %b %Y %H:%M:%S %z",    // Tue, 15 Jan 2023 14:30:15 +0000
+        "%A, %d-%b-%y %H:%M:%S %z",    // Friday, 21-Mar-25 14:47:21 UTC
+        "%A, %d-%b-%y %H:%M:%S %Z",    // Friday, 21-Mar-25 14:47:21 UTC
+        "%m/%d/%Y @ %I:%M%p",          // UTC: 03/21/2025 @ 2:47pm
+        "%m/%d/%Y @ %I:%M:%S %p",      // UTC with seconds (optional support)
+    ];
+
+    // Try parsing datetime with timezone
+    for format in formats {
+        if let Ok(dt) = DateTime::parse_from_str(date_string, format) {
+            let dt_utc = dt.with_timezone(&Utc);
+            return Ok(dt_utc.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
+        }
+    }
+
+    // Try parsing naive datetime (assuming UTC)
+    let naive_formats = [
+        "%Y-%m-%dT%H:%M:%S%z",          // ISO 8601, RFC 3339: 2025-03-21T14:47:21+00:00
+        "%Y-%m-%dT%H:%M:%S.%f%z",       // With microseconds
+        "%a, %d %b %Y %H:%M:%S %z",     // RFC 822/2822: Fri, 21 Mar 2025 14:47:21 +0000
+        "%A, %d-%b-%y %H:%M:%S %Z",     // RFC 2822 variant: Friday, 21-Mar-25 14:47:21 UTC
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y/%m/%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%a, %d %b %Y %H:%M:%S %z",
+        "%m/%d/%Y @ %I:%M%p",
+        "%m/%d/%Y @ %I:%M:%S %p",
+    ];
+
+    for format in naive_formats {
+        if let Ok(naive_dt) = NaiveDateTime::parse_from_str(date_string, format) {
+            let dt = Utc.from_utc_datetime(&naive_dt);
+            return Ok(dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
+        }
+    }
+
+    // Try parsing as a Unix timestamp (seconds or milliseconds)
+    if let Ok(timestamp) = date_string.parse::<i64>() {
+        let (seconds, nanos) = if timestamp.abs() > 9_999_999_999 {
+            // Assume milliseconds
+            let seconds = timestamp / 1000;
+            let millis_remainder = (timestamp % 1000).abs();
+            (seconds, (millis_remainder * 1_000_000) as u32)
+        } else {
+            // Assume seconds
+            (timestamp, 0)
+        };
+
+        if let chrono::LocalResult::Single(dt) = Utc.timestamp_opt(seconds, nanos) {
+            return Ok(dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
+        }
+    }
+
+    // If parsing fails, return an error
+    let message = format!("{}", date_string);
+    Err(message.into())
+}
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FORMAT FIELD ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub fn format_field(field: &str, field_type: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -282,51 +355,15 @@ pub fn format_field(field: &str, field_type: &str) -> Result<String, Box<dyn std
         // Athena supports only millisecond precision for timestamps
         // https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg.html
         "timestamp" => {
-            // ISO 8601 - 2025-03-21T13:23:16+00:00	
-            if field.contains("-") && field.contains(":") && field.len() >= 16 {
-                let dt_utc = match DateTime::parse_from_rfc3339(field) {
-                    Ok(dt) => dt,
-                    Err(e) => return Err(e.into()),
-                };
-
-                let field_fmt = format!(
-                    "TIMESTAMP '{}'", 
-                    dt_utc.format("%Y-%m-%d %H:%M:%S%.3f")
-                );
-                Ok(field_fmt)
-            // UTC - 03/21/2025 @ 1:23pm
-            } else if field.contains("/") && field.contains(":") && field.len() >= 16 {
-                let dt_utc = match DateTime::parse_from_str(field, "%m/%d/%Y %l:%M%p") {
-                    Ok(dt) => dt,
-                    Err(e) => return Err(e.into()),
-                };
-
-                let field_fmt = format!(
-                    "TIMESTAMP '{}'", 
-                    dt_utc.format("%Y-%m-%d %H:%M:%S%.3f")
-                );
-                Ok(field_fmt)
-            // epoch time 1742563396
-            } else if field.parse::<i64>().is_ok() {
-                let field_num = match field.parse::<i64>() {
-                    Ok(num) => num,
-                    Err(e) => return Err(e.into()),
-                };
-                
-                // The issue is here - timestamp_opt() doesn't return Result but SingleResult
-                let dt_utc = match Utc.timestamp_opt(field_num, 0) {
-                    chrono::offset::LocalResult::Single(dt) => dt,
-                    _ => return Err("Invalid timestamp value".into()), //Err(anyhow::anyhow!("Invalid timestamp")),
-                };
-                
-                let field_fmt = format!(
-                    "TIMESTAMP '{}'", 
-                    dt_utc.format("%Y-%m-%d %H:%M:%S%.3f")
-                );
-                Ok(field_fmt)
-            } else {
-                return Err("Invalid timestamp value".into());
-            }
+            let date_fmt = match parse_date(field) {
+                Ok(date_fmt) => date_fmt,
+                Err(e) => {
+                    let message = format!("Invalid timestamp value: {}", e);
+                    return Err(message.into());
+                }
+            };
+            let result_date = format!("TIMESTAMP '{}'", date_fmt);
+            return Ok(result_date);
         },
         _ => {
             let field_fmt = format!("'{}'", field);

@@ -3,7 +3,6 @@ use aws_sdk_s3tables::Client;
 use aws_sdk_athena::Client as AthenaClient;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use env_logger::Env;
 use std::io::{self, Write};
 use serde::Deserialize;
 use envy::from_env;

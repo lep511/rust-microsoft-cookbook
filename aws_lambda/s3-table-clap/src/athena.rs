@@ -8,8 +8,10 @@ use aws_sdk_athena::types::{
 };
 use crate::xai::chat::ChatCompatible;
 use crate::utils::{
-    TableTemplate, read_csv_file, read_yaml_file,
+    TableTemplate, FieldTemplate, read_csv_file, 
+    read_yaml_file, format_field,
 };
+use std::collections::HashMap;
 use tokio::time::{sleep, Duration};
 use log::{error, warn, info};
 
@@ -22,30 +24,13 @@ pub async fn insert_with_athena(
     table_bucket_arn: &str,
     athena_bucket: &str,
     template_path: &str,
-    csv_file_path: &str,
+    file_path: &str,
     delimiter: u8,
     has_headers: bool,
     limit: u32,
 ) -> Result<(), AthenaError> {
     let mut table_bucket = "no_table";
     
-    let query_values: Vec<String> = match generate_insert_query(
-        csv_file_path,
-        delimiter,
-        has_headers,
-        limit,
-    ) {
-        Ok(values) => values,
-        Err(err) => {
-            let message = format!("Error generating insert query. {}", err);
-            return Err(AthenaError::InternalServerException(
-                InternalServerException::builder()
-                    .message(&message)
-                    .build(),
-            )); 
-        }
-    };
-
     // Get the table-bucket name
     if let Some(table) = table_bucket_arn.split('/').last() {
         table_bucket = table;
@@ -66,9 +51,39 @@ pub async fn insert_with_athena(
 
     let namespace = &table_template.namespace;
     let table_name = &table_template.table_name;
+    let fields: Vec<FieldTemplate> = table_template.fields.clone();
+
+    // Convert Vec<FieldTemplate> to HashMap<u32, FieldTemplate>
+    let field_map: HashMap<usize, FieldTemplate> = fields
+        .into_iter()              
+        .enumerate() // Add indices to each element: (0, field1), (1, field2), ...
+        .map(|(i, field)| (i as usize + 1, field))  // Convert to (1, field1), (2, field2), ... 
+        .collect();  
+
+    // Get the data from the csv file
+    let query_values: Vec<String> = match generate_insert_query(
+        &field_map,
+        file_path,
+        delimiter,
+        has_headers,
+        limit,
+    ) {
+        Ok(values) => values,
+        Err(err) => {
+            let message = format!("Error generating insert query. {}", err);
+            return Err(AthenaError::InternalServerException(
+                InternalServerException::builder()
+                    .message(&message)
+                    .build(),
+            )); 
+        }
+    };
+
     let mut query_num = 1;
 
-    info!("{} requests for processing in Athena.", query_values.len());
+    info!("{} requests for processing async in Athena.", query_values.len());
+    info!("Wait for 5 seconds... press Ctrl + C to cancel the operation");
+    sleep(Duration::from_secs(5)).await;
 
     for query_value in query_values.into_iter() {
         let query = format!("INSERT INTO \"s3tablescatalog/{}\".\"{}\".\"{}\" \n \
@@ -102,13 +117,14 @@ pub async fn insert_with_athena(
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GENERATE INSERT QUERY ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub fn generate_insert_query(
-    csv_file_path: &str,
+    fields_map: &HashMap<usize, FieldTemplate>,
+    file_path: &str,
     delimiter: u8,
     has_headers: bool,
     limit: u32,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut rdr = read_csv_file(
-        csv_file_path, 
+        file_path, 
         delimiter, 
         has_headers,
     )?;
@@ -119,9 +135,23 @@ pub fn generate_insert_query(
     // Track if we've processed at least one row
     let mut first_row = true;
 
-    let mut n = 0;
+    let mut n_row = 0;
+    let mut row_error = 0;
+
     for result in rdr.records() {
-        let record = result?;
+        let record = match result {
+            Ok(record) => record,
+            Err(err) => {
+                let message = format!("Error reading CSV record. {}", err);
+                row_error += 1;
+                if row_error > 10 {
+                    return Err(message.into());
+                } else {
+                    warn!("{}", message);
+                    continue;
+                }
+            }
+        };
 
         // If this isn't the first row, add a UNION ALL
         if !first_row {
@@ -132,45 +162,27 @@ pub fn generate_insert_query(
 
         query.push_str("SELECT ");
 
-        for field in record.iter() {
+        for (serie, field) in record.iter().enumerate() {           
             // Add a comma if this isn't the first field
-            if n > 0 {
+            if serie > 0 {
                 query.push_str(", ");
             }
 
-            // Format the field based on its content
-            if field.is_empty() {
-                // Empty fields become NULL
-                query.push_str("NULL");
-            } else if field == "NULL" {
-                // Explicit NULL values
-                query.push_str("NULL");
-            } else if field.parse::<i64>().is_ok() {
-                // Integer values (no quotes)
-                query.push_str(field);
-            } else if field.parse::<f64>().is_ok() {
-                // Float values (no quotes)
-                query.push_str(field);
-            } else if field.to_lowercase() == "true" || field.to_lowercase() == "false" {
-                // Boolean values (no quotes, lowercase)
-                query.push_str(&field.to_lowercase());
-            } else if field.to_lowercase() == "yes" {
-                // "yes" becomes true
-                query.push_str("true");
-            } else if field.to_lowercase() == "no" {
-                // "no" becomes false
-                query.push_str("false");
-            } else if field.starts_with("TIMESTAMP ") {
-                // Already formatted timestamp values
-                query.push_str(field);
-            } else if field.contains("-") && field.contains(":") && field.len() >= 16 {
-                // Likely a timestamp that needs formatting
-                let field_fmt = format!("TIMESTAMP '{}'", field);
-                query.push_str(&field_fmt);
-            } else {
-                // String values (quoted)
-                let field_fmt = field.replace("'", "''");
-                let field_fmt = format!("'{}'", field_fmt);
+            let n_field = serie + 1;
+            if let Some(field_template) = fields_map.get(&n_field) {
+
+                let field_fmt: String = match format_field(
+                    field, 
+                    &field_template.field_type,
+                ) {
+                    Ok(field_fmt) => field_fmt,
+                    Err(err) => {
+                        let message = format!("Error formatting field. {}", err);
+                        warn!("{}", message);
+                        "NULL".to_string()
+                    }
+                };
+
                 query.push_str(&field_fmt);
             }
         }
@@ -178,17 +190,18 @@ pub fn generate_insert_query(
         if query.len() > MAX_BYTES {
             vec_query.push(query.clone());
             query.clear();
+            first_row = true;
         }
 
-        n += 1;
+        n_row += 1;
         
-        if n == limit {
+        if n_row == limit {
             break;
         }
     }
 
     vec_query.push(query.clone());
-    info!("Processed {} rows.", n);
+    info!("Processed {} rows.", n_row);
     
     Ok(vec_query)
 }
@@ -257,7 +270,7 @@ pub async fn query_handler(
                             break;
                         }
                         QueryExecutionState::Failed | QueryExecutionState::Cancelled => {
-                            if let Some(query) = query_execution.query {
+                            if let Some(_query) = query_execution.query {
                                 error!("Query execution failed or was cancelled.");
                             } else {
                                 error!("Query not found in execution details.");

@@ -256,7 +256,7 @@ async fn main() {
                 header_fmt,
                 limit_row,
             ).await {
-                Ok(_) => info!("Data inserted successfully\n"),
+                Ok(_) => (),
                 Err(e) => error!("Error inserting data: {}\n", e),
             }
         },

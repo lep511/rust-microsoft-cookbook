@@ -10,14 +10,14 @@ use csv::{ReaderBuilder, Reader};
 use std::fs::{self, File};
 use log::{error, info};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TableTemplate {
     pub table_name: String,
     pub namespace: String,
     pub fields: Vec<FieldTemplate>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FieldTemplate {
     pub name: String,
     #[serde(rename = "type")]
@@ -219,4 +219,75 @@ pub async fn delete_table_bucket(
     info!("Table bucket deleted: {}", table_bucket_arn);
 
     Ok(())
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FORMAT FIELD ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub fn format_field(field: &str, field_type: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let field = field.trim();
+
+    if field.is_empty() {
+        return Ok("NULL".to_string());
+    } else if field.to_lowercase() == "null" {
+        return Ok("NULL".to_string());
+    } else if field.to_lowercase() == "none" {
+        return Ok("NULL".to_string());
+    } else if field.to_lowercase() == "nil" {
+        return Ok("NULL".to_string());
+    } else if field.to_lowercase() == "na" {
+        return Ok("NULL".to_string());
+    } else if field.to_lowercase() == "n/a" {
+        return Ok("NULL".to_string());
+    } else if field.to_lowercase() == "nan" {
+        return Ok("NULL".to_string());
+    }
+
+    match field_type {
+        "string" => {
+            let field_fmt = field.replace("'", "''");
+            let field_fmt = format!("'{}'", field_fmt);
+            Ok(field_fmt)
+        },
+        "int" => {
+            if field.parse::<i32>().is_ok() {
+                Ok(field.to_string())
+            } else {
+                return Err("Invalid integer value".into());
+            }
+        },
+        "float" => {
+            if field.parse::<f32>().is_ok() {
+                Ok(field.to_string())
+            } else {
+                return Err("Invalid float value".into());
+            }
+        },
+        "boolean" => {
+            if field.to_lowercase() == "true" || field.to_lowercase() == "false" {
+                Ok(field.to_lowercase())
+            } else if field.to_lowercase() == "yes" {
+                Ok("true".to_string())
+            } else if field.to_lowercase() == "no" {
+                Ok("false".to_string())
+            } else if field == "1" {
+                Ok("true".to_string())
+            } else if field == "0" {
+                Ok("false".to_string())
+            } else {
+                return Err("Invalid boolean value".into());
+            }
+        },
+        "timestamp" => {
+            if field.contains("-") && field.contains(":") && field.len() >= 16 {
+                let field_fmt = format!("TIMESTAMP '{}'", field);
+                Ok(field_fmt)
+            } else {
+                Ok(field.to_string())
+            }
+        },
+        _ => {
+            let field_fmt = format!("'{}'", field);
+            Ok(field_fmt)
+        }
+    }
 }

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use chrono::{DateTime, NaiveDateTime, Utc, TimeZone};
 use csv::{ReaderBuilder, Reader};
 use std::fs::{self, File};
+use std::path::Path;
 use log::{error, info};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -46,17 +47,10 @@ pub fn read_csv_file(
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ READ YAML FILE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub fn read_yaml_file(
-    yaml_file_path: &str,
+    yaml_file_path: &Path,
 ) -> Result<TableTemplate, Box<dyn std::error::Error>> {
-    let template_content = match fs::read_to_string(yaml_file_path) {
-        Ok(content) => content,
-        Err(e) => return Err(Box::new(e)),
-    };
-            
-    let table_template: TableTemplate = match serde_yaml::from_str(&template_content) {
-        Ok(template) => template,
-        Err(e) => return Err(Box::new(e)),
-    };
+    let template_content = fs::read_to_string(yaml_file_path)?;    
+    let table_template: TableTemplate = serde_yaml::from_str(&template_content)?;
 
     Ok(table_template)
 }
@@ -334,6 +328,20 @@ pub fn format_field(field: &str, field_type: &str) -> Result<String, Box<dyn std
                 Ok(field.to_string())
             } else {
                 return Err("Invalid float value".into());
+            }
+        },
+        "double" => {
+            if field.parse::<f64>().is_ok() {
+                Ok(field.to_string())
+            } else {
+                return Err("Invalid double value".into());
+            }
+        },
+        "decimal" => {
+            if field.parse::<f64>().is_ok() {
+                Ok(field.to_string())
+            } else {
+                return Err("Invalid decimal value".into());
             }
         },
         "boolean" => {

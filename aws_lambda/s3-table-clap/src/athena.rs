@@ -12,6 +12,7 @@ use crate::utils::{
     read_yaml_file, format_field,
 };
 use std::collections::HashMap;
+use std::path::Path;
 use tokio::time::{sleep, Duration};
 use log::{error, warn, info};
 
@@ -23,7 +24,7 @@ pub async fn insert_with_athena(
     client: &AthenaClient, 
     table_bucket_arn: &str,
     athena_bucket: &str,
-    template_path: &str,
+    template_path: &Path,
     file_path: &str,
     delimiter: u8,
     has_headers: bool,

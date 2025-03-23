@@ -4,6 +4,7 @@ use aws_sdk_athena::Client as AthenaClient;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use std::io::{self, Write};
+use std::path::Path;
 use serde::Deserialize;
 use envy::from_env;
 
@@ -18,14 +19,16 @@ use athena::{
 pub mod utils;
 use utils::{
     delete_table, delete_namespace, delete_table_bucket,
-    get_table, list_namespaces, list_tables, get_table_bucket,
-    list_table_buckets,
+    get_table, list_namespaces, list_tables, list_table_buckets,
 };
 pub mod error;
+
+const DEFAULT_TEMPLATE: &str = "s3t_template.yaml";
 
 #[derive(Deserialize, Debug)]
 struct Config {
     table_bucket_arn: Option<String>,
+    template_path: Option<String>,
     athena_bucket: Option<String>,
     xai_api_key: Option<String>,
 }
@@ -40,6 +43,7 @@ struct Config {
     color = clap::ColorChoice::Auto,
     after_help = "Environment variables:
   TABLE_BUCKET_ARN - Required: S3 bucket ARN for Table buckets.
+  TEMPLATE_PATH    - Optional: Path to the template file (default: s3t_template.yaml)
   ATHENA_BUCKET    - Optional: S3 bucket name for Athena query results (default: None)
   XAI_API_KEY      - Optional: API key for XAI service (default: None)"
 )]
@@ -57,26 +61,16 @@ enum Commands {
     /// Uses the YAML template file to create
     /// a new table in the configured S3 bucket.
     /// 
-    #[command(after_help = "Examples:\n  s3tool create templates/my-template.yaml")]
-    Create {
-        /// Location of the yaml template file
-        #[arg(required = true, value_name = "TEMPLATE_PATH")]
-        #[arg(value_hint = clap::ValueHint::FilePath)]
-        template: String,
-    },
+    #[command(after_help = "Examples:\n  echo \"Table bucket template here.\" > s3t_template.yaml\ns3tool create")]
+    Create,
     
     /// Insert data from a file into the table
     /// 
     /// Reads data from a file and inserts it into the table using Athena.
     /// Supports CSV files with configurable delimiters and header options.
     /// 
-    #[command(after_help = "Examples:\n  s3tool insert my-template.yaml data.csv\n  s3tool insert my-template.yaml data.csv --delimiter=\"|\" --header=false")]
+    #[command(after_help = "Examples:\n  s3tool insert data.csv\n  s3tool insert data.csv --delimiter=\"|\" --header=false")]
     Insert {
-        /// Location of the yaml template file
-        #[arg(required = true, value_name = "TEMPLATE_PATH")]
-        #[arg(value_hint = clap::ValueHint::FilePath)]
-        template: String,
-
         /// Path to the file containing data to insert
         #[arg(required = true, value_name = "FILE_PATH")]
         #[arg(value_hint = clap::ValueHint::FilePath)]
@@ -95,23 +89,38 @@ enum Commands {
         limit: Option<u32>,
     },
 
-    /// List tables in a specific namespace
-    ListTables {
-        /// Namespace of the table
-        namespace: String,
-    },
+    /// List all table buckets in the region
+    #[command(visible_alias = "ls")]
+    List,
 
     /// List all namespaces and their tables
     /// 
     /// Displays all namespaces in the table bucket and lists
     /// all tables within each namespace.
-    #[command(visible_alias = "ls")]
-    List,
+    #[command(visible_alias = "ln")]
+    ListNamespaces,
+
+    /// List tables in a specific namespace
+    #[command(visible_alias = "lt")]
+    ListTables {
+        /// Namespace of the table
+        namespace: String,
+    },
     
     /// Run a query against table data
     /// 
     /// Executes an Athena query against the table data.
     Query,
+
+    /// Query with XAI LLM
+    /// 
+    /// Execute a natural language query using a Large Language Model.
+    /// The query is translated into SQL and executed against the table.
+    Llm {
+        /// Natural language query to execute
+        #[arg(required = true, value_name = "QUERY")]
+        query_text: String,
+    },
 
     /// Delete a table from a namespace
     DeleteTable {
@@ -133,16 +142,6 @@ enum Commands {
     
     /// Delete table bucket S3
     DeleteTableBucket,
-    
-    /// Query with XAI LLM
-    /// 
-    /// Execute a natural language query using a Large Language Model.
-    /// The query is translated into SQL and executed against the table.
-    Llm {
-        /// Natural language query to execute
-        #[arg(required = true, value_name = "QUERY")]
-        query_text: String,
-    },
 }
 
 #[::tokio::main]
@@ -164,59 +163,49 @@ async fn main() {
     let env_var = match from_env::<Config>() {
         Ok(config) => config,
         Err(error) => {
-            info!("Error loading environment variables. {}", error);
+            error!("Error loading environment variables. {}", error);
             return;
         }
     };
 
-    let table_bucket_arn = match env_var.table_bucket_arn {
-        Some(val) => val,
-        None => {
-            error!("TABLE_BUCKET_ARN environment variable not set");
-            return;
-        }
+    let table_bucket_arn: String = match env_var.table_bucket_arn {
+        Some(table_bucket) => table_bucket,
+        None => "table_bucket_not_set".to_string()
     };
 
-    let arn_buckets = match list_table_buckets(&client).await {
-        Ok(buckets) => buckets,
-        Err(e) => {
-            error!("Error listing table buckets. {}", e);
-            return;
-        }
+    let template = match env_var.template_path {
+        Some(path) => path,
+        None => DEFAULT_TEMPLATE.to_string(),
     };
-
-    // Check if table bucket exists
-    match get_table_bucket(&client, &table_bucket_arn).await {
-        Ok(tableb) => {
-            info!("Table bucket name: {}", tableb.name.bold());
-        }
-        Err(e) => {
-            error!("Error getting table bucket. {}", e);
-            return;
-        }
-    }
+    
+    let template_path = Path::new(&template);
     
     // Handle commands using match
     match &cli.command {
-        Commands::Create { template } => {
-            if !template.ends_with(".yaml") || !template.ends_with(".yml") {
-                error!("Template file must be a yaml file");
+        Commands::Create => {
+            if table_bucket_arn == "table_bucket_not_set" {
+                error!("TABLE_BUCKET_ARN environment variable not set.");
+                return;
+            } else if !template_path.exists() {
+                error!("Template file not found");
                 return;
             }
-
+            
             match create_table_from_yaml(
                 &client, 
                 &table_bucket_arn, 
-                template,
+                template_path,
             ).await {
                 Ok(_) => info!("Table created successfully\n"),
                 Err(e) => error!("Error creating table: {}\n", e),
             }
         },
-        Commands::Insert { template, file, delimiter, header, limit } => {
-            // Check if template finish with yaml
-            if !template.ends_with(".yaml") || !template.ends_with(".yml") {
-                error!("Template file must be a yaml file");
+        Commands::Insert { file, delimiter, header, limit } => {
+            if table_bucket_arn == "table_bucket_not_set" {
+                error!("TABLE_BUCKET_ARN environment variable not set.");
+                return;
+            } else if !template_path.exists() {
+                error!("Template file not found");
                 return;
             }
 
@@ -248,7 +237,7 @@ async fn main() {
                 &athena_client, 
                 &table_bucket_arn,
                 &athena_bucket_fmt,
-                template,
+                template_path,
                 &file,
                 delimiter_fmt,
                 header_fmt,
@@ -258,27 +247,30 @@ async fn main() {
                 Err(e) => error!("Error inserting data: {}\n", e),
             }
         },
-        Commands::ListTables { namespace } => {
-            let tables = match list_tables(
-                &client, 
-                &table_bucket_arn,
-                &namespace
-            ).await {
-                Ok(tables) => tables,
+        Commands::List => {
+            let arn_buckets = match list_table_buckets(&client).await {
+                Ok(buckets) => buckets,
                 Err(e) => {
-                    error!("Error listing tables: {}\n", e);
+                    error!("Error listing table buckets. {}", e);
                     return;
                 }
             };
-
-            for table in tables.tables() {
-                println!("Table: {:?}", table.name);
-                println!("Created at: {:?}", table.created_at);
-                println!("Table modified at {}", table.modified_at());
-                println!("--------------------------");
+            if arn_buckets.table_buckets().is_empty() {
+                println!("No table buckets found");
+                return;
             }
-        },
-        Commands::List => {
+            for table_b in arn_buckets.table_buckets() {
+                println!("Table Bucket: {}", table_b.name.green());
+                println!("ARN: {:?}", table_b.arn);
+                println!("----------------------------------------------\n");
+            }
+        }
+        Commands::ListNamespaces => {
+            if table_bucket_arn == "table_bucket_not_set" {
+                error!("TABLE_BUCKET_ARN environment variable not set.");
+                return;
+            }
+
             let namespaces = match list_namespaces(
                 &client, 
                 &table_bucket_arn
@@ -321,7 +313,37 @@ async fn main() {
                 println!("----------------------------------------------\n");
             }
         },
+        Commands::ListTables { namespace } => {
+            if table_bucket_arn == "table_bucket_not_set" {
+                error!("TABLE_BUCKET_ARN environment variable not set.");
+                return;
+            } 
+
+            let tables = match list_tables(
+                &client, 
+                &table_bucket_arn,
+                &namespace
+            ).await {
+                Ok(tables) => tables,
+                Err(e) => {
+                    error!("Error listing tables: {}\n", e);
+                    return;
+                }
+            };
+
+            for table in tables.tables() {
+                println!("Table: {:?}", table.name);
+                println!("Created at: {:?}", table.created_at);
+                println!("Table modified at {}", table.modified_at());
+                println!("--------------------------");
+            }
+        },
         Commands::Query => {
+            if table_bucket_arn == "table_bucket_not_set" {
+                error!("TABLE_BUCKET_ARN environment variable not set.");
+                return;
+            } 
+
             let athena_bucket = match env_var.athena_bucket {
                 Some(val) => val,
                 None => {
@@ -350,6 +372,11 @@ async fn main() {
             }
         },
         Commands::DeleteTable { namespace, table } => {
+            if table_bucket_arn == "table_bucket_not_set" {
+                error!("TABLE_BUCKET_ARN environment variable not set.");
+                return;
+            } 
+
             // Check if table exist
             match get_table(
                 &client,
@@ -391,18 +418,33 @@ async fn main() {
             }
         },
         Commands::DeleteNamespace { namespace } => {
+            if table_bucket_arn == "table_bucket_not_set" {
+                error!("TABLE_BUCKET_ARN environment variable not set.");
+                return;
+            } 
+
             match delete_namespace(&client, &table_bucket_arn, &namespace).await {
                 Ok(_) => info!("Namespace deleted successfully"),
                 Err(e) => error!("Error deleting namespace: {}", e),
             }
         },
         Commands::DeleteTableBucket => {
+            if table_bucket_arn == "table_bucket_not_set" {
+                error!("TABLE_BUCKET_ARN environment variable not set.");
+                return;
+            } 
+
             match delete_table_bucket(&client, &table_bucket_arn).await {
                 Ok(_) => info!("Table bucket deleted successfully"),
                 Err(e) => error!("Error deleting table bucket: {}", e),
             }
         },
         Commands::Llm { query_text } => {
+            if table_bucket_arn == "table_bucket_not_set" {
+                error!("TABLE_BUCKET_ARN environment variable not set.");
+                return;
+            } 
+
             let athena_bucket = match env_var.athena_bucket {
                 Some(val) => val,
                 None => {

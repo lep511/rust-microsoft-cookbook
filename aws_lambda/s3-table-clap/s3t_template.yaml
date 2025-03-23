@@ -15,75 +15,75 @@ fields:
     required: true
 
   - name: spi
-    type: float
+    type: double
     description: Soccer Power Index rating
 
   - name: global_o
-    type: float
+    type: double
     description: Global offensive rating
 
   - name: global_d
-    type: float
+    type: double
     description: Global defensive rating
 
   - name: sim_wins
-    type: float
+    type: double
     description: Simulated number of wins
 
   - name: sim_ties
-    type: float
+    type: double
     description: Simulated number of ties
 
   - name: sim_losses
-    type: float
+    type: double
     description: Simulated number of losses
 
   - name: sim_goal_diff
-    type: int
+    type: double
     description: Simulated goal differential
 
   - name: goals_scored
-    type: int
+    type: double
     description: Actual goals scored
 
   - name: goals_against
-    type: int
+    type: double
     description: Actual goals conceded
 
   - name: group_1
-    type: int
+    type: double
     description: Indicator for finishing first in group
 
   - name: group_2
-    type: int
+    type: double
     description: Indicator for finishing second in group
 
   - name: group_3
-    type: int
+    type: double
     description: Indicator for finishing third in group
 
   - name: group_4
-    type: int
+    type: double
     description: Indicator for finishing fourth in group
 
   - name: make_round_of_16
-    type: int
+    type: double
     description: Indicator for reaching round of 16
 
   - name: make_quarters
-    type: int
+    type: double
     description: Indicator for reaching quarter-finals
 
   - name: make_semis
-    type: int
+    type: double
     description: Indicator for reaching semi-finals
 
   - name: make_final
-    type: int
+    type: double
     description: Indicator for reaching the final
 
   - name: win_league
-    type: int
+    type: double
     description: Indicator for winning the tournament
 
   - name: timestamp

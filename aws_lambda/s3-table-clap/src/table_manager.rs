@@ -7,13 +7,14 @@ use crate::utils::{
     TableTemplate, create_namespace,
     read_yaml_file, get_namespace,
 };
+use std::path::Path;
 use crate::error::MainError;
 use log::info;
 
 pub async fn create_table_from_yaml(
     client: &Client, 
     table_bucket_arn: &str,
-    template_path: &str
+    template_path: &Path,
 ) -> Result<(), MainError> {
     // Load the YAML template           
     let table_template: TableTemplate = match read_yaml_file(template_path) {

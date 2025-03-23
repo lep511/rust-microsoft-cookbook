@@ -1,86 +1,67 @@
-use chrono::{DateTime, NaiveDateTime, Utc, TimeZone};
-
-fn parse_date(date_string: &str) -> Result<String, Box<dyn std::error::Error>> {
-    // List of common datetime formats with time zones
-    let formats = [
-        "%Y-%m-%d %H:%M:%S",           // 2023-01-15 14:30:15
-        "%Y-%m-%d %H:%M:%S.%f",        // 2023-01-15 14:30:15.123
-        "%Y/%m/%d %H:%M:%S",           // 2023/01/15 14:30:15
-        "%Y-%m-%dT%H:%M:%S",           // 2023-01-15T14:30:15
-        "%Y-%m-%dT%H:%M:%S%z",         // 2023-01-15T14:30:15+00:00
-        "%Y-%m-%dT%H:%M:%S.%f%z",      // 2023-01-15T14:30:15.123+00:00
-        "%a, %d %b %Y %H:%M:%S %z",    // Tue, 15 Jan 2023 14:30:15 +0000
-        "%A, %d-%b-%y %H:%M:%S %z",    // Friday, 21-Mar-25 14:47:21 UTC
-        "%A, %d-%b-%y %H:%M:%S %Z",    // Friday, 21-Mar-25 14:47:21 UTC
-        "%m/%d/%Y @ %I:%M%p",          // UTC: 03/21/2025 @ 2:47pm
-        "%m/%d/%Y @ %I:%M:%S %p",      // UTC with seconds (optional support)
-    ];
-
-    // Try parsing datetime with timezone
-    for format in formats {
-        if let Ok(dt) = DateTime::parse_from_str(date_string, format) {
-            let dt_utc = dt.with_timezone(&Utc);
-            return Ok(dt_utc.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
-        }
-    }
-
-    // Try parsing naive datetime (assuming UTC)
-    let naive_formats = [
-        "%Y-%m-%dT%H:%M:%S%z",          // ISO 8601, RFC 3339: 2025-03-21T14:47:21+00:00
-        "%Y-%m-%dT%H:%M:%S.%f%z",       // With microseconds
-        "%a, %d %b %Y %H:%M:%S %z",     // RFC 822/2822: Fri, 21 Mar 2025 14:47:21 +0000
-        "%A, %d-%b-%y %H:%M:%S %Z",     // RFC 2822 variant: Friday, 21-Mar-25 14:47:21 UTC
-        "%Y-%m-%d %H:%M:%S",
-        "%Y-%m-%d %H:%M:%S.%f",
-        "%Y/%m/%d %H:%M:%S",
-        "%Y-%m-%dT%H:%M:%S",
-        "%Y-%m-%dT%H:%M:%SZ",
-        "%a, %d %b %Y %H:%M:%S %z",
-        "%m/%d/%Y @ %I:%M%p",
-        "%m/%d/%Y @ %I:%M:%S %p",
-    ];
-
-    for format in naive_formats {
-        if let Ok(naive_dt) = NaiveDateTime::parse_from_str(date_string, format) {
-            let dt = Utc.from_utc_datetime(&naive_dt);
-            return Ok(dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
-        }
-    }
-
-    // Try parsing as a Unix timestamp (seconds or milliseconds)
-    if let Ok(timestamp) = date_string.parse::<i64>() {
-        let (seconds, nanos) = if timestamp.abs() > 9_999_999_999 {
-            // Assume milliseconds
-            let seconds = timestamp / 1000;
-            let millis_remainder = (timestamp % 1000).abs();
-            (seconds, (millis_remainder * 1_000_000) as u32)
-        } else {
-            // Assume seconds
-            (timestamp, 0)
-        };
-
-        if let chrono::LocalResult::Single(dt) = Utc.timestamp_opt(seconds, nanos) {
-            return Ok(dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
-        }
-    }
-
-    // If parsing fails, return an error
-    Err(format!("Unable to parse date: {}", date_string).into())
-}
+use chrono::{NaiveDate, DateTime, Weekday};
+use chrono::{Utc, NaiveDateTime, Local};
+use chrono::Datelike;
 
 fn main() {
-    let test_strings = [
-        "2025-01-05 09:02:03.521861",
-        "2023-01-15T14:30:15Z",
-        "Friday, 21-Mar-25 14:47:21",
-        "1673793015",      // Unix timestamp (seconds)
-        "1736067723521",   // Unix timestamp (milliseconds)
-    ];
-
-    for s in &test_strings {
-        match parse_date(s) {
-            Ok(timestamp) => println!("'{}' -> '{}'", s, timestamp),
-            Err(e) => println!("Error: {}", e),
-        }
+    let date = "18-2-2023";
+    let format = "%d-%m-%Y";
+    let map_date = NaiveDate::parse_from_str(date, format);
+    if let Ok(map_date) = map_date {
+        println!("The date is {}", map_date);
+    } else {
+        println!("Error parsing date");
     }
+
+    // Obtener la fecha y hora actual
+    let now = Utc::now();
+    
+    // Extraer el año
+    let year = now.year_ce();
+    println!("El año actual es: {:?}", year.1);
+
+    // Checar si el año es bisiesto
+    let year_parse = year.1 as i32;
+    let leap_year: bool = NaiveDate::from_yo_opt(year_parse, 366).is_some();
+    if leap_year {
+        println!("El año actual es bisiesto");
+    } else {
+        println!("El año actual no es bisiesto");
+    }
+
+    let new_date = NaiveDate::from_yo_opt(2024, 166);
+    if let Some(new_date) = new_date {
+        println!("La fecha 166 dias de 2024 es: {}", new_date);
+    } else {
+        println!("Error al crear la fecha");
+    }
+
+    // También puedes extraer el año de una fecha específica
+    let date_time = NaiveDateTime::parse_from_str("2024-03-22 15:30:00", "%Y-%m-%d %H:%M:%S")
+        .expect("Error al analizar la fecha");
+    let year_from_specific_date = date_time.year_ce();
+    println!("El año de la fecha específica es: {}", year_from_specific_date.1);
+
+    let week = NaiveDate::from_weekday_of_month_opt(2017, 3, Weekday::Fri, 2);
+    if let Some(week) = week {
+        println!("La fecha de la semana 2 del mes 3 de 2017 es: {}", week);
+    } else {
+        println!("Error al crear la fecha");
+    }
+
+    let new_date = "2014-5-17T12:34:56+09:30";
+    let fmt_date = NaiveDate::parse_from_str(new_date, "%Y-%m-%dT%H:%M:%S%z");
+    if let Ok(fmt_date) = fmt_date {
+        println!("La fecha es: {}", fmt_date);
+    } else {
+        println!("Error al crear la fecha");
+    }
+
+    let utc_date = Utc::now().date().naive_utc();
+    let local_date = Local::now().date().naive_local();
+    println!("UTC date: {}", utc_date);
+    println!("Local date: {}", local_date);
+    let local_time = Local::now().time();
+    println!("Local time: {}", local_time);
+    let timestamp = Local::now().timestamp();
+    println!("Timestamp: {}", timestamp);
 }

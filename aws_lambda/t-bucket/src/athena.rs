@@ -8,13 +8,17 @@ use aws_sdk_athena::types::{
 };
 use crate::xai::chat::ChatCompatible;
 use crate::utils::{
-    TableTemplate, FieldTemplate, read_csv_file, 
-    read_yaml_file, format_field, ProcessFileResult,
+    TableTemplate, FieldTemplate, ProcessFileResult,
+    read_yaml_file, format_field,
 };
+use csv_async::AsyncReaderBuilder;
 use chrono::{Utc, SecondsFormat};
 use std::collections::HashMap;
 use std::path::Path;
+use tokio::fs::File as TokioFile;
 use tokio::time::{sleep, Duration};
+use futures_util::TryStreamExt;
+use tokio_util::compat::TokioAsyncReadCompatExt;
 use log::{error, warn, info};
 
 const MAX_BYTES: usize = 250_000; // ~256KB
@@ -29,7 +33,7 @@ pub async fn insert_with_athena(
     limit: u32,
 ) -> Result<ProcessFileResult, AthenaError> {   
     // Load the YAML template           
-    let table_template: TableTemplate = match read_yaml_file(template_path) {
+    let table_template: TableTemplate = match read_yaml_file(template_path).await {
         Ok(template) => template,
         Err(err) => {
             let message = format!("Error reading template file. {}", err);
@@ -56,7 +60,7 @@ pub async fn insert_with_athena(
         delimiter,
         has_headers,
         limit,
-    ) {
+    ).await {
         Ok(values) => values,
         Err(err) => {
             let message = format!("Error generating insert query. {}", err);
@@ -82,7 +86,7 @@ pub async fn process_insert_items(
     let table_bucket = table_bucket_arn.split('/').last().unwrap_or("no_table");
     
     // Load the YAML template           
-    let table_template: TableTemplate = match read_yaml_file(template_path) {
+    let table_template: TableTemplate = match read_yaml_file(template_path).await {
         Ok(template) => template,
         Err(err) => {
             let message = format!("Error reading template file. {}", err);
@@ -129,30 +133,99 @@ pub async fn process_insert_items(
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GENERATE INSERT QUERY ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-pub fn generate_insert_query(
+pub async fn generate_insert_query(
     fields_map: &HashMap<usize, FieldTemplate>,
     file_path: &str,
     delimiter: u8,
     has_headers: bool,
     limit: u32,
-) -> Result<ProcessFileResult, Box<dyn std::error::Error>> {
-    let mut rdr = read_csv_file(
-        file_path, 
-        delimiter, 
-        has_headers,
-    )?;
+) -> Result<ProcessFileResult, Box<dyn std::error::Error + Send + Sync>> {
+    // Open the file asynchronously
+    let file = TokioFile::open(file_path).await?;
+
+    // Convert to a type that implements futures::AsyncRead
+    let compat_file = file.compat();
+
+    // Create the CSV reader with the compatible file
+    let mut reader = AsyncReaderBuilder::new()
+        .delimiter(delimiter)
+        .has_headers(has_headers)
+        .create_reader(compat_file);
 
     let mut vec_query: Vec<String> = vec![];
     let mut rows_errors: Vec<String> = vec![];
     let mut query = String::new();
     let mut n_row = 0;
+    let mut n_field = 0;
 
     // Track if we've processed at least one row
     let mut first_row = true;
  
-    for result in rdr.records() {
-        let record = match result {
-            Ok(record) => record,
+    // Process the CSV one record at a time
+    let mut records = reader.records();
+    loop {
+        match records.try_next().await {
+            Ok(record) => {
+                if record == None {
+                    break;
+                }
+                let mut serie = 0;
+                // If this isn't the first row, add a UNION ALL
+                if !first_row {
+                    query.push_str("\nUNION ALL\n");
+                } else {
+                    first_row = false;
+                }
+
+                query.push_str("SELECT ");
+
+                record.iter().for_each(|row| {          
+                    row.iter().for_each(|field| {
+                        // Add a comma if this isn't the first field
+                        if serie > 0 {
+                            query.push_str(", ");
+                        }
+
+                        n_field = serie + 1;
+                        if let Some(field_template) = fields_map.get(&n_field) {
+                            let field_fmt: String = match format_field(
+                                field, 
+                                &field_template.field_type,
+                            ) {
+                                Ok(field_fmt) => field_fmt,
+                                Err(err) => {
+                                    let now = Utc::now();
+                                    // Format the timestamp in RFC 3339 format with milliseconds and "Z" suffix.
+                                    let timestamp = now.to_rfc3339_opts(SecondsFormat::Millis, true);
+                                    let message = format!(
+                                        "[{}] formatting field. {} - {}", 
+                                        timestamp, 
+                                        &field_template.field_type,
+                                        err,
+                                    );
+                                    rows_errors.push(message);  
+                                    "NULL".to_string()
+                                }
+                            };
+
+                            query.push_str(&field_fmt);
+                            serie += 1;
+                        }
+                    })
+                });
+
+                if query.len() > MAX_BYTES {
+                    vec_query.push(query.clone());
+                    query.clear();
+                    first_row = true;
+                }
+
+                n_row += 1;
+                
+                if n_row == limit {
+                    break;
+                }
+            }
             Err(err) => {
                 let now = Utc::now();
                 // Format the timestamp in RFC 3339 format with milliseconds and "Z" suffix.
@@ -165,59 +238,6 @@ pub fn generate_insert_query(
                 rows_errors.push(message);
                 continue;         
             }
-        };
-
-        // If this isn't the first row, add a UNION ALL
-        if !first_row {
-            query.push_str("\nUNION ALL\n");
-        } else {
-            first_row = false;
-        }
-
-        query.push_str("SELECT ");
-
-        for (serie, field) in record.iter().enumerate() {           
-            // Add a comma if this isn't the first field
-            if serie > 0 {
-                query.push_str(", ");
-            }
-
-            let n_field = serie + 1;
-            if let Some(field_template) = fields_map.get(&n_field) {
-                let field_fmt: String = match format_field(
-                    field, 
-                    &field_template.field_type,
-                ) {
-                    Ok(field_fmt) => field_fmt,
-                    Err(err) => {
-                        let now = Utc::now();
-                        // Format the timestamp in RFC 3339 format with milliseconds and "Z" suffix.
-                        let timestamp = now.to_rfc3339_opts(SecondsFormat::Millis, true);
-                        let message = format!(
-                            "[{}] formatting field. {} - {}", 
-                            timestamp, 
-                            &field_template.field_type,
-                            err,
-                        );
-                        rows_errors.push(message);  
-                        "NULL".to_string()
-                    }
-                };
-
-                query.push_str(&field_fmt);
-            }
-        }
-
-        if query.len() > MAX_BYTES {
-            vec_query.push(query.clone());
-            query.clear();
-            first_row = true;
-        }
-
-        n_row += 1;
-        
-        if n_row == limit {
-            break;
         }
     }
 
@@ -226,6 +246,7 @@ pub fn generate_insert_query(
     let response = ProcessFileResult {
         fields: vec_query,
         errors: rows_errors,
+        n_columns: n_field,
     };
     
     Ok(response)

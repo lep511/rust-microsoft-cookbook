@@ -17,7 +17,7 @@ pub async fn create_table_from_yaml(
     template_path: &Path,
 ) -> Result<(), MainError> {
     // Load the YAML template           
-    let table_template: TableTemplate = match read_yaml_file(template_path) {
+    let table_template: TableTemplate = match read_yaml_file(template_path).await {
         Ok(template) => template,
         Err(e) => {
             let message = format!("Error reading template file: {}", e);

@@ -270,12 +270,15 @@ async fn main() {
                 if file_log_eror != "no_file_log" {
                     info!("Error log file has been saved: {}", file_log_eror);
                 }
+            } else {
+                info!("No errors found processing the file {}", &file);
             }
 
-            println!("Would you like to continue (y/N)");
-            match get_user_confirmation().await {
+            let prompt = "Would you like to continue (y/N)";
+            match get_user_confirmation(prompt).await {
                 Ok(input) => {                
                     if !APPROVED_VALUES.contains(&input.as_str()) {
+                        info!("Operation cancelled by user.\n");
                         return;
                     }
                 }

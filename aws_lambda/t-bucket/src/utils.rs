@@ -9,8 +9,6 @@ use tokio::io::{self, AsyncReadExt, AsyncWriteExt, AsyncBufReadExt, BufReader};
 use tokio::fs::File as TokioFile;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, NaiveDateTime, Utc, TimeZone};
-use csv::{ReaderBuilder, Reader};
-use std::fs::{self, File};
 use std::path::Path;
 use std::io::Write;
 use log::{error, info};
@@ -18,6 +16,7 @@ use log::{error, info};
 pub struct ProcessFileResult {
     pub fields: Vec<String>,
     pub errors: Vec<String>,
+    pub n_columns: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -35,30 +34,20 @@ pub struct FieldTemplate {
     pub required: Option<bool>,
 }
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ READ CSV FILE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-pub fn read_csv_file(
-    csv_file_path: &str,
-    delimiter: u8,
-    has_headers: bool,
-) -> Result<Reader<File>, Box<dyn std::error::Error>> {
-    let file = File::open(csv_file_path)?;
-
-    let reader = ReaderBuilder::new()
-        .delimiter(delimiter)
-        .has_headers(has_headers) 
-        .from_reader(file);
-
-    Ok(reader)
-}
-
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ READ YAML FILE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-pub fn read_yaml_file(
+pub async fn read_yaml_file(
     yaml_file_path: &Path,
-) -> Result<TableTemplate, Box<dyn std::error::Error>> {
-    let template_content = fs::read_to_string(yaml_file_path)?;    
-    let table_template: TableTemplate = serde_yaml::from_str(&template_content)?;
+) -> Result<TableTemplate, Box<dyn std::error::Error + Send + Sync>> {
+    // Read the file asynchronously using tokio's file system utilities
+    let template_content = tokio::fs::read_to_string(yaml_file_path).await?;
+    
+    // Deserialize the YAML content
+    // Note: serde_yaml::from_str is CPU-bound and doesn't have an async version
+    // We can use tokio::task::spawn_blocking for CPU-intensive operations
+    let table_template = tokio::task::spawn_blocking(move || {
+        serde_yaml::from_str::<TableTemplate>(&template_content)
+    }).await??; // Double ? to handle both JoinError and serde_yaml::Error
 
     Ok(table_template)
 }
@@ -81,10 +70,11 @@ pub async fn pause_for_keypress() -> io::Result<()> {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GET USER CONFIRMATION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-pub async fn get_user_confirmation() -> io::Result<String> {
+pub async fn get_user_confirmation(prompt: &str) -> io::Result<String> {
     // Get confirmation from user asynchronously
     let mut stdout = io::stdout();
-    stdout.write_all(b"> ").await?;
+    let prompt_fmt = format!("{}: ", prompt);
+    stdout.write_all(prompt_fmt.as_bytes()).await?;
     stdout.flush().await?;
 
     // Set up a buffered reader for stdin

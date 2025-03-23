@@ -9,8 +9,9 @@ use aws_sdk_athena::types::{
 use crate::xai::chat::ChatCompatible;
 use crate::utils::{
     TableTemplate, FieldTemplate, read_csv_file, 
-    read_yaml_file, format_field,
+    read_yaml_file, format_field, ProcessFileResult,
 };
+use chrono::{Utc, SecondsFormat};
 use std::collections::HashMap;
 use std::path::Path;
 use tokio::time::{sleep, Duration};
@@ -21,22 +22,12 @@ const MAX_BYTES: usize = 250_000; // ~256KB
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INSERT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub async fn insert_with_athena(
-    client: &AthenaClient, 
-    table_bucket_arn: &str,
-    athena_bucket: &str,
     template_path: &Path,
     file_path: &str,
     delimiter: u8,
     has_headers: bool,
     limit: u32,
-) -> Result<(), AthenaError> {
-    let mut table_bucket = "no_table";
-    
-    // Get the table-bucket name
-    if let Some(table) = table_bucket_arn.split('/').last() {
-        table_bucket = table;
-    }
-
+) -> Result<ProcessFileResult, AthenaError> {   
     // Load the YAML template           
     let table_template: TableTemplate = match read_yaml_file(template_path) {
         Ok(template) => template,
@@ -49,9 +40,6 @@ pub async fn insert_with_athena(
             )); 
         }
     };
-
-    let namespace = &table_template.namespace;
-    let table_name = &table_template.table_name;
     let fields: Vec<FieldTemplate> = table_template.fields.clone();
 
     // Convert Vec<FieldTemplate> to HashMap<u32, FieldTemplate>
@@ -62,7 +50,7 @@ pub async fn insert_with_athena(
         .collect();  
 
     // Get the data from the csv file
-    let query_values: Vec<String> = match generate_insert_query(
+    let process_fields: ProcessFileResult = match generate_insert_query(
         &field_map,
         file_path,
         delimiter,
@@ -80,12 +68,36 @@ pub async fn insert_with_athena(
         }
     };
 
+    Ok(process_fields)
+}
+
+pub async fn process_insert_items(
+    client: &AthenaClient, 
+    table_bucket_arn: &str,
+    template_path: &Path,
+    athena_bucket: &str,
+    query_values: &Vec<String>,
+) -> Result<(), AthenaError> {
+    // Get the table-bucket name
+    let table_bucket = table_bucket_arn.split('/').last().unwrap_or("no_table");
+    
+    // Load the YAML template           
+    let table_template: TableTemplate = match read_yaml_file(template_path) {
+        Ok(template) => template,
+        Err(err) => {
+            let message = format!("Error reading template file. {}", err);
+            return Err(AthenaError::InternalServerException(
+                InternalServerException::builder()
+                    .message(&message)
+                    .build(),
+            )); 
+        }
+    };
+
+    let namespace = &table_template.namespace;
+    let table_name = &table_template.table_name;
+    
     let mut query_num = 1;
-
-    info!("{} requests for processing async in Athena.", query_values.len());
-    info!("Wait for 5 seconds... press Ctrl + C to cancel the operation");
-    sleep(Duration::from_secs(5)).await;
-
     for query_value in query_values.into_iter() {
         let query = format!("INSERT INTO \"s3tablescatalog/{}\".\"{}\".\"{}\" \n \
             {};",
@@ -111,7 +123,7 @@ pub async fn insert_with_athena(
         info!("Query number {} - execution ID: {}", query_num, query_id);
         query_num += 1;
     }
-
+    
     Ok(())
 }
 
@@ -123,34 +135,35 @@ pub fn generate_insert_query(
     delimiter: u8,
     has_headers: bool,
     limit: u32,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+) -> Result<ProcessFileResult, Box<dyn std::error::Error>> {
     let mut rdr = read_csv_file(
         file_path, 
         delimiter, 
         has_headers,
     )?;
 
-    let mut vec_query: Vec<String> = Vec::new();
+    let mut vec_query: Vec<String> = vec![];
+    let mut rows_errors: Vec<String> = vec![];
     let mut query = String::new();
+    let mut n_row = 0;
 
     // Track if we've processed at least one row
     let mut first_row = true;
-
-    let mut n_row = 0;
-    let mut row_error = 0;
-
+ 
     for result in rdr.records() {
         let record = match result {
             Ok(record) => record,
             Err(err) => {
-                let message = format!("Error reading CSV record. {}", err);
-                row_error += 1;
-                if row_error > 10 {
-                    return Err(message.into());
-                } else {
-                    warn!("{}", message);
-                    continue;
-                }
+                let now = Utc::now();
+                // Format the timestamp in RFC 3339 format with milliseconds and "Z" suffix.
+                let timestamp = now.to_rfc3339_opts(SecondsFormat::Millis, true);
+                let message = format!(
+                    "[{}] Error reading CSV record - {}", 
+                    timestamp, 
+                    err,
+                );
+                rows_errors.push(message);
+                continue;         
             }
         };
 
@@ -171,15 +184,22 @@ pub fn generate_insert_query(
 
             let n_field = serie + 1;
             if let Some(field_template) = fields_map.get(&n_field) {
-
                 let field_fmt: String = match format_field(
                     field, 
                     &field_template.field_type,
                 ) {
                     Ok(field_fmt) => field_fmt,
                     Err(err) => {
-                        let message = format!("Error formatting field. {}", err);
-                        warn!("{}", message);
+                        let now = Utc::now();
+                        // Format the timestamp in RFC 3339 format with milliseconds and "Z" suffix.
+                        let timestamp = now.to_rfc3339_opts(SecondsFormat::Millis, true);
+                        let message = format!(
+                            "[{}] formatting field. {} - {}", 
+                            timestamp, 
+                            &field_template.field_type,
+                            err,
+                        );
+                        rows_errors.push(message);  
                         "NULL".to_string()
                     }
                 };
@@ -202,9 +222,13 @@ pub fn generate_insert_query(
     }
 
     vec_query.push(query.clone());
-    info!("Processed {} rows.", n_row);
+
+    let response = ProcessFileResult {
+        fields: vec_query,
+        errors: rows_errors,
+    };
     
-    Ok(vec_query)
+    Ok(response)
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ QUERY ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

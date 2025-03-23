@@ -5,7 +5,8 @@ use aws_sdk_s3tables::operation::get_table_bucket::GetTableBucketOutput;
 use aws_sdk_s3tables::operation::list_namespaces::ListNamespacesOutput;
 use aws_sdk_s3tables::operation::list_tables::ListTablesOutput;
 use aws_sdk_s3tables::operation::list_table_buckets::ListTableBucketsOutput;
-use tokio::io::{self, AsyncReadExt};
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt, AsyncBufReadExt, BufReader};
+use tokio::fs::File as TokioFile;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, NaiveDateTime, Utc, TimeZone};
 use csv::{ReaderBuilder, Reader};
@@ -13,6 +14,11 @@ use std::fs::{self, File};
 use std::path::Path;
 use std::io::Write;
 use log::{error, info};
+
+pub struct ProcessFileResult {
+    pub fields: Vec<String>,
+    pub errors: Vec<String>,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TableTemplate {
@@ -71,6 +77,47 @@ pub async fn pause_for_keypress() -> io::Result<()> {
     
     println!(); // Print a newline after keypress
     Ok(())
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GET USER CONFIRMATION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub async fn get_user_confirmation() -> io::Result<String> {
+    // Get confirmation from user asynchronously
+    let mut stdout = io::stdout();
+    stdout.write_all(b"> ").await?;
+    stdout.flush().await?;
+
+    // Set up a buffered reader for stdin
+    let stdin = io::stdin();
+    let mut reader = BufReader::new(stdin);
+    
+    // Read line asynchronously
+    let mut input = String::new();
+    reader.read_line(&mut input).await?;
+    
+    // Trim whitespace and return
+    Ok(input.trim().to_string())
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SAVE LOG FILE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub async fn save_log_file(
+    content: &str
+) -> Result<String, Box<dyn std::error::Error>> {
+    let now = Utc::now();
+    let timestamp_millis = now.timestamp_millis();
+    let log_file_name = format!("log_{}.txt", timestamp_millis);
+    
+    // Create a file for writing
+    let mut file = TokioFile::create(&log_file_name).await?;
+
+    // Write the content to the file
+    file.write_all(content.as_bytes()).await?;
+    
+    // Ensure all data is written to disk
+    file.flush().await?;
+
+    Ok(log_file_name)
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CREATE NAMESPACE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

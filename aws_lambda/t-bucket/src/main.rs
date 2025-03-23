@@ -1,4 +1,4 @@
-use log::{info, error};
+use log::{info, warn, error};
 use aws_sdk_s3tables::Client;
 use aws_sdk_athena::Client as AthenaClient;
 use clap::{Parser, Subcommand};
@@ -14,16 +14,18 @@ use table_manager::create_table_from_yaml;
 pub mod athena;
 use athena::{
     insert_with_athena, query_with_athena, 
-    query_with_llm, 
+    query_with_llm, process_insert_items, 
 };
 pub mod utils;
 use utils::{
     delete_table, delete_namespace, delete_table_bucket, get_table,
-    pause_for_keypress, list_namespaces, list_tables, list_table_buckets,
+    pause_for_keypress, list_namespaces, list_tables, save_log_file,
+    ProcessFileResult, list_table_buckets, get_user_confirmation,
 };
 pub mod error;
 
 const DEFAULT_TEMPLATE: &str = "s3t_template.yaml";
+const APPROVED_VALUES: [&str; 8] = ["yes", "y", "ok", "OK", "Ok", "Yes", "Y", "YES"];
 
 #[derive(Deserialize, Debug)]
 struct Config {
@@ -236,17 +238,60 @@ async fn main() {
                 None => true, // Default value
             };
 
-            match insert_with_athena(
-                &athena_client, 
-                &table_bucket_arn,
-                &athena_bucket_fmt,
+            let process_fields: ProcessFileResult = match insert_with_athena(
                 template_path,
                 &file,
                 delimiter_fmt,
                 header_fmt,
                 limit_row,
             ).await {
-                Ok(_) => (),
+                Ok(fields) => fields,
+                Err(e) => {
+                    error!("Error inserting data: {}\n", e);
+                    return;
+                }
+            };
+
+            info!("{} requests for processing async in Athena.", process_fields.fields.len());
+            if process_fields.errors.len() > 1 {
+                info!("{} errors found.", process_fields.errors.len());
+                let mut errors_string = String::new();
+                for error in &process_fields.errors {
+                    errors_string.push_str(&format!("{}\n", error));
+                }
+                let file_log_eror = match save_log_file(&errors_string).await {
+                    Ok(file) => file,
+                    Err(err) => {
+                        let message = format!("Error saving log file. {}", err);
+                        warn!("{}", message);
+                        "no_file_log".to_string()
+                    }
+                };
+                if file_log_eror != "no_file_log" {
+                    info!("Error log file has been saved: {}", file_log_eror);
+                }
+            }
+
+            println!("Would you like to continue (y/N)");
+            match get_user_confirmation().await {
+                Ok(input) => {                
+                    if !APPROVED_VALUES.contains(&input.as_str()) {
+                        return;
+                    }
+                }
+                Err(e) => {
+                    error!("Error reading input: {}", e);
+                    return;
+                }
+            }
+            match process_insert_items(
+                &athena_client,
+                &table_bucket_arn,
+                template_path,
+                &athena_bucket_fmt,
+                &process_fields.fields,
+            ).await {
+                Ok(_) => info!("Data inserted successfully\n"),
                 Err(e) => error!("Error inserting data: {}\n", e),
             }
         },

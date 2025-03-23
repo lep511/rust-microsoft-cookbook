@@ -18,8 +18,8 @@ use athena::{
 };
 pub mod utils;
 use utils::{
-    delete_table, delete_namespace, delete_table_bucket,
-    get_table, list_namespaces, list_tables, list_table_buckets,
+    delete_table, delete_namespace, delete_table_bucket, get_table,
+    pause_for_keypress, list_namespaces, list_tables, list_table_buckets,
 };
 pub mod error;
 
@@ -123,6 +123,7 @@ enum Commands {
     },
 
     /// Delete a table from a namespace
+    #[command(visible_alias = "dt")]
     DeleteTable {
         /// The namespace containing the table
         #[arg(long, short, value_name = "NAMESPACE")]
@@ -134,6 +135,7 @@ enum Commands {
     },
     
     /// Delete namespace
+    #[command(visible_alias = "dn")]
     DeleteNamespace {
         /// Namespace to delete
         #[arg(long, short, value_name = "NAMESPACE")]
@@ -141,6 +143,7 @@ enum Commands {
     },
     
     /// Delete table bucket S3
+    #[command(visible_alias = "db")]
     DeleteTableBucket,
 }
 
@@ -259,10 +262,22 @@ async fn main() {
                 println!("No table buckets found");
                 return;
             }
+            let mut n_count = 0;
             for table_b in arn_buckets.table_buckets() {
                 println!("Table Bucket: {}", table_b.name.green());
                 println!("ARN: {:?}", table_b.arn);
                 println!("----------------------------------------------\n");
+                n_count += 1;
+                if n_count > 10 {
+                    println!("Press any key to continue...");
+                    n_count = 0;
+                    match pause_for_keypress().await {
+                        Ok(_) => (),
+                        Err(_) => {
+                            continue;
+                        }
+                    }
+                }
             }
         }
         Commands::ListNamespaces => {
@@ -287,7 +302,8 @@ async fn main() {
                 println!("No namespaces found");
                 return;
             }
-
+            
+            let mut n_count = 0;
             for namespace in namespaces.namespaces() {
                 let namespace_str = &namespace.namespace()[0];
                 println!("--| Namespace: {:?} |--\n", namespace_str);
@@ -311,6 +327,17 @@ async fn main() {
                 }
 
                 println!("----------------------------------------------\n");
+                n_count += 1;
+                if n_count > 10 {
+                    println!("Press any key to continue...");
+                    n_count = 0;
+                    match pause_for_keypress().await {
+                        Ok(_) => (),
+                        Err(_) => {
+                            continue;
+                        }
+                    }
+                }
             }
         },
         Commands::ListTables { namespace } => {
@@ -331,11 +358,23 @@ async fn main() {
                 }
             };
 
+            let mut n_count = 0;
             for table in tables.tables() {
                 println!("Table: {:?}", table.name);
                 println!("Created at: {:?}", table.created_at);
                 println!("Table modified at {}", table.modified_at());
                 println!("--------------------------");
+                n_count += 1;
+                if n_count > 10 {
+                    println!("Press any key to continue...");
+                    n_count = 0;
+                    match pause_for_keypress().await {
+                        Ok(_) => (),
+                        Err(_) => {
+                            continue;
+                        }
+                    }
+                }
             }
         },
         Commands::Query => {

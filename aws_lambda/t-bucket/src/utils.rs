@@ -5,11 +5,13 @@ use aws_sdk_s3tables::operation::get_table_bucket::GetTableBucketOutput;
 use aws_sdk_s3tables::operation::list_namespaces::ListNamespacesOutput;
 use aws_sdk_s3tables::operation::list_tables::ListTablesOutput;
 use aws_sdk_s3tables::operation::list_table_buckets::ListTableBucketsOutput;
+use tokio::io::{self, AsyncReadExt};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, NaiveDateTime, Utc, TimeZone};
 use csv::{ReaderBuilder, Reader};
 use std::fs::{self, File};
 use std::path::Path;
+use std::io::Write;
 use log::{error, info};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -53,6 +55,22 @@ pub fn read_yaml_file(
     let table_template: TableTemplate = serde_yaml::from_str(&template_content)?;
 
     Ok(table_template)
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ PAUSE KEYPRESS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub async fn pause_for_keypress() -> io::Result<()> {
+    // Print the prompt
+    print!("Press any key to continue...");
+    std::io::stdout().flush()?;
+    
+    // Read a single byte from stdin
+    let mut stdin = io::stdin();
+    let mut buffer = [0u8; 1];
+    stdin.read_exact(&mut buffer).await?;
+    
+    println!(); // Print a newline after keypress
+    Ok(())
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CREATE NAMESPACE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

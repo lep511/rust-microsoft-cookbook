@@ -190,7 +190,7 @@ async fn main() {
         Some(model) => model,
         None => DEFAULT_OPENAI_MODEL.to_string(),
     };
-    
+
     let template_path = Path::new(&template);
     
     // Handle commands using match
@@ -559,8 +559,8 @@ async fn main() {
 
             match query_with_llm(
                 &athena_client, 
-                template_path,
                 &table_bucket_arn,
+                template_path,
                 &athena_bucket_fmt, 
                 &query_text,
                 &openai_api_key,

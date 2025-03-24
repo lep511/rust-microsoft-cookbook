@@ -1,18 +1,16 @@
-use aws_sdk_s3tables::Error;
-use aws_sdk_athena::{
-    Client as AthenaClient, Error as AthenaError,
-};
-use aws_sdk_athena::types::error::InternalServerException;
+use aws_sdk_athena::Client as AthenaClient;
 use aws_sdk_athena::types::{
     QueryExecutionState, ResultConfiguration,
 };
 use crate::openai::chat::ChatOpenAI;
+use crate::openai::libs::ChatResponse;
 use crate::utils::{
     TableTemplate, FieldTemplate, ProcessFileResult,
-    read_yaml_file, format_field, read_file,
+    read_yaml_file, format_field, read_file, QueryData,
 };
 use crate::error::MainError;
 use csv_async::AsyncReaderBuilder;
+use serde_json::json;
 use chrono::{Utc, SecondsFormat};
 use std::collections::HashMap;
 use std::path::Path;
@@ -78,7 +76,7 @@ pub async fn process_insert_items(
     template_path: impl AsRef<Path>,
     athena_bucket: &str,
     query_values: &Vec<String>,
-) -> Result<(), AthenaError> {
+) -> Result<(), MainError> {
     // Get the table-bucket name
     let table_bucket = table_bucket_arn.split('/').last().unwrap_or("no_table");
     
@@ -87,11 +85,9 @@ pub async fn process_insert_items(
         Ok(template) => template,
         Err(err) => {
             let message = format!("Error reading template file. {}", err);
-            return Err(AthenaError::InternalServerException(
-                InternalServerException::builder()
-                    .message(&message)
-                    .build(),
-            )); 
+            return Err(MainError::GenericError { 
+                message,
+            });
         }
     };
 
@@ -108,7 +104,7 @@ pub async fn process_insert_items(
             query_value,
         );
 
-        let result = client.start_query_execution()
+        let result = match client.start_query_execution()
             .query_string(query)
             // Add output location configuration
             .result_configuration(
@@ -117,7 +113,15 @@ pub async fn process_insert_items(
                     .build()
             )
             .send()
-            .await?;
+            .await {
+                Ok(result) => result,
+                Err(err) => {
+                    let message = format!("Error executing query. {}", err);
+                    return Err(MainError::GenericError {
+                        message,
+                    });
+                }
+            };
 
         // Set query execution ID
         let query_id = result.query_execution_id().unwrap();
@@ -136,7 +140,7 @@ pub async fn generate_insert_query(
     delimiter: u8,
     has_headers: bool,
     limit: u32,
-) -> Result<ProcessFileResult, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<ProcessFileResult, MainError> {
     // Open the file asynchronously
     let file = TokioFile::open(file_path).await?;
 
@@ -255,9 +259,8 @@ pub async fn query_handler(
     client: &AthenaClient,
     table_bucket_arn: &str,
     athena_bucket: &str,
-    query_fparam: &str,
-    query_lparam: &str,
-) -> Result<Vec<Vec<String>>, AthenaError> {
+    query: &str,
+) -> Result<Vec<Vec<String>>, MainError> {
     let namespace = "flights";
     let table_name = "flight_data";
     let mut table_bucket = "no_table";
@@ -267,15 +270,7 @@ pub async fn query_handler(
         table_bucket = table;
     }
 
-    let query = format!("{} FROM \"s3tablescatalog/{}\".\"{}\".\"{}\" {};",
-        query_fparam,
-        table_bucket,
-        namespace,
-        table_name,
-        query_lparam,
-    );
-
-    let result = client.start_query_execution()
+    let result = match client.start_query_execution()
         .query_string(query)
         // Add output location configuration
         .result_configuration(
@@ -284,7 +279,15 @@ pub async fn query_handler(
                 .build()
         )
         .send()
-        .await?;
+        .await {
+            Ok(result) => result,
+            Err(err) => {
+                let message = format!("Error executing query. {}", err);
+                return Err(MainError::GenericError {
+                    message,
+                });
+            }
+        };
 
     // Set query execution ID
     let query_execution_id = result.query_execution_id().unwrap();
@@ -292,11 +295,19 @@ pub async fn query_handler(
 
     // Polling for query execution completion
     loop {
-        let response = client
+        let response = match client
             .get_query_execution()
             .query_execution_id(query_execution_id)
             .send()
-            .await?;
+            .await {
+                Ok(result) => result,
+                Err(err) => {
+                    let message = format!("Error executing query. {}", err);
+                    return Err(MainError::GenericError {
+                        message,
+                    });
+                }
+            };
 
         if let Some(query_execution) = response.query_execution {
             if let Some(status) = query_execution.status {
@@ -334,10 +345,18 @@ pub async fn query_handler(
     }
 
     if query_success {
-        let results = client.get_query_results()
+        let results = match client.get_query_results()
             .query_execution_id(query_execution_id)
             .send()
-            .await?;
+            .await {
+                Ok(result) => result,
+                Err(err) => {
+                    let message = format!("Error executing query. {}", err);
+                    return Err(MainError::GenericError {
+                        message,
+                    });
+                }
+            };
 
         let mut table_data: Vec<Vec<String>> = Vec::new();
         
@@ -364,9 +383,9 @@ pub async fn query_with_athena(
     table_bucket_arn: &str,
     athena_bucket: &str,
     openai_api_key: &str,
-) -> Result<(), Error> {
+) -> Result<(), MainError> {
 
-    let query_fparam = "SELECT CASE \
+    let query = "SELECT CASE \
             WHEN unique_carrier = 'UA' THEN 'United Airlines' \
             WHEN unique_carrier = 'WN' THEN 'Southwest Airlines' \
             WHEN unique_carrier = 'AS' THEN 'Alaska Airlines' \
@@ -381,16 +400,11 @@ pub async fn query_with_athena(
         END AS airline_name, \
         COUNT(*) AS total_cancelled";
 
-    let query_lparam = "WHERE cancelled \
-        GROUP BY 1
-        ORDER BY total_cancelled DESC";
-
     let table_data = match query_handler(
         client, 
         table_bucket_arn, 
         athena_bucket,
-        query_fparam, 
-        query_lparam
+        query, 
     ).await {
         Ok(table_data) => table_data,
         Err(e) => {
@@ -399,7 +413,7 @@ pub async fn query_with_athena(
         }
     };
 
-    let llm = ChatOpenAI::new(open_ai_model);
+    let llm = ChatOpenAI::new("open_ai_model");
 
     let prompt = format!(
         "According to the information in this table, which are the airlines with the least \
@@ -452,8 +466,7 @@ pub async fn query_with_llm(
 ) -> Result<(), MainError> {
     let llm = ChatOpenAI::new(open_ai_model);
 
-    yaml_contents = read_file(template_path).await?
-        .map_err(|e| MainError::TokioIoString(format!("Failed to read file: {}", e)))?;
+    let yaml_contents = read_file(template_path).await?;
 
     let prompt = format!(
         "Write a SQL query in AWS Athena to find: {}.\n \
@@ -481,25 +494,21 @@ pub async fn query_with_llm(
                 "type":"object",
                 "required":[
                     "query",
-                    "database",
-                    "parameters"
+                    "tablename",
+                    "namespace"
                 ],
                 "properties":{
                     "query":{
                         "type":"string",
                         "description":"The SQL query to be executed"
                     },
-                    "database":{
+                    "tablename":{
                         "type":"string",
-                        "description":"The name of the database where the query will be executed"
+                        "description":"The name of the table"
                     },
-                    "parameters":{
-                        "type":"array",
-                        "items":{
-                            "type":"string",
-                            "description":"Parameter value"
-                        },
-                        "description":"The parameters for the SQL query"
+                    "namespace":{
+                        "type":"string",
+                        "description":"The name of the namespace"
                     }
                 },
                 "additionalProperties":false
@@ -507,74 +516,67 @@ pub async fn query_with_llm(
             "description":"Executes a SQL query against a database"
         }
     });
+
+    let tool_choice = json!({"type": "function", "function": {"name": "execute_sql_query"}});
    
-    let response = llm
+    let response: ChatResponse = llm
         .with_tools(vec![sql_function])
         .with_tool_choice(tool_choice)
         .with_max_retries(0)
         .with_api_key(openai_api_key)
         .invoke(&prompt)
-        .await;
+        .await?;
 
-    let mut query = String::new();
+    let mut _function_name = String::new();
+    let mut function_args = String::new();
 
-    match response {
-        Ok(response) => {
-            match response.choices {
-                Some(candidates) => {
-                    for candidate in candidates {
-                        #[allow(irrefutable_let_patterns)]
-                        if let Some(message) = candidate.message {
-                            if let Some(content) = message.content {
-                                // println!("{}", content);
-                                query.push_str(&content);
-                            }
+    match response.choices {
+        Some(candidates) => {
+            candidates.iter()
+                .filter_map(|candidate| {
+                    candidate.message.as_ref().and_then(|msg| 
+                        if let Some(tool_calls) = &msg.tool_calls {
+                            Some(tool_calls.iter().for_each(|call| {
+                                if let Some(func) = call.get("function") {
+                                    if let Some(name) = func.get("name") {
+                                        _function_name = name.as_str().unwrap_or_default().to_string();
+                                    }
+                                    if let Some(args) = func.get("arguments") {
+                                        function_args = args.as_str().unwrap_or_default().to_string();
+                                    }
+                                }
+                            }))
+                        } else {
+                            msg.content.as_ref().map(|content| println!("{}", content))
                         }
-                    }
-                }
-                None => warn!("No response choices available"),
-            };
+                    )
+                })
+                .count();
         }
-        Err(e) => {
-            error!("Error: {}", e);
-        }
-    } 
+        None => println!("No response choices available"),
+    };
 
-    let cleaned = query
-        .replace("```sql", "")
-        .replace("```", "")
-        .replace("sql", "")
-        .replace("'false'", "false")
-        .replace("'true'", "true")
-        .lines()
-        .filter(|line| !line.is_empty())
-        .collect::<Vec<&str>>()
-        .join(" ");
+    // Parse the JSON string
+    let query_data: QueryData = serde_json::from_str(&function_args)?;
+    let query = query_data.query.clone();
+    let namespace = query_data.namespace.clone();
+    let table_name = query_data.tablename.clone();
+    let table_bucket = table_bucket_arn.split('/').last().unwrap_or("no_table");
 
-    let cleaned = cleaned.split_whitespace().collect::<Vec<&str>>().join(" ");
-    info!("Query: {}", cleaned);
+    let source = format!("\"s3tablescatalog/{}\".\"{}\".\"{}\"",
+        table_bucket,
+        namespace,
+        table_name,
+    );
 
-    let parts: Vec<&str> = cleaned.split("FROM my_table").collect();
-    if parts.len() != 2 {
-        error!("Invalid query format");
-        return Ok(());
-    }
+    let query_fmt = replace_from_line(&query, &source);
 
-    let (query_fparam, query_lparam) = (parts[0], parts[1]);
-
-    let table_data = match query_handler(
+    let table_data = query_handler(
         client, 
         table_bucket_arn,
         athena_bucket,
-        query_fparam, 
-        query_lparam,
-    ).await {
-        Ok(result) => result,
-        Err(e) => {
-            error!("Error: {}", e);
-            return Ok(());
-        }
-    };
+        &query_fmt, 
+    ).await?;
 
     let llm = ChatOpenAI::new(open_ai_model);
 
@@ -588,31 +590,36 @@ pub async fn query_with_llm(
         table_data,
     );
 
-    let response = llm
+    let response: ChatResponse = llm
         .with_max_retries(3)
         .invoke(&prompt)
-        .await;
+        .await?;
 
-    match response {
-        Ok(response) => {
-            match response.choices {
-                Some(candidates) => {
-                    for candidate in candidates {
-                        #[allow(irrefutable_let_patterns)]
-                        if let Some(message) = candidate.message {
-                            if let Some(content) = message.content {
-                                println!("{}", content);
-                            }
-                        }
-                    }
-                }
-                None => warn!("No response choices available"),
-            };
+    match response.choices {
+        Some(candidates) => {
+            candidates.iter()
+                .filter_map(|candidate| candidate
+                    .message.as_ref()?
+                    .content.as_ref()
+                ).for_each(|content| println!("{}", content));
         }
-        Err(e) => {
-            error!("Error: {}", e);
-        }
-    } 
+        None => println!("Sorry, we were unable to connect to the OpenAI \
+                    API. Please try again later."),
+    };
 
     Ok(())
+}
+
+pub fn replace_from_line(sql_query: &str, new_input: &str) -> String {
+    sql_query
+        .lines()
+        .map(|line| {
+            if line.trim_start().starts_with("FROM") {
+                format!("FROM {}", new_input)
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
 }

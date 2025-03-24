@@ -1,4 +1,5 @@
 use thiserror::Error;
+use crate::openai::error::OpenAIError;
 use aws_sdk_s3tables::Error as S3TablesError;
 use aws_sdk_athena::Error as AthenaError;
 use aws_sdk_s3tables::error::BuildError as S3TablesBuildError;
@@ -8,8 +9,8 @@ use std::env;
 #[allow(dead_code)]
 #[derive(Debug, Error)]
 pub enum MainError {
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+    // #[error("IO error: {0}")]
+    // Io(#[from] std::io::Error),
 
     #[error("Tokio IO error: {0}")]
     TokioIo(#[from] TokioIoError),
@@ -37,6 +38,12 @@ pub enum MainError {
     
     #[error("Error in converting to json {0}")]
     JsonError(#[from] serde_json::Error),
+
+    #[error("Dynamic error: {0}")]
+    DynamicError(#[from] Box<dyn std::error::Error + Send + Sync>),
+
+    #[error("OpenAI error: {0}")]
+    OpenAIError(#[from] OpenAIError),
     
     #[error("Response content error: {message}")]
     GenericError {

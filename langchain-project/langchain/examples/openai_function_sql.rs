@@ -4,13 +4,13 @@ use langchain::openai::libs::ChatResponse;
 use tokio::fs::File;
 use tokio::io::{self, AsyncReadExt};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::json;
 use env_logger::Env;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct QueryData {
-    database: String,
-    parameters: Vec<Value>,
+    tablename: String,
+    namespace: String,
     query: String,
 }
 
@@ -55,25 +55,21 @@ async fn main() {
                 "type":"object",
                 "required":[
                     "query",
-                    "database",
-                    "parameters"
+                    "tablename",
+                    "namespace"
                 ],
                 "properties":{
                     "query":{
                         "type":"string",
                         "description":"The SQL query to be executed"
                     },
-                    "database":{
+                    "tablename":{
                         "type":"string",
-                        "description":"The name of the database where the query will be executed"
+                        "description":"The name of the table"
                     },
-                    "parameters":{
-                        "type":"array",
-                        "items":{
-                            "type":"string",
-                            "description":"Parameter value"
-                        },
-                        "description":"The parameters for the SQL query"
+                    "namespace":{
+                        "type":"string",
+                        "description":"The name of the namespace"
                     }
                 },
                 "additionalProperties":false
@@ -135,8 +131,8 @@ async fn main() {
     };
 
     // Access the extracted data
-    println!("Database: {}", query_data.database);
-    println!("Parameters: {:?}", query_data.parameters);
+    println!("Table name: {}", query_data.tablename);
+    println!("Namespace: {:?}", query_data.namespace);
     println!("Query: {}", query_data.query);
     
 }

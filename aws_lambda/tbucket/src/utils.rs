@@ -34,6 +34,13 @@ pub struct FieldTemplate {
     pub required: Option<bool>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct QueryData {
+    pub tablename: String,
+    pub namespace: String,
+    pub query: String,
+}
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ READ YAML FILE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub async fn read_yaml_file(
@@ -299,6 +306,7 @@ pub async fn delete_table_bucket(
 /// let contents = read_file("example.txt").await?;
 /// println!("File content: {}", contents);
 /// ```
+/// 
 pub async fn read_file(path: impl AsRef<Path>) -> io::Result<String> {
     // Open the file asynchronously, returning any IO errors
     let mut file = TokioFile::open(path).await?;

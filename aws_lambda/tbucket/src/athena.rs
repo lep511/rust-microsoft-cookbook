@@ -6,7 +6,7 @@ use aws_sdk_athena::types::error::InternalServerException;
 use aws_sdk_athena::types::{
     QueryExecutionState, ResultConfiguration,
 };
-use crate::xai::chat::ChatCompatible;
+use crate::openai::chat::ChatOpenAI;
 use crate::utils::{
     TableTemplate, FieldTemplate, ProcessFileResult,
     read_yaml_file, format_field,
@@ -366,7 +366,7 @@ pub async fn query_with_athena(
     client: &AthenaClient,
     table_bucket_arn: &str,
     athena_bucket: &str,
-    xai_api_key: &str,
+    openai_api_key: &str,
 ) -> Result<(), Error> {
 
     let query_fparam = "SELECT CASE \
@@ -402,9 +402,7 @@ pub async fn query_with_athena(
         }
     };
 
-    let base_url = "https://api.x.ai/v1/chat/completions";
-    let model = "grok-2-latest";
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatOpenAI::new(open_ai_model);
 
     let prompt = format!(
         "According to the information in this table, which are the airlines with the least \
@@ -416,7 +414,7 @@ pub async fn query_with_athena(
    
     let response = llm
         .with_max_retries(3)
-        .with_api_key(xai_api_key)
+        .with_api_key(openai_api_key)
         .invoke(&prompt)
         .await;
 
@@ -449,7 +447,8 @@ pub async fn query_with_llm(
     table_bucket_arn: &str,
     athena_bucket: &str,
     query_text: &str,
-    xai_api_key: &str,
+    openai_api_key: &str,
+    open_ai_model: &str,
 ) -> Result<(), Error> {
 
     let base_url = "https://api.x.ai/v1/chat/completions";
@@ -471,7 +470,7 @@ pub async fn query_with_llm(
    
     let response = llm
         .with_max_retries(0)
-        .with_api_key(xai_api_key)
+        .with_api_key(openai_api_key)
         .invoke(&prompt)
         .await;
 
@@ -535,7 +534,7 @@ pub async fn query_with_llm(
         }
     };
 
-    let llm = ChatCompatible::new(base_url, model);
+    let llm = ChatOpenAI::new(open_ai_model);
 
     let prompt = format!(
         "According to the information in this table, answer this query: {}\n \

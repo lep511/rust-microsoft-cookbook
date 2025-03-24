@@ -65,6 +65,19 @@ This command will execute the `query_with_athena` function, which queries the da
 
 * `delete_table_bucket(client, table_bucket_arn)`: Delete the table only.
 
+-------
+
+Windows Command Prompt
+
+```
+setx OPENAI_API_KEY "REPLACE_WITH_YOUR_KEY_VALUE_HERE"
+```
+
+PowerShell
+```
+[System.Environment]::SetEnvironmentVariable('OPENAI_API_KEY', 'REPLACE_WITH_YOUR_KEY_VALUE_HERE', 'User')
+```
+
 ### Logs
 The tool uses env_logger to log information. The log level can be set using the RUST_LOG environment variable. By default, it is set to info.
 

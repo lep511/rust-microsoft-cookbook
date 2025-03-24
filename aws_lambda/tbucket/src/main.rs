@@ -8,7 +8,7 @@ use std::path::Path;
 use serde::Deserialize;
 use envy::from_env;
 
-pub mod xai;
+pub mod openai;
 pub mod table_manager;
 use table_manager::create_table_from_yaml;
 pub mod athena;
@@ -24,7 +24,8 @@ use utils::{
 };
 pub mod error;
 
-const DEFAULT_TEMPLATE: &str = "s3t_template.yaml";
+const DEFAULT_TEMPLATE: &str = "s3table_template.yaml";
+const DEFAULT_OPENAI_MODEL: &str = "o3-mini";
 const APPROVED_VALUES: [&str; 8] = ["yes", "y", "ok", "OK", "Ok", "Yes", "Y", "YES"];
 
 #[derive(Deserialize, Debug)]
@@ -32,7 +33,8 @@ struct Config {
     table_bucket_arn: Option<String>,
     template_path: Option<String>,
     athena_bucket: Option<String>,
-    xai_api_key: Option<String>,
+    openai_api_key: Option<String>,
+    openai_model: Option<String>,
 }
 
 // Define CLI arguments using clap
@@ -40,14 +42,15 @@ struct Config {
 #[command(
     author = "Esteban Perez <estebanpbuday@gmail.com>",
     version,
-    about = "AWS S3 Tables and Athena Management CLI",
-    long_about = "A command-line tool for managing AWS S3 Tables and Athena, allowing creation of tables, data insertion, querying, and administration tasks.",
+    about = "AWS S3 Tables management CLI",
+    long_about = "A command-line tool for managing AWS S3 Tables, allowing creation of tables, data insertion, querying, and administration tasks.",
     color = clap::ColorChoice::Auto,
     after_help = "Environment variables:
   TABLE_BUCKET_ARN - Required: S3 bucket ARN for Table buckets.
-  TEMPLATE_PATH    - Optional: Path to the template file (default: s3t_template.yaml)
+  TEMPLATE_PATH    - Optional: Path to the template file (default: s3table_template.yaml)
   ATHENA_BUCKET    - Optional: S3 bucket name for Athena query results (default: None)
-  XAI_API_KEY      - Optional: API key for XAI service (default: None)"
+  OPENAI_API_KEY   - Optional: API key for OpenAI API service (default: None)
+  OPENAI_MODEL     - Optional: Model name for OpenAI API service (default: o3-mini)"
 )]
 
 #[command(author, version, about, long_about = None)]
@@ -63,7 +66,7 @@ enum Commands {
     /// Uses the YAML template file to create
     /// a new table in the configured S3 bucket.
     /// 
-    #[command(after_help = "Examples:\n  echo \"Table bucket template here.\" > s3t_template.yaml\ns3tool create")]
+    #[command(after_help = "Examples:\n  echo \"Table bucket template here.\" > s3table_template.yaml\ns3tool create")]
     Create,
     
     /// Insert data from a file into the table
@@ -114,7 +117,7 @@ enum Commands {
     /// Executes an Athena query against the table data.
     Query,
 
-    /// Query with XAI LLM
+    /// Query with OpenAI LLM
     /// 
     /// Execute a natural language query using a Large Language Model.
     /// The query is translated into SQL and executed against the table.
@@ -155,7 +158,7 @@ async fn main() {
     
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Info)
-        .filter_module("s3table-clap", log::LevelFilter::Info)
+        .filter_module("tbucket", log::LevelFilter::Info)
         .init();
     
     // Parse command line arguments using clap
@@ -181,6 +184,11 @@ async fn main() {
     let template = match env_var.template_path {
         Some(path) => path,
         None => DEFAULT_TEMPLATE.to_string(),
+    };
+
+    let open_ai_model = match env_var.openai_model {
+        Some(model) => model,
+        None => DEFAULT_OPENAI_MODEL.to_string(),
     };
     
     let template_path = Path::new(&template);
@@ -440,10 +448,10 @@ async fn main() {
             };
             let athena_bucket_fmt = format!("s3://{}/", athena_bucket);
 
-            let xai_api_key = match env_var.xai_api_key {
+            let openai_api_key = match env_var.openai_api_key {
                 Some(val) => val,
                 None => {
-                    error!("XAI_API_KEY environment variable not set.");
+                    error!("OPENAI_API_KEY environment variable not set.");
                     return;
                 }
             };
@@ -452,7 +460,7 @@ async fn main() {
                 &athena_client, 
                 &table_bucket_arn,
                 &athena_bucket_fmt,
-                &xai_api_key,
+                &openai_api_key,
             ).await {
                 Ok(_) => info!("Query executed successfully\n"),
                 Err(e) => error!("Error executing query: {}\n", e),
@@ -541,10 +549,10 @@ async fn main() {
             };
             let athena_bucket_fmt = format!("s3://{}/", athena_bucket);
 
-            let xai_api_key = match env_var.xai_api_key {
+            let openai_api_key = match env_var.openai_api_key {
                 Some(val) => val,
                 None => {
-                    error!("XAI_API_KEY environment variable not set.");
+                    error!("OPENAI_API_KEY environment variable not set.");
                     return;
                 }
             };
@@ -554,7 +562,8 @@ async fn main() {
                 &table_bucket_arn,
                 &athena_bucket_fmt, 
                 &query_text,
-                &xai_api_key,
+                &openai_api_key,
+                &open_ai_model,
             ).await {
                 Ok(_) => info!("Query executed successfully"),
                 Err(e) => error!("Error executing query: {}", e),

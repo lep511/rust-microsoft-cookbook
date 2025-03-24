@@ -1,5 +1,5 @@
 [package]
-name = "t-bucket"
+name = "tbucket"
 version = "0.1.5"
 edition = "2021"
 

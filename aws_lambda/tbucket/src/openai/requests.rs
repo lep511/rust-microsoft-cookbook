@@ -2,43 +2,47 @@ use reqwest::{Client, Response};
 use log::{warn, error};
 use async_stream::stream;
 use futures::StreamExt;
-use crate::xai::{DEBUG_PRE, DEBUG_POST, RETRY_BASE_DELAY};
-use crate::xai::error::CompatibleChatError;
-use crate::xai::libs::{
-    ChatRequest, ErrorResponse, ChatStreamResponse
+use crate::openai::{
+    OPENAI_BASE_URL, OPENAI_EMBED_URL, RETRY_BASE_DELAY,
+    DEBUG_PRE, DEBUG_POST,
 };
-use crate::xai::utils::print_pre;
+use crate::openai::error::OpenAIError;
+use crate::openai::libs::{
+    ChatRequest, EmbedRequest, ErrorResponse, ChatResponse,
+};
+use crate::openai::utils::print_pre;
 use std::time::Duration;
-use serde_json::Value;
 use tokio::time::sleep;
 
 pub async fn request_chat(
-    url: &str,
     request: &ChatRequest,
     api_key: &str,
-    timeout: u64,
-    max_retries: i32,
-) -> Result<serde_json::Value, CompatibleChatError> {
+    timeout: Duration,
+    max_retries: u32,
+) -> Result<String, OpenAIError> {
     // Creates an HTTPS-capable client using rustls TLS implementation.
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
     
     print_pre(&request, DEBUG_PRE);
-    
+
     // Serializes the request struct into a JSON byte vector
     let request_body = serde_json::to_vec(request)?;
 
     let mut response: Response = make_request(
         &client,
-        url,
+        OPENAI_BASE_URL,
         api_key, 
         &request_body, 
         timeout,
     ).await?;
 
     for attempt in 1..=max_retries {
-        if response.status().is_success() { break; }
+        if response.status().is_success() || response.status().as_u16() == 401 {
+            // 401 - Invalid Authentication
+            break;
+        }
 
         warn!("Server error (attempt {}/{}): {}", attempt, max_retries, response.status());
 
@@ -46,7 +50,7 @@ pub async fn request_chat(
         
         response = make_request(
             &client,
-            url,
+            OPENAI_BASE_URL,
             api_key,
             &request_body,
             timeout,
@@ -55,54 +59,53 @@ pub async fn request_chat(
 
     // Checks if the response status is not successful (i.e., not in the 200-299 range).
     if !response.status().is_success() {
-        let comp_error: CompatibleChatError = manage_error(response).await;
-        return Err(comp_error);
+        let openai_error: OpenAIError = manage_error(response).await;
+        return Err(openai_error);
     }
 
     let response_data = response.json::<serde_json::Value>().await?;
     print_pre(&response_data, DEBUG_POST);
-
-    Ok(response_data)
+    
+    let response_string = response_data.to_string();
+    Ok(response_string)
 }
 
-pub async fn get_request(
-    url: &str, 
-    api_key: &str
-) -> Result<Value, CompatibleChatError> {
-    // Creates an HTTPS-capable client using rustls TLS implementation.
+pub async fn request_embed(
+    request: &EmbedRequest,
+    api_key: &str,
+) -> Result<String, OpenAIError> {
     let client = Client::builder()
         .use_rustls_tls()
         .build()?;
+    let response: serde_json::Value;
+    
+    print_pre(&request, DEBUG_PRE);
 
-    let response = client
-        .request(reqwest::Method::GET, url)
+    response = client
+        .post(OPENAI_EMBED_URL)
         .header("Authorization", format!("Bearer {}", api_key))
-        .header("Accept", "application/json")
+        .header("Content-Type", "application/json")
+        .json(request)
         .send()
+        .await?
+        .json::<serde_json::Value>()
         .await?;
 
-    if !response.status().is_success() {
-        let comp_error: CompatibleChatError = manage_error(response).await;
-        return Err(comp_error);
-    }
-    
-    let response_data = response.json::<serde_json::Value>().await?;
+    print_pre(&response, DEBUG_POST);
 
-    print_pre(&response_data, DEBUG_POST);
-
-    Ok(response_data)
+    let response_string = response.to_string();
+    Ok(response_string)
 }
 
 pub fn strem_chat(
-    url: String,
     api_key: String,
     request: ChatRequest,
-) -> impl futures::Stream<Item = ChatStreamResponse> {
+) -> impl futures::Stream<Item = ChatResponse> {
     stream! {
         let client = Client::new();
 
         let response: Response = match client
-            .post(url)
+            .post(OPENAI_BASE_URL)
             .header("Authorization", format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
             .json(&request)
@@ -130,20 +133,24 @@ pub fn strem_chat(
 
                             if !part.is_empty() && part.starts_with("data:") {
                                 let json_part = part.trim_start_matches("data:");
+                                if !json_part.contains("delta") {
+                                    continue;
+                                }
                             
-                                match serde_json::from_str::<ChatStreamResponse>(json_part) {
+                                match serde_json::from_str::<ChatResponse>(json_part) {
                                     Ok(stream_response) => {
                                         yield stream_response;
                                     },
                                     Err(e) => {
-                                        warn!("Error parsing chunk: {}", e);
+                                        println!("Error parsing chunk: {:?}", json_part);
+                                        warn!("Error Error parsing chunk: {}", e);
                                     }
                                 }    
                             }
                         }
                     },
                     Err(e) => {
-                        warn!("Error reading chunk: {}", e);
+                        warn!("Error Error reading chunk: {}", e);
                     }
                 }
             }
@@ -153,38 +160,16 @@ pub fn strem_chat(
     }
 }
 
-/// Makes an HTTP POST request with the provided parameters
-/// 
-/// # Arguments
-/// 
-/// * `client` - Reference to a reqwest Client instance for making HTTP requests
-/// * `url` - The target URL endpoint for the POST request
-/// * `api_key` - API key used for Bearer token authentication
-/// * `request_body` - Byte slice containing the JSON request body
-/// * `timeout` - Request timeout duration in seconds
-/// 
-/// # Returns
-/// 
-/// * `Result<Response, reqwest::Error>` - Returns the HTTP response if successful,
-///   or a reqwest error if the request fails
-///
-/// # Errors
-///
-/// Returns a `reqwest::Error` if:
-/// * The request fails to send
-/// * The connection times out
-/// * There are network-related issues
-///
 pub async fn make_request(
     client: &Client,
     url: &str,
     api_key: &str,
     request_body: &[u8],
-    timeout: u64,
+    timeout: Duration,
 ) -> Result<Response, reqwest::Error> {
     Ok(client
         .post(url)
-        .timeout(Duration::from_secs(timeout))
+        .timeout(timeout)
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .body(request_body.to_vec())
@@ -194,32 +179,48 @@ pub async fn make_request(
 
 pub async fn manage_error(
     response: Response,
-) -> CompatibleChatError {
+) -> OpenAIError {
     error!("Response code: {}", response.status());
 
     match response.json::<ErrorResponse>().await {
-        Ok(error) => {
-            if let Some(error) = error.error {
-                CompatibleChatError::GenericError {
-                    message: error.message,
-                    detail: "ERROR-req-9821".to_string(),
-                }
-            } else if let Some(error) = error.detail {
-                CompatibleChatError::GenericError {
-                    message: error,
+        Ok(error_detail) => {
+            match error_detail.error.code.as_str() {
+                "invalid_api_key" => OpenAIError::AuthenticationError(
+                    error_detail.error.message
+                ),
+                "invalid_request_error" => OpenAIError::BadRequestError(
+                    error_detail.error.message
+                ),
+                "rate_limit_error" => OpenAIError::RateLimitError(
+                    error_detail.error.message
+                ),
+                "tokens_exceeded_error" => OpenAIError::RateLimitError(
+                    error_detail.error.message
+                ),
+                "authentication_error" => OpenAIError::AuthenticationError(
+                    error_detail.error.message
+                ),
+                "not_found_error" => OpenAIError::NotFoundError(
+                    error_detail.error.message
+                ),
+                "server_error" => OpenAIError::InternalServerError(
+                    error_detail.error.message
+                ),
+                "permission_error" => OpenAIError::PermissionDeniedError(
+                    error_detail.error.message
+                ), 
+                _ => OpenAIError::GenericError {
+                    code: error_detail.error.code,
+                    message: error_detail.error.message,
                     detail: "ERROR-req-9822".to_string(),
-                }
-            } else {
-                CompatibleChatError::GenericError {
-                    message: "Unknown error.".to_string(),
-                    detail: "ERROR-req-9823".to_string(),
-                }
+                },
             }
-        },
-        Err(_) => {
-            CompatibleChatError::GenericError {
-                message: "Unknown error.".to_string(),
-                detail: "ERROR-req-9824".to_string(),
+        }
+        Err(e) => {
+            OpenAIError::GenericError {
+                code: "None".to_string(),
+                message: format!("Error: {}", e),
+                detail: "ERROR-req-9823".to_string(),
             }
         }
     }

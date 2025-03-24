@@ -559,6 +559,7 @@ async fn main() {
 
             match query_with_llm(
                 &athena_client, 
+                template_path,
                 &table_bucket_arn,
                 &athena_bucket_fmt, 
                 &query_text,

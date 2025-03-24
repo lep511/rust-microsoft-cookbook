@@ -9,8 +9,9 @@ use aws_sdk_athena::types::{
 use crate::openai::chat::ChatOpenAI;
 use crate::utils::{
     TableTemplate, FieldTemplate, ProcessFileResult,
-    read_yaml_file, format_field,
+    read_yaml_file, format_field, read_file,
 };
+use crate::error::MainError;
 use csv_async::AsyncReaderBuilder;
 use chrono::{Utc, SecondsFormat};
 use std::collections::HashMap;
@@ -23,25 +24,23 @@ use log::{error, warn, info};
 
 const MAX_BYTES: usize = 250_000; // ~256KB
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INSERT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INSERT WITH ATHENA ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub async fn insert_with_athena(
-    template_path: &Path,
+    template_path: impl AsRef<Path>,
     file_path: &str,
     delimiter: u8,
     has_headers: bool,
     limit: u32,
-) -> Result<ProcessFileResult, AthenaError> {   
+) -> Result<ProcessFileResult, MainError> {   
     // Load the YAML template           
     let table_template: TableTemplate = match read_yaml_file(template_path).await {
         Ok(template) => template,
         Err(err) => {
             let message = format!("Error reading template file. {}", err);
-            return Err(AthenaError::InternalServerException(
-                InternalServerException::builder()
-                    .message(&message)
-                    .build(),
-            )); 
+            return Err(MainError::GenericError { 
+                message,
+            });
         }
     };
     let fields: Vec<FieldTemplate> = table_template.fields.clone();
@@ -64,11 +63,9 @@ pub async fn insert_with_athena(
         Ok(values) => values,
         Err(err) => {
             let message = format!("Error generating insert query. {}", err);
-            return Err(AthenaError::InternalServerException(
-                InternalServerException::builder()
-                    .message(&message)
-                    .build(),
-            )); 
+            return Err(MainError::GenericError { 
+                message,
+            });
         }
     };
 
@@ -78,7 +75,7 @@ pub async fn insert_with_athena(
 pub async fn process_insert_items(
     client: &AthenaClient, 
     table_bucket_arn: &str,
-    template_path: &Path,
+    template_path: impl AsRef<Path>,
     athena_bucket: &str,
     query_values: &Vec<String>,
 ) -> Result<(), AthenaError> {
@@ -252,7 +249,7 @@ pub async fn generate_insert_query(
     Ok(response)
 }
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ QUERY ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ QUERY HANDLER ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub async fn query_handler(
     client: &AthenaClient,
@@ -442,33 +439,78 @@ pub async fn query_with_athena(
     Ok(())
 }
 
+// ToDo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ QUERY WITH LLM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 pub async fn query_with_llm(
     client: &AthenaClient,
     table_bucket_arn: &str,
+    template_path: impl AsRef<Path>,
     athena_bucket: &str,
     query_text: &str,
     openai_api_key: &str,
     open_ai_model: &str,
-) -> Result<(), Error> {
+) -> Result<(), MainError> {
+    let llm = ChatOpenAI::new(open_ai_model);
 
-    let base_url = "https://api.x.ai/v1/chat/completions";
-    let model = "grok-2-latest";
-    let llm = ChatCompatible::new(base_url, model);
+    yaml_contents = read_file(template_path).await?
+        .map_err(|e| MainError::TokioIoString(format!("Failed to read file: {}", e)))?;
 
     let prompt = format!(
-        "Write a query in AWS Athena to search this table {}. Do not use any language other than English in SQL code. Response only with SQL QUERY. \
-        my_table: \
-        \"year\",\"month\",\"day_of_month\",\"day_of_week\",\"deptime\",\"crs_deptime\",\"arr_time\",\"crs_arr_time\",\"unique_carrier\",\"flight_num\",\"taxi_in\",\"taxi_out\",\"cancelled\",\"cancellation_code\",\"diverted\",\"carrier_delay\",\"weather_delay\",\"nas_delay\",\"security_delay\",\"flight_date\" \
-        \"2000\",\"1\",\"22\",\"6\",\"1490.0\",\"1490\",\"1650.0\",\"1650\",\"AA\",\"387\",\"3.0\",\"10.0\",\"false\",\"A\",\"false\",\"21.0\",\"699.0\",\"1162.0\",\"326.0\",\"2000-01-22 01:04:59.000000\"\n \
-        \"2019\",\"4\",\"19\",\"3\",\"441.0\",\"440\",\"624.0\",\"620\",\"WN\",\"2858\",\"1.0\",\"6.0\",\"false\",\"C\",\"true\",\"1098.0\",\"422.0\",\"463.0\",\"653.0\",\"2019-04-19 16:41:32.000000\"\n \
-        \"2007\",\"6\",\"1\",\"7\",\"2128.0\",\"2125\",\"2262.0\",\"2260\",\"WN\",\"775\",\"9.0\",\"1.0\",\"true\",\"A\",\"false\",\"1100.0\",\"560.0\",\"300.0\",\"391.0\",\"2007-06-01 17:39:39.000000\"\n \
-        \"2004\",\"1\",\"13\",\"5\",\"699.0\",\"695\",\"839.0\",\"835\",\"WN\",\"3452\",\"7.0\",\"14.0\",\"false\",\"B\",\"true\",\"440.0\",\"266.0\",\"41.0\",\"895.0\",\"2004-01-13 19:43:27.000000\"\n \
-        \"2018\",\"3\",\"28\",\"7\",\"1895.0\",\"1895\",\"2088.0\",\"2085\",\"VX\",\"2557\",\"5.0\",\"10.0\",\"false\",\"D\",\"false\",\"596.0\",,\"240.0\",\"814.0\",\"2018-03-28 14:04:38.000000\" \
-        ",
-        query_text
+        "Write a SQL query in AWS Athena to find: {}.\n \
+        Use the following YAML template YAML of a Parquet Iceberg table.\n\n \
+        {} \
+        \n\n \
+        # Output Format \
+        \n \
+        Provide a SQL query suitable for executing in AWS Athena.
+        \n \
+        # Notes \
+        \n \
+        - Make sure to replace placeholder values with actual values from YAML when implementing.\n \
+        - The query must target the specified Athena table using the correct namespace and table name.\n",
+        query_text,
+        yaml_contents,
     );
+
+    let sql_function = json!({
+        "type":"function",
+        "function":{
+            "name":"execute_sql_query",
+            "strict":true,
+            "parameters":{
+                "type":"object",
+                "required":[
+                    "query",
+                    "database",
+                    "parameters"
+                ],
+                "properties":{
+                    "query":{
+                        "type":"string",
+                        "description":"The SQL query to be executed"
+                    },
+                    "database":{
+                        "type":"string",
+                        "description":"The name of the database where the query will be executed"
+                    },
+                    "parameters":{
+                        "type":"array",
+                        "items":{
+                            "type":"string",
+                            "description":"Parameter value"
+                        },
+                        "description":"The parameters for the SQL query"
+                    }
+                },
+                "additionalProperties":false
+            },
+            "description":"Executes a SQL query against a database"
+        }
+    });
    
     let response = llm
+        .with_tools(vec![sql_function])
+        .with_tool_choice(tool_choice)
         .with_max_retries(0)
         .with_api_key(openai_api_key)
         .invoke(&prompt)

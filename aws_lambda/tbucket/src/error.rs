@@ -2,6 +2,7 @@ use thiserror::Error;
 use aws_sdk_s3tables::Error as S3TablesError;
 use aws_sdk_athena::Error as AthenaError;
 use aws_sdk_s3tables::error::BuildError as S3TablesBuildError;
+use tokio::io::Error as TokioIoError;
 use std::env;
 
 #[allow(dead_code)]
@@ -9,6 +10,12 @@ use std::env;
 pub enum MainError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("Tokio IO error: {0}")]
+    TokioIo(#[from] TokioIoError),
+
+    #[error("Tokio IO error with string: {0}")]
+    TokioIoString(String),
         
     #[error("Environment error: {0}")]
     EnvError(#[from] env::VarError),

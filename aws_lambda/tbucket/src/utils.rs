@@ -37,7 +37,7 @@ pub struct FieldTemplate {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ READ YAML FILE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub async fn read_yaml_file(
-    yaml_file_path: &Path,
+    yaml_file_path: impl AsRef<Path>,
 ) -> Result<TableTemplate, Box<dyn std::error::Error + Send + Sync>> {
     // Read the file asynchronously using tokio's file system utilities
     let template_content = tokio::fs::read_to_string(yaml_file_path).await?;
@@ -269,6 +269,48 @@ pub async fn delete_table_bucket(
     info!("Table bucket deleted: {}", table_bucket_arn);
 
     Ok(())
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ READ FILE ASYNC ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+/// Asynchronously reads a text file from the specified path.
+///
+/// # Arguments
+///
+/// * `path` - A path-like value that references the file to read.
+///            Can be any type that implements `AsRef<Path>`, such as `&str`, `String`, `PathBuf`, etc.
+///
+/// # Returns
+///
+/// * `io::Result<String>` - A Result containing either the file contents as a String
+///   or an IO error if the file couldn't be opened or read
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The file at the specified path does not exist
+/// * The process lacks permissions to read the file
+/// * The file content is not valid UTF-8
+/// * Any other I/O error occurs during reading
+///
+/// # Example
+///
+/// ```
+/// let contents = read_file("example.txt").await?;
+/// println!("File content: {}", contents);
+/// ```
+pub async fn read_file(path: impl AsRef<Path>) -> io::Result<String> {
+    // Open the file asynchronously, returning any IO errors
+    let mut file = TokioFile::open(path).await?;
+    
+    // Create an empty String to hold the file contents
+    let mut contents = String::new();
+    
+    // Read the entire file contents into the string asynchronously
+    // The read_to_string method will return an error if the file doesn't contain valid UTF-8
+    file.read_to_string(&mut contents).await?;
+    
+    Ok(contents)
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ PARSE DATE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

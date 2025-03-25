@@ -19,12 +19,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start = Instant::now();
 
     let response: ChatResponse = llm
-        .with_temperature(0.9)
         .with_max_tokens(2048)
         .with_timeout_sec(90)
-        .with_presence_penalty(1.5)
-        .with_frequency_penalty(1.5)
-        .with_max_retries(1)
+        .with_reasoning("high")
+        .with_store(true)
         .with_system_prompt(system_prompt)
         .invoke(prompt)
         .await?;

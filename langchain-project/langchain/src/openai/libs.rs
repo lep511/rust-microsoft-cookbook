@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]
@@ -15,6 +16,8 @@ pub struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<TextFormat>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<ResponseFormat>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub frequency_penalty: Option<f32>,
@@ -28,6 +31,10 @@ pub struct ChatRequest {
     pub n_completion: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub store:  Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning:  Option<Reasoning>,
 }
 
 #[allow(dead_code)]
@@ -37,6 +44,19 @@ pub struct ResponseFormat {
     pub response_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub json_schema: Option<serde_json::Value>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename = "format")]
+pub struct TextFormat {
+    pub format: Value,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Clone)]
+pub struct Reasoning {
+    pub effort: String,
 }
 
 #[allow(dead_code)]

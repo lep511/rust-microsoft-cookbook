@@ -4,11 +4,12 @@ use async_stream::stream;
 use crate::openai::requests::{request_chat, strem_chat};
 use crate::openai::utils::GetApiKey;
 use crate::openai::libs::{
-    ChatRequest, InputContent, ResponseFormat,
-    Message, Role, ChatResponse, ImageUrl,
+    ChatRequest, InputContent, ResponseFormat, Reasoning,
+    Message, Role, ChatResponse, ImageUrl, TextFormat,
 };
 use crate::openai::error::OpenAIError;
 use std::time::Duration;
+use serde_json::json;
 use log::error;
 
 
@@ -36,6 +37,7 @@ impl ChatOpenAI {
             tools: None,
             tool_choice: None,
             max_completion_tokens: None,
+            text: None,
             response_format: None,
             frequency_penalty: None,
             presence_penalty: None,
@@ -43,6 +45,8 @@ impl ChatOpenAI {
             stream: Some(false),
             n_completion: Some(1),
             stop: None,
+            store: None,
+            reasoning: None,
         };
         
         Self {
@@ -336,6 +340,30 @@ impl ChatOpenAI {
 
     pub fn with_api_key(mut self, api_key: &str) -> Self {
         self.api_key = api_key.to_string();
+        self
+    }
+
+    pub fn with_json_format(mut self) -> Self {
+        let text_format = TextFormat {
+            format: json!({
+                "type": "json_object"
+            })
+        };
+        self.request.text = Some(text_format);
+        self
+    }
+
+    pub fn with_store(mut self, store: bool) -> Self {
+        self.request.store = Some(store);
+        self
+    }
+
+    pub fn with_reasoning(mut self, effort: &str) -> Self {
+        let reasoning = Reasoning {
+            effort: effort.to_string(),
+        };
+
+        self.request.reasoning = Some(reasoning);
         self
     }
 }

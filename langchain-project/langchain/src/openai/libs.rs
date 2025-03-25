@@ -12,11 +12,9 @@ pub struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_completion_tokens:  Option<u32>, // For O1 models
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<Vec<serde_json::Value>>,
+    pub tools: Option<Vec<Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_choice: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub text: Option<TextFormat>,
+    pub tool_choice: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<ResponseFormat>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -31,10 +29,6 @@ pub struct ChatRequest {
     pub n_completion: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub store:  Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reasoning:  Option<Reasoning>,
 }
 
 #[allow(dead_code)]
@@ -43,20 +37,7 @@ pub struct ResponseFormat {
     #[serde(rename = "type")]
     pub response_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub json_schema: Option<serde_json::Value>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Clone)]
-#[serde(rename = "format")]
-pub struct TextFormat {
-    pub format: Value,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Clone)]
-pub struct Reasoning {
-    pub effort: String,
+    pub json_schema: Option<Value>,
 }
 
 #[allow(dead_code)]
@@ -156,7 +137,7 @@ pub struct ChatResponse {
 pub struct Choice {
     pub finish_reason: Option<String>,
     pub index: Option<u32>,
-    pub logprobs: Option<serde_json::Value>,
+    pub logprobs: Option<Value>,
     pub delta: Option<Delta>,
     pub message: Option<ChatMessage>,
 }
@@ -166,7 +147,7 @@ pub struct Choice {
 pub struct Delta {
     pub content: Option<String>,
     pub role: Option<String>,
-    pub tool_calls: Option<Vec<serde_json::Value>>,
+    pub tool_calls: Option<Vec<Value>>,
 }
 
 #[allow(dead_code)]
@@ -175,7 +156,7 @@ pub struct ChatMessage {
     pub content: Option<String>,
     pub refusal: Option<String>,
     pub role: String,
-    pub tool_calls: Option<Vec<serde_json::Value>>,
+    pub tool_calls: Option<Vec<Value>>,
 }
 
 #[allow(dead_code)]

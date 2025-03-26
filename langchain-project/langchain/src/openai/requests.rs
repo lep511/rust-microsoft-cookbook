@@ -3,19 +3,21 @@ use log::{warn, error};
 use async_stream::stream;
 use futures::StreamExt;
 use crate::openai::{
-    OPENAI_BASE_URL, OPENAI_EMBED_URL, RETRY_BASE_DELAY,
+    OPENAI_EMBED_URL, RETRY_BASE_DELAY,
     DEBUG_PRE, DEBUG_POST,
 };
 use crate::openai::error::OpenAIError;
 use crate::openai::libs::{
-    ChatRequest, EmbedRequest, ErrorResponse, ChatResponse,
+    MainRequest, ChatRequest, EmbedRequest, 
+    ErrorResponse, ChatResponse,
 };
 use crate::openai::utils::print_pre;
 use std::time::Duration;
 use tokio::time::sleep;
 
 pub async fn request_chat(
-    request: &ChatRequest,
+    request: &MainRequest,
+    api_endpoint: &str,
     api_key: &str,
     timeout: Duration,
     max_retries: u32,
@@ -26,13 +28,13 @@ pub async fn request_chat(
         .build()?;
     
     print_pre(&request, DEBUG_PRE);
-
+    
     // Serializes the request struct into a JSON byte vector
     let request_body = serde_json::to_vec(request)?;
 
     let mut response: Response = make_request(
         &client,
-        OPENAI_BASE_URL,
+        api_endpoint,
         api_key, 
         &request_body, 
         timeout,
@@ -50,7 +52,7 @@ pub async fn request_chat(
         
         response = make_request(
             &client,
-            OPENAI_BASE_URL,
+            api_endpoint,
             api_key,
             &request_body,
             timeout,
@@ -98,6 +100,7 @@ pub async fn request_embed(
 }
 
 pub fn strem_chat(
+    api_endpoint: String,
     api_key: String,
     request: ChatRequest,
 ) -> impl futures::Stream<Item = ChatResponse> {
@@ -105,7 +108,7 @@ pub fn strem_chat(
         let client = Client::new();
 
         let response: Response = match client
-            .post(OPENAI_BASE_URL)
+            .post(&api_endpoint)
             .header("Authorization", format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
             .json(&request)

@@ -1,7 +1,7 @@
 // https://platform.openai.com/docs/guides/reasoning?lang=curl
 #[allow(dead_code)]
-use langchain::openai::chat::ChatOpenAI;
-use langchain::openai::libs::ChatResponse;
+use langchain::openai::response::ChatOpenAI;
+use langchain::openai::lib_response::OutputItem;
 use std::time::Instant;
 use env_logger::Env;
 
@@ -10,36 +10,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let llm = ChatOpenAI::new("o3-mini");
     
-    let system_prompt = "You are a helpful assistant that answers programming \
-                        questions in the style of a southern belle from the \
-                        southeast United States.";
-
-    let prompt = "Are semicolons optional in Rust?";
+    let prompt = "Are semicolons optional in Rust";
 
     let start = Instant::now();
 
-    let response: ChatResponse = llm
-        .with_max_tokens(2048)
-        .with_timeout_sec(90)
-        .with_reasoning("high")
-        .with_store(true)
-        .with_system_prompt(system_prompt)
-        .invoke(prompt)
+    let response = llm
+        .with_prompt(prompt)
+        .invoke()
         .await?;
 
     let elapsed = start.elapsed().as_secs_f64();
     println!("[Task took {:.2} seconds]\n", elapsed);
 
-    match response.choices {
-        Some(candidates) => {
-            candidates.iter()
-                .filter_map(|candidate| candidate
-                    .message.as_ref()?
-                    .content.as_ref()
-                ).for_each(|content| println!("{}", content));
+    for output_item in response.output {
+        // Check if the item is a 'Message' variant
+        if let OutputItem::Message(message_data) = output_item {
+            // Iterate through the 'content' array within the message
+            for content_item in message_data.content {
+                println!("{}", content_item.text);
+                // If there could be multiple content items per message
+                // and you only want the *first* one, you could add a break here:
+                // break;
+            }
         }
-        None => println!("No response choices available"),
-    };
-    
+        // We ignore OutputItem::Reasoning variants
+    }
+
     Ok(())
 }

@@ -4,9 +4,10 @@ use async_stream::stream;
 use crate::openai::requests::{request_chat, strem_chat};
 use crate::openai::utils::GetApiKey;
 use crate::openai::libs::{
-    ChatRequest, InputContent, ResponseFormat,
+    MainRequest, ChatRequest, InputContent, ResponseFormat,
     Message, Role, ChatResponse, ImageUrl,
 };
+use crate::openai::OPENAI_BASE_URL;
 use crate::openai::error::OpenAIError;
 use std::time::Duration;
 use log::error;
@@ -78,8 +79,11 @@ impl ChatOpenAI {
             self.request.messages = Some(vec![new_message]);
         }
 
+        let body_request = MainRequest::Chat(self.request.clone());
+
         let response: String = match request_chat(
-            &self.request,
+            &body_request,
+            OPENAI_BASE_URL,
             &self.api_key,
             self.timeout,
             self.max_retries,
@@ -140,8 +144,10 @@ impl ChatOpenAI {
             }
 
             self.request.stream = Some(true);
+            let endpoint_string = OPENAI_BASE_URL.to_string();
 
             let stream = strem_chat(
+                endpoint_string.clone(),
                 self.api_key.clone(),
                 self.request.clone(),
             );

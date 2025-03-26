@@ -1,8 +1,17 @@
+use crate::openai::lib_response::ResponseRequest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MainRequest {
+    Chat(ChatRequest),
+    Responses(ResponseRequest),
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatRequest {
     pub model: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -32,7 +41,7 @@ pub struct ChatRequest {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseFormat {
     #[serde(rename = "type")]
     pub response_type: String,

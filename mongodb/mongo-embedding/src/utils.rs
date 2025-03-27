@@ -5,7 +5,6 @@ use tokio::io::AsyncReadExt;
 use crate::anthropic::embed::EmbedVoyage;
 use crate::anthropic::libs::{InputEmbed, EmbedResponse};
 use serde::{ Deserialize, Serialize };
-use tokio::time::sleep;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NewsData {
@@ -37,8 +36,19 @@ pub async fn get_embedding(text: &str) -> Result<EmbedResponse, Box<dyn std::err
         .embed_content(input_str).await?;
     
     // Wait 2 sec to avoid API overload
-    sleep(tokio::time::Duration::from_secs(2)).await;
+    // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
     Ok(response)
+}
+
+pub fn format_news_embed(news: &NewsData) -> String {
+    format!(
+        "Headline: {}\nCategory: {}\nDescription: {}\nAuthors: {}\nDate: {}",
+        news.headline,
+        news.category,
+        news.short_description,
+        news.authors,
+        news.date
+    )
 }
 
 pub async fn handle_file<P: AsRef<Path>>(
@@ -49,19 +59,6 @@ pub async fn handle_file<P: AsRef<Path>>(
     file.read_to_string(&mut contents).await?;
 
     Ok(contents)
-}
-
-pub format_news_embed(news: &NewsData) -> String {
-    let response = format!(
-        "Headline: {}\nCategory: {}\nDescription: {}\nAuthors: {}\nDate: {}",
-        news.headline,
-        news.category,
-        news.short_description,
-        news.authors,
-        news.date
-    );
-
-    response
 }
 
 pub async fn read_json_file(file_path: &str) -> Option<String> {  

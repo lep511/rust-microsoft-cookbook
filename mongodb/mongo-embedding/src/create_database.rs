@@ -1,13 +1,13 @@
-use std::ops::Index;
-use futures::{TryStreamExt};
-use mongodb::{bson::{Document, doc}, Client, Collection, SearchIndexModel};
+use mongodb::{Client, Collection};
 use crate::utils::{
-    NewsData, NewsDataEmbed, get_embedding,
+    NewsDataEmbed, get_embedding,
     format_news_embed, read_json_file,
 };
 use std::env;
 
-pub(crate) async fn handler_database() -> mongodb::error::Result<()> {
+pub(crate) async fn handler_database(
+    file_path: &str
+) -> mongodb::error::Result<()> {
     // Read connection string from environment
     let uri = env::var("MONGODB_URI").expect("MONGODB_URI must be set");
 
@@ -16,9 +16,9 @@ pub(crate) async fn handler_database() -> mongodb::error::Result<()> {
 
     // Get a handle on the movies collection
     let database = client.database("news");
-    let collection: Collection<Document> = database.collection("news_data");
+    let collection: Collection<NewsDataEmbed> = database.collection("news_data");
 
-    let contents = match read_json_file("news_dataset.json").await {
+    let contents = match read_json_file(file_path).await {
         Some(contents) => contents,
         None => {
             println!("Failed to read file");
@@ -26,32 +26,47 @@ pub(crate) async fn handler_database() -> mongodb::error::Result<()> {
         }
     };
 
-    let mut news = Vec::new();
+    let line_count = contents.lines().count();
     let mut news_embed = Vec::new();
+    let mut count = 0;
 
     for line in contents.lines() {
-        let data: NewsData = match serde_json::from_str(&line) {
+        match &serde_json::from_str(&line) {
             Ok(data) => {
                 let format_field: String = format_news_embed(data);
-                let embed = match get_embedding(format_field).await {
-                    Ok(embed) => embed,
+                let response = match get_embedding(&format_field).await {
+                    Ok(embed) => {
+                        println!("Progress: {} of {}", count, line_count);
+                        count += 1;
+                        embed
+                    }
                     Err(e) => {
                         println!("Failed to get embedding {:?}", e);
                         continue;
                     }
                 };
+                
+                let mut embeddings: Vec<f32> = Vec::new();
+
+                if let Some(em_data) = response.data {
+                    for embedding_data in em_data {
+                        if let Some(embedding) = embedding_data.embedding {
+                            embeddings = embedding;
+                        } else {
+                            println!("No embedding found");
+                            continue;
+                        }
+                    }
+                }
+
                 let embed_data = NewsDataEmbed {
-                    title: data.title,
-                    description: data.description,
-                    content: data.content,
-                    url: data.url,
-                    image_url: data.image_url,
-                    published_at: data.published_at,
-                    source: data.source,
-                    category: data.category,
-                    language: data.language,
-                    country: data.country,
-                    embed: embed,
+                    link: data.link.clone(),
+                    headline: data.headline.clone(),
+                    category: data.category.clone(),
+                    short_description: data.short_description.clone(),
+                    authors: data.authors.clone(),
+                    date: data.date.clone(),
+                    news_embedding: embeddings.clone(),
                 };
                 news_embed.push(embed_data);
             }
@@ -59,8 +74,7 @@ pub(crate) async fn handler_database() -> mongodb::error::Result<()> {
                 println!("Failed to parse line: {}", line);
                 continue;
             }
-        };
-        news.push(data);
+        }
     }
 
     let insert_news_result = collection.insert_many(&news_embed).await?;   

@@ -3,7 +3,7 @@ use std::time::Duration;
 use futures::{TryStreamExt};
 use mongodb::{bson::{Document, doc}, Client, Collection, SearchIndexModel};
 use mongodb::SearchIndexType::VectorSearch;
-use serde::{Deserialize, Serialize};
+use crate::utils::NewsDataEmbed;
 use tokio::time::sleep;
 use std::env;
 
@@ -15,8 +15,8 @@ pub(crate) async fn create_vector_index() -> mongodb::error::Result<()> {
     let client = Client::with_uri_str(&uri).await?;
 
     // Get a handle on the movies collection
-    let database = client.database("sample_mflix");
-    let collection: Collection<Document> = database.collection("embedded_movies");
+    let database = client.database("news");
+    let collection: Collection<NewsDataEmbed> = database.collection("news_data");
 
     let index_name = "vector_index";
     let mut cursor = collection.list_search_indexes().await?;
@@ -38,8 +38,8 @@ pub(crate) async fn create_vector_index() -> mongodb::error::Result<()> {
         .definition(doc! {
             "fields": vec! {doc! {
                 "type": "vector",
-                "path": "plot_embedding",
-                "numDimensions": 1536,
+                "path": "news_embedding",
+                "numDimensions": 2048,
                 "similarity": "dotProduct",
                 "quantization": "scalar"
             }}
@@ -78,46 +78,3 @@ pub(crate) async fn create_vector_index() -> mongodb::error::Result<()> {
 
     Ok(())
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use std::collections::HashMap;
-//     use lambda_http::{Request, RequestExt};
-
-//     #[tokio::test]
-//     async fn test_generic_http_handler() {
-//         let request = Request::default();
-
-//         let response = function_handler(request).await.unwrap();
-//         assert_eq!(response.status(), 200);
-
-//         let body_bytes = response.body().to_vec();
-//         let body_string = String::from_utf8(body_bytes).unwrap();
-
-//         assert_eq!(
-//             body_string,
-//             "Hello world, this is an AWS Lambda HTTP request"
-//         );
-//     }
-
-//     #[tokio::test]
-//     async fn test_http_handler_with_query_string() {
-//         let mut query_string_parameters: HashMap<String, String> = HashMap::new();
-//         query_string_parameters.insert("name".into(), "dataser".into());
-
-//         let request = Request::default()
-//             .with_query_string_parameters(query_string_parameters);
-
-//         let response = function_handler(request).await.unwrap();
-//         assert_eq!(response.status(), 200);
-
-//         let body_bytes = response.body().to_vec();
-//         let body_string = String::from_utf8(body_bytes).unwrap();
-
-//         assert_eq!(
-//             body_string,
-//             "Hello dataser, this is an AWS Lambda HTTP request"
-//         );
-//     }
-// }

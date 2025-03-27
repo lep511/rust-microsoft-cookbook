@@ -56,6 +56,7 @@ async fn main() -> mongodb::error::Result<()> {
         db_password
     );
     
+    
     let mut restaurants = Vec::new();
 
     if let Ok(lines) = read_lines("restaurantes.json") {

@@ -3,6 +3,7 @@ use std::time::Duration;
 use futures::{TryStreamExt};
 use mongodb::{bson::{Document, doc}, Client, Collection, SearchIndexModel};
 use mongodb::SearchIndexType::VectorSearch;
+use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 use std::env;
 

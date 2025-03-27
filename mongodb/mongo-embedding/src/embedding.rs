@@ -1,8 +1,8 @@
 use mongodb::{bson::{doc, Document}, Collection, Client};
 // use serde::{ Deserialize, Serialize };
 use futures::TryStreamExt;
-use crate::anthropic::embed::EmbedVoyage;
-use crate::anthropic::libs::{InputEmbed, EmbedResponse};
+use crate::utils::get_embedding;
+use crate::anthropic::libs::EmbedResponse;
 use std::env;
 
 pub(crate) async fn handler_embedding() -> mongodb::error::Result<()> {
@@ -63,17 +63,4 @@ pub(crate) async fn handler_embedding() -> mongodb::error::Result<()> {
     }
 
     Ok(())
-}
-
-async fn get_embedding(text: &str) -> Result<EmbedResponse, Box<dyn std::error::Error>> {
-    
-    let llm = EmbedVoyage::new("voyage-3-large");
-    let input_str = InputEmbed::String("What is the meaning of life?".to_string());
-
-    let response = llm.with_dimensions(2048)
-        .embed_content(input_str).await?;
-    
-    // Wait 3 sec
-    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-    Ok(response)
 }

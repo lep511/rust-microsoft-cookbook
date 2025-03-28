@@ -1,6 +1,10 @@
 use mongodb::{ 
     bson::{Document, doc},
-    Client
+    Client, Collection,
+};
+use crate::utils::{
+    NewsDataEmbed, get_embedding,
+    format_news_embed, read_json_file,
 };
 use futures::TryStreamExt;
 use std::error::Error;
@@ -20,59 +24,98 @@ pub(crate) async fn handler_basic_query() -> mongodb::error::Result<()> {
     let uri = env::var("MONGODB_URI").expect("MONGODB_URI must be set");
     let client = Client::with_uri_str(&uri).await?;
 
-    let file_path = "vector_data.json";
-    let vector_data = handle_file(file_path).await;
-    let parse_vector = vector_data.vector;
+    let file_path = "news_check.jsonl";
+    let contents = match read_json_file(file_path).await {
+        Some(contents) => contents,
+        None => {
+            println!("Failed to read file");
+            return Ok(());
+        }
+    };
+
+    let line_count = contents.lines().count();
+    let mut news_embed: Vec<NewsDataEmbed> = Vec::new();
+
+    for line in contents.lines() {
+        match &serde_json::from_str(&line) {
+            Ok(data) => {
+                let format_field: String = format_news_embed(data);
+                let response = match get_embedding(&format_field).await {
+                    Ok(embed) => embed,
+                    Err(e) => {
+                        println!("Failed to get embedding {:?}", e);
+                        continue;
+                    }
+                };
+                
+                let mut embeddings: Vec<f32> = Vec::new();
+
+                if let Some(em_data) = response.data {
+                    for embedding_data in em_data {
+                        if let Some(embedding) = embedding_data.embedding {
+                            embeddings = embedding;
+                        } else {
+                            println!("No embedding found");
+                            continue;
+                        }
+                    }
+                }
+
+                let embed_data = NewsDataEmbed {
+                    link: data.link.clone(),
+                    headline: data.headline.clone(),
+                    category: data.category.clone(),
+                    short_description: data.short_description.clone(),
+                    authors: data.authors.clone(),
+                    date: data.date.clone(),
+                    news_embedding: embeddings.clone(),
+                };
+                news_embed.push(embed_data);
+            }
+            Err(_) => {
+                println!("Failed to parse line: {}", line);
+                continue;
+            }
+        }
+    }
+
+    let field_select = &news_embed[0];
+    
+    println!("Number of files processed: {}\n", line_count);
+    println!("Headline: {}", field_select.headline);
+    println!("Category: {}", field_select.category);
+    println!("Short Description: {}", field_select.short_description);
+    println!("============================================================\n");
+    
+    let parse_vector = field_select.news_embedding.clone();
     
     let pipeline  = vec! [
         doc! {
             "$vectorSearch": doc! {
             "queryVector": parse_vector,
-            "path": "plot_embedding",
+            "path": "news_embedding",
             "numCandidates": 150,
             "index": "vector_index",
-            "limit": 5
+            "limit": 3
         }
         },
         doc! {
             "$project": doc! {
                 "_id": 0,
-                "plot": 1,
-                "title": 1,
+                "headline": 1,
+                "short_description": 1,
+                "category": 1,
                 "score": doc! { "$meta": "vectorSearchScore"
                 }
             }
         }
     ];
-    let coll = client.database("sample_mflix").collection::<Document>("embedded_movies");
-    let mut results = coll.aggregate(pipeline).await?;
+
+    let database = client.database("news");
+    let collection: Collection<NewsDataEmbed> = database.collection("news_data");
+    let mut results = collection.aggregate(pipeline).await?;
     while let Some(result) = results.try_next().await? {
-        println!("{}", result);
+        println!("{:#?}", result);
     }
     Ok(())
-}
-
-async fn read_json_vector<P: AsRef<Path>>(
-    path: P
-) -> Result<VectorData, Box<dyn Error>> {
-    let mut file = File::open(path).await?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).await?;
-
-    let data: VectorData = serde_json::from_str(&contents)?;
-
-    Ok(data)
-}
-
-async fn handle_file(file_path: &str) -> VectorData {  
-    match read_json_vector(file_path).await {
-        Ok(data) => {
-            println!("JSON file read successfully: {}", file_path);
-            data
-        }
-        Err(e) => {
-            println!("Error reading or parsing JSON file: {}", e);
-            VectorData { vector: vec![] }
-        }
-    }
 }

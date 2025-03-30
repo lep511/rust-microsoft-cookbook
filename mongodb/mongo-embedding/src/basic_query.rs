@@ -1,17 +1,12 @@
 use mongodb::{ 
-    bson::{Document, doc},
-    Client, Collection,
+    bson::doc, Client, Collection,
 };
 use crate::utils::{
     NewsDataEmbed, get_embedding,
     format_news_embed, read_json_file,
 };
 use futures::TryStreamExt;
-use std::error::Error;
 use serde::Deserialize;
-use std::path::Path;
-use tokio::fs::File;
-use tokio::io::AsyncReadExt;
 use std::env;
 
 #[derive(Deserialize, Debug)]

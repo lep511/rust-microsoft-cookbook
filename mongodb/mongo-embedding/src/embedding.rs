@@ -1,4 +1,4 @@
-use mongodb::{bson::{doc, Document}, Collection, Client};
+use mongodb::{bson::{doc, Document}, Client};
 // use serde::{ Deserialize, Serialize };
 use futures::TryStreamExt;
 use crate::utils::get_embedding;

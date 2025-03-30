@@ -1,7 +1,7 @@
 use std::ops::Index;
 use std::time::Duration;
 use futures::{TryStreamExt};
-use mongodb::{bson::{Document, doc}, Client, Collection, SearchIndexModel};
+use mongodb::{bson::doc, Client, Collection, SearchIndexModel};
 use mongodb::SearchIndexType::VectorSearch;
 use crate::utils::NewsDataEmbed;
 use tokio::time::sleep;

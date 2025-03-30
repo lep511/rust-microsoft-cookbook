@@ -1,13 +1,15 @@
 use mongodb::{Client, error::Result};
-use mongodb::bson::{doc, Document};
+use mongodb::bson::doc;
 use futures::stream::TryStreamExt;
 use serde::{Deserialize, Serialize};
 use std::env;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Movie {
-    plot: String,
     title: String,
+    plot: String,
+    year: i32,
+    genres: Vec<String>,
 }
 
 pub(crate) async fn handler_adv_query() -> Result<()> {
@@ -19,28 +21,67 @@ pub(crate) async fn handler_adv_query() -> Result<()> {
     let database = client.database("sample_mflix");
     let collection = database.collection::<Movie>("movies");
 
-    let query_str = "ana";
-    
     // Create the search pipeline
+    // This code example uses the compound operator to combine several operators 
+    // into a single query. It has the following search criteria:
+    //
+    //  - The plot field must contain either Hawaii or Alaska.
+    //  - The plot field must contain a four-digit number, such as a year.
+    //  - The year field must be greater than or equal to 2000.
+    //  - The genres field must not contain either Comedy or Romance.
+    //  - The title field must not contain Beach or Snow.
+
     let pipeline = vec![
         doc! {
             "$search": {
-                "text": {
-                    "query": "jungle",
-                    "path": "plot",
-                },
-            },
-        },
-        doc! {
-            "$limit": 5,
+                "compound": {
+                    "must": [
+                        {
+                            "text": {
+                                "query": ["Hawaii", "Alaska"],
+                                "path": "plot"
+                            }
+                        },
+                        {
+                            "regex": {
+                                "query": "([0-9]{4})",
+                                "path": "plot",
+                                "allowAnalyzedField": true
+                            }
+                        },
+                        {
+                            "range": {
+                                "path": "year",
+                                "gte": 2000,
+                            }
+                        }
+                    ],
+                    "mustNot": [
+                        {
+                            "text": {
+                                "query": ["Comedy", "Romance"],
+                                "path": "genres"
+                            }
+                        },
+                        {
+                            "text": {
+                                "query": ["Beach", "Snow"],
+                                "path": "title"
+                            }
+                        }
+                    ]
+                }
+            }
         },
         doc! {
             "$project": {
                 "_id": 0,
                 "title": 1,
                 "plot": 1,
-            },
-        },
+                "genres": 1,
+                "year": 1,
+            }
+        }
     ];
     
     // Execute the aggregation pipeline
@@ -51,8 +92,12 @@ pub(crate) async fn handler_adv_query() -> Result<()> {
         // Convert BSON document to a Movie struct
         match mongodb::bson::from_document::<Movie>(result) {
             Ok(movie) => {
-                println!("Title: {}  |  Plot: {}", 
-                movie.title, movie.plot);
+                println!("Title: {} | Plot: {} | Year: {:?} | Genres: {:?}", 
+                movie.title, 
+                movie.plot, 
+                movie.year,
+                movie.genres
+                );
             },
             Err(e) => {
                 println!("Error deserializing document: {}", e);

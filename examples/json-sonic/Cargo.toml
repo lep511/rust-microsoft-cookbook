@@ -1,0 +1,9 @@
+[package]
+name = "json-sonic"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bytes = "1.10.1"
+faststr = "0.2.31"
+sonic-rs = "0.4.0"

@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'sam-dynamo
+
+  Sample SAM Template for sam-dynamo
+
+  '
+Globals:
+  Function:
+    Timeout: 3
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+  Api:
+    TracingEnabled: true
+Resources:
+  Table:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey:
+        Name: id
+        Type: String
+  PutFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+      SamResourceId: PutFunction
+    Properties:
+      CodeUri: PutFunction
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures:
+      - x86_64
+      Events:
+        HelloWorld:
+          Type: Api
+          Properties:
+            Path: /{id}
+            Method: put
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: Table
+      Policies:
+      - DynamoDBWritePolicy:
+          TableName:
+            Ref: Table
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+Outputs:
+  PutApi:
+    Description: API Gateway endpoint URL for Prod stage for Put function
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/
+  PutFunction:
+    Description: Put Lambda Function ARN
+    Value:
+      Fn::GetAtt:
+      - PutFunction
+      - Arn
+  PutTable:
+    Description: DynamoDB table name
+    Value:
+      Fn::GetAtt:
+      - Table
+      - Arn

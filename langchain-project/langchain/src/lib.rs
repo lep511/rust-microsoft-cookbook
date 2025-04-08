@@ -4,3 +4,4 @@ pub mod compatible;
 pub mod gemini;
 pub mod langsmith;
 pub mod openai;
+pub mod agents;

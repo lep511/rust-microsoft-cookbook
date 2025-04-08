@@ -1,9 +1,18 @@
 use crate::agents::libs::{Agent, AgentType};
-use crate::anthropic::chat::ChatAnthropic;
-use crate::openai::chat::ChatOpenAI;
 
-const DEFAULT_OPENAI_MODEL: &str = "gpt-4.5-preview";
-const DEFAULT_ANTHROPIC_MODEL: &str = "claude-3";
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FinancialAdvisorAgent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+const ADVISOR_PROMPT: &str = 
+    "You are a financial advisor. Given a set of web search results, \
+    produce a short analysis of the company's recent performance. \
+    Focus on key metrics or quotes. Keep it under 2 paragraphs.";
+
+pub async fn create_advisor_agent() -> Agent {
+    Agent::new(
+        "FinancialAdvisorAgent".to_string(),
+        ADVISOR_PROMPT.to_string(),
+    ).await
+}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FundamentalsAnalystAgent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -18,38 +27,6 @@ pub async fn create_financials_agent() -> Agent {
         "FundamentalsAnalystAgent".to_string(),
         FINANCIALS_PROMPT.to_string(),
     ).await
-}
-
-pub async fn run_financials_agent(
-    agent: &Agent,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let mut result = String::new();
-    match agent.agent_type {
-        AgentType::OpenAI => {
-            let model = agent.model.clone().unwrap_or(DEFAULT_OPENAI_MODEL.to_string());
-            let llm = ChatOpenAI::new(&model);
-            let response = llm.invoke(&agent.instructions).await?;
-            
-            match response.choices {
-                Some(candidates) => {
-                    candidates.iter()
-                        .filter_map(|candidate| candidate
-                            .message.as_ref()?
-                            .content.as_ref()
-                        ).for_each(|content| {
-                            result.push_str(content);
-                        });
-                }
-                None => result = "No response choices available".to_string(),
-            };
-        }
-        AgentType::Anthropic => {
-            let model = agent.model.clone().unwrap_or(DEFAULT_ANTHROPIC_MODEL.to_string());
-            let llm = ChatAnthropic::new(&model);
-            let response = llm.invoke(&agent.instructions).await?;
-        }
-    }
-    Ok(result)
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FinancialPlannerAgent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -85,7 +62,7 @@ pub async fn create_risk_agent() -> Agent {
 
 const SEARCH_PROMPT: &str = 
     "You are a research assistant specializing in financial topics. \
-    Given a search term, use web search to retrieve up‑to‑date context and \
+    Given a search term, use web search to retrieve up-to-date context and \
     produce a short summary of at most 300 words. Focus on key numbers, events, \
     or quotes that will be useful to a financial analyst.";
 

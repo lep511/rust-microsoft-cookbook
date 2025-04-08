@@ -1,3 +1,9 @@
+use crate::anthropic::chat::ChatAnthropic;
+use crate::openai::chat::ChatOpenAI;
+
+const DEFAULT_OPENAI_MODEL: &str = "gpt-4.5-preview";
+const DEFAULT_ANTHROPIC_MODEL: &str = "claude-3";
+
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum AgentType {
@@ -111,6 +117,46 @@ impl Agent {
             hooks: None,
             tool_use_behavior: None,
         }
+    }
+
+    pub async fn run(&self, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+        let mut result = String::new();
+        match self.agent_type {
+            AgentType::OpenAI => {
+                let model = self.model.clone().unwrap_or(DEFAULT_OPENAI_MODEL.to_string());
+                let llm = ChatOpenAI::new(&model);
+                let response = llm.with_system_prompt(&self.instructions)
+                    .invoke(prompt).await?;
+
+                match response.choices {
+                    Some(candidates) => {
+                        candidates.iter()
+                            .filter_map(|candidate| candidate
+                                .message.as_ref()?
+                                .content.as_ref()
+                            ).for_each(|content| {
+                                result.push_str(content);
+                            });
+                    }
+                    None => result = "No response choices available".to_string(),
+                };
+            }
+            AgentType::Anthropic => {
+                let model = self.model.clone().unwrap_or(DEFAULT_ANTHROPIC_MODEL.to_string());
+                let llm = ChatAnthropic::new(&model);
+                let response = llm.with_system_prompt(&self.instructions)
+                    .invoke(prompt).await?;
+                
+                if let Some(candidates) = response.content {
+                    candidates.iter()
+                        .filter_map(|c| c.text.as_ref())
+                        .for_each(|text| result.push_str(text));
+                } else {
+                    result = "No response choices available".to_string();
+                }
+            }
+        }
+        Ok(result)
     }
 }
 

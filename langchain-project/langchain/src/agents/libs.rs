@@ -2,7 +2,7 @@ use crate::anthropic::chat::ChatAnthropic;
 use crate::openai::chat::ChatOpenAI;
 
 const DEFAULT_OPENAI_MODEL: &str = "gpt-4.5-preview";
-const DEFAULT_ANTHROPIC_MODEL: &str = "claude-3";
+const DEFAULT_ANTHROPIC_MODEL: &str = "claude-3-7-sonnet-20250219";
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -39,6 +39,31 @@ pub enum ToolUseBehavior {
     CustomFunction(String),
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct ModelSettings {
+    /// The temperature to use when generating text. This controls the randomness of the output.
+    pub temperature: f32,
+    
+    /// The number of tokens to use when generating text. This controls the length of the output.
+    pub max_tokens: u32,
+
+    /// Configuration for enabling LLM's extended thinking.
+    pub thinking: Option<Thinking>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub enum Thinking {
+    /// The agent is thinking. This means that the agent is currently processing the input
+    /// and generating a response.
+    Enabled(i32),
+    
+    /// The agent is not thinking. This means that the agent is not currently processing the input
+    /// and generating a response.
+    Disabled,
+}
+
 /// An agent is an AI model configured with instructions, tools, guardrails, handoffs and more.
 ///
 /// We strongly recommend passing `instructions`, which is the "system prompt" for the agent. In
@@ -73,7 +98,7 @@ pub struct Agent {
     pub model: Option<String>,
 
     /// Configures model-specific tuning parameters (e.g. temperature, top_p)
-    pub model_settings: Option<String>,
+    pub model_settings: Option<ModelSettings>,
 
     /// A list of tools that the agent can use.
     pub tools: Option<Vec<String>>,
@@ -119,14 +144,37 @@ impl Agent {
         }
     }
 
+    pub async fn model_settings(
+        &mut self,
+        temperature: f32,
+        max_tokens: u32,
+        thinking: Option<Thinking>,
+    ) -> &mut Self {
+        self.model_settings = Some(ModelSettings {
+            temperature,
+            max_tokens,
+            thinking,
+        });
+        self
+    }
+
     pub async fn run(&self, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
         let mut result = String::new();
         match self.agent_type {
             AgentType::OpenAI => {
                 let model = self.model.clone().unwrap_or(DEFAULT_OPENAI_MODEL.to_string());
-                let llm = ChatOpenAI::new(&model);
-                let response = llm.with_system_prompt(&self.instructions)
-                    .invoke(prompt).await?;
+                let mut llm = ChatOpenAI::new(&model);
+                llm = llm.with_system_prompt(&self.instructions)
+                    .with_temperature(self.model_settings.as_ref().map_or(1.0, |s| s.temperature))
+                    .with_max_tokens(self.model_settings.as_ref().map_or(4096, |s| s.max_tokens));
+
+                // if let Some(thinking) = &self.model_settings {
+                //     if let Some(Thinking::Enabled(_)) = thinking.thinking {
+                //         llm = llm.with_thinking(thinking.thinking.clone().unwrap());
+                //     }
+                // }
+
+                let response = llm.invoke(prompt).await?;
 
                 match response.choices {
                     Some(candidates) => {
@@ -143,9 +191,12 @@ impl Agent {
             }
             AgentType::Anthropic => {
                 let model = self.model.clone().unwrap_or(DEFAULT_ANTHROPIC_MODEL.to_string());
-                let llm = ChatAnthropic::new(&model);
-                let response = llm.with_system_prompt(&self.instructions)
-                    .invoke(prompt).await?;
+                let mut llm = ChatAnthropic::new(&model);
+                llm = llm.with_system_prompt(&self.instructions)
+                    .with_temperature(self.model_settings.as_ref().map_or(1.0, |s| s.temperature))
+                    .with_max_tokens(self.model_settings.as_ref().map_or(4096, |s| s.max_tokens));
+
+                let response = llm.invoke(prompt).await?;
                 
                 if let Some(candidates) = response.content {
                     candidates.iter()

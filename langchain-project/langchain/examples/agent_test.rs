@@ -1,13 +1,17 @@
 use langchain::agents::financials_agents::create_advisor_agent;
+use langchain::agents::financials_agents::create_planner_agent;
+use langchain::agents::libs::AgentType;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    // Create the financials agent
+    // Create the advisor financials agent
     let financial_agent = create_advisor_agent().await;
     // Print the agent's name and prompt
     println!("Agent Name: {}", financial_agent.name);
     println!("Agent Prompt: {}", financial_agent.instructions);
+    println!("Agent Type: {:?}", financial_agent.agent_type);
+    println!("Agent Model: Default");
 
     let web_search = "Tesla in 2025 - Tesla Inc.'s stock extended losses Monday, dropping \
             below a price at which Commerce Secretary Howard Lutnick predicted they'd never \
@@ -40,18 +44,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             And while Tesla is seen as relatively insulated from the 25% tariffs announced  \
             by Trump on imported autos, Musk has warned the company won't be unscathed. \
             \
-            “The tariffs in their current form will disrupt Tesla, the overall supply chain,  \
+            \"The tariffs in their current form will disrupt Tesla, the overall supply chain,  \
             and its global footprint which has been a clear advantage over the years versus  \
             rising competitors like BYD,\" Wedbush's Ives said in a note to clients on Sunday. \
             \
             The bigger worry, according to Ives, is Tesla's position in China. \
             \
-            “The backlash from Trump tariff policies in China and Musk's association will \
+            \"The backlash from Trump tariff policies in China and Musk's association will \
             be hard to understate, and this will further drive Chinese consumers to buy \
             domestic such as BYD, Nio, Xpeng, and others,\" Ives wrote.";
-
+    
+    let mut result = String::new();
+    
     financial_agent
         .run(web_search)
+        .await
+        .map(|response| {
+            println!("Agent Response: {}", response);
+            result = response.clone();
+        })
+        .unwrap_or_else(|err| println!("Error invoking agent: {}", err));
+
+    
+    // Create the financial planner agent
+    let mut financial_planner_agent = create_planner_agent().await;
+    
+    // Set the agent type to Anthropic
+    let model_name = "claude-3-7-sonnet-20250219".to_string();
+    financial_planner_agent.agent_type = AgentType::Anthropic;
+    financial_planner_agent.model = Some(model_name);
+
+    // Set model settings
+    let temperature = 0.7;
+    let max_tokens = 2048;
+    let thinking = None;
+
+    financial_planner_agent.model_settings(temperature, max_tokens, thinking);
+
+    println!("\n\nCreating Financial Planner Agent...");
+    println!("Agent Name: {}", financial_planner_agent.name);
+    println!("Agent Prompt: {}", financial_planner_agent.instructions);
+    println!("Agent Type: {:?}", financial_planner_agent.agent_type);
+    println!("Agent Model: {:?}", financial_planner_agent.model);
+
+    financial_planner_agent
+        .run(&result)
         .await
         .map(|response| println!("Agent Response: {}", response))
         .unwrap_or_else(|err| println!("Error invoking agent: {}", err));

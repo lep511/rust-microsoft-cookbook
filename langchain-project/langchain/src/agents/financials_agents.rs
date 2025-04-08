@@ -1,4 +1,4 @@
-use crate::agents::libs::{Agent, AgentType};
+use crate::agents::libs::Agent;
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FinancialAdvisorAgent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
